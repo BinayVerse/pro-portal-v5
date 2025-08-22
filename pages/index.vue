@@ -63,10 +63,24 @@
               <UIcon name="heroicons:link" class="w-8 h-8 text-primary-400" />
             </div>
             <h3 class="text-xl font-semibold text-white mb-4">Workplace Connectivity</h3>
-            <p class="text-gray-300">
+            <p class="text-gray-300 mb-4">
               Integrate with Slack, Microsoft Teams, and WhatsApp for frictionless collaboration and
               support.
             </p>
+            <div class="flex items-center justify-center space-x-4 mt-4">
+              <div class="flex items-center space-x-2 bg-dark-700/50 rounded-lg px-3 py-2">
+                <UIcon name="mdi:slack" class="w-5 h-5 text-purple-400" />
+                <span class="text-sm text-gray-300">Slack</span>
+              </div>
+              <div class="flex items-center space-x-2 bg-dark-700/50 rounded-lg px-3 py-2">
+                <UIcon name="mdi:microsoft-teams" class="w-5 h-5 text-blue-400" />
+                <span class="text-sm text-gray-300">Teams</span>
+              </div>
+              <div class="flex items-center space-x-2 bg-dark-700/50 rounded-lg px-3 py-2">
+                <UIcon name="mdi:whatsapp" class="w-5 h-5 text-green-400" />
+                <span class="text-sm text-gray-300">WhatsApp</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
