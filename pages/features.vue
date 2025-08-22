@@ -213,7 +213,7 @@
               <div
                 class="w-16 h-16 bg-primary-500/20 rounded-xl flex items-center justify-center mx-auto mb-4"
               >
-                <UIcon name="i-heroicons-chart-line" class="w-8 h-8 text-primary-400" />
+                <UIcon name="heroicons:chart-line" class="w-8 h-8 text-primary-400" />
               </div>
               <h3 class="text-lg font-bold text-white mb-3">Trend Analysis</h3>
               <p class="text-gray-300 text-sm">Identify popular documents and query patterns.</p>
