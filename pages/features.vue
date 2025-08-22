@@ -105,9 +105,21 @@
                 </div>
                 <div class="flex items-center space-x-3">
                   <div class="w-8 h-8 bg-yellow-500/20 rounded flex items-center justify-center">
-                    <UIcon name="i-heroicons-document-text" class="w-4 h-4 text-yellow-400" />
+                    <UIcon name="heroicons:document-text" class="w-4 h-4 text-yellow-400" />
                   </div>
                   <span class="text-gray-300">TXT</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 bg-pink-500/20 rounded flex items-center justify-center">
+                    <UIcon name="heroicons:photo" class="w-4 h-4 text-pink-400" />
+                  </div>
+                  <span class="text-gray-300">Image</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 bg-indigo-500/20 rounded flex items-center justify-center">
+                    <UIcon name="heroicons:circle-stack" class="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <span class="text-gray-300">Database</span>
                 </div>
               </div>
             </div>
