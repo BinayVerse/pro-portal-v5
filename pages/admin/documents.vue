@@ -68,19 +68,7 @@
             <p class="text-3xl font-bold text-white mt-2">{{ totalSize }}</p>
           </div>
           <div class="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
-            <svg
-              class="w-6 h-6 text-orange-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
-              ></path>
-            </svg>
+            <UIcon name="heroicons:circle-stack" class="w-6 h-6 text-orange-400" />
           </div>
         </div>
       </div>
@@ -93,19 +81,7 @@
         <div class="flex-1">
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                class="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
+              <UIcon name="heroicons:magnifying-glass" class="h-5 w-5 text-gray-400" />
             </div>
             <input
               v-model="searchQuery"
@@ -309,14 +285,7 @@
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-white">Upload Document</h3>
           <button @click="showUploadModal = false" class="text-gray-400 hover:text-white">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
+            <UIcon name="heroicons:x-mark" class="w-5 h-5" />
           </button>
         </div>
 
