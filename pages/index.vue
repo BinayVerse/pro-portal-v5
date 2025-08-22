@@ -9,7 +9,7 @@
             <span class="text-primary-400">Intelligent Conversations</span>
           </h1>
           <p class="text-xl text-gray-300 mb-8 max-w-3xl mx-auto animate-slide-up">
-            Transform your documents into interactive conversations. Upload, organize, and chat with
+            Transform your artefacts into interactive conversations. Upload, organize, and chat with
             your files using advanced AI technology.
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center items-center animate-scale-up">
@@ -25,7 +25,7 @@
         <div class="text-center mb-16">
           <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">Why Choose Provento.ai?</h2>
           <p class="text-xl text-gray-300 max-w-2xl mx-auto">
-            Powerful features designed to revolutionize how you interact with your documents
+            Powerful features designed to revolutionize how you interact with your artefacts
           </p>
         </div>
 
@@ -38,7 +38,7 @@
             </div>
             <h3 class="text-xl font-semibold text-white mb-4">Intelligent Chat</h3>
             <p class="text-gray-300">
-              Ask questions about your documents and get instant, accurate answers powered by
+              Ask questions about your artefacts and get instant, accurate answers powered by
               advanced AI.
             </p>
           </div>
@@ -82,7 +82,7 @@
         </h2>
         <p class="text-xl text-gray-300 mb-8">
           Join thousands of businesses already using Provento.ai to unlock the power of their
-          documents.
+          artefacts.
         </p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <NuxtLink to="/book-meeting" class="btn-primary text-lg px-8 py-4">
