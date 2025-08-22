@@ -398,24 +398,24 @@ const solutions: Record<string, any> = {
         title: 'Policy Intelligence',
         description:
           'Search and analyze complex policy documents with intelligent content understanding.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Records Management',
         description:
           'Organize and search public records with advanced indexing and categorization.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Compliance Tracking',
         description: 'Monitor and ensure adherence to government regulations and policies.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Citizen Services',
         description:
           'Enhance citizen services with faster document processing and information retrieval.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },
@@ -423,7 +423,7 @@ const solutions: Record<string, any> = {
     name: 'Insurance',
     description:
       'Streamline claims processing and risk assessment workflows with intelligent document analysis for faster, more accurate insurance operations.',
-    icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+    icon: 'heroicons:shield-check',
     keyPoints: [
       'Complex claims processing workflows',
       'Risk assessment documentation',
