@@ -398,24 +398,24 @@ const solutions: Record<string, any> = {
         title: 'Policy Intelligence',
         description:
           'Search and analyze complex policy documents with intelligent content understanding.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Records Management',
         description:
           'Organize and search public records with advanced indexing and categorization.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Compliance Tracking',
         description: 'Monitor and ensure adherence to government regulations and policies.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Citizen Services',
         description:
           'Enhance citizen services with faster document processing and information retrieval.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },
@@ -423,7 +423,7 @@ const solutions: Record<string, any> = {
     name: 'Insurance',
     description:
       'Streamline claims processing and risk assessment workflows with intelligent document analysis for faster, more accurate insurance operations.',
-    icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+    icon: 'heroicons:shield-check',
     keyPoints: [
       'Complex claims processing workflows',
       'Risk assessment documentation',
@@ -470,24 +470,24 @@ const solutions: Record<string, any> = {
         title: 'Claims Intelligence',
         description:
           'Extract key information from claims documents with intelligent document processing.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Risk Analysis',
         description:
           'Automatically assess risk factors from application documents and supporting materials.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Fraud Detection',
         description:
           'Identify potential fraud indicators through document analysis and pattern recognition.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Policy Management',
         description: 'Organize and search policy documents with intelligent categorization.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },
@@ -495,7 +495,7 @@ const solutions: Record<string, any> = {
     name: 'Legal',
     description:
       'Transform legal research, contract analysis, and case preparation with AI-powered document intelligence. Quickly find relevant precedents, analyze contracts, and extract key legal insights.',
-    icon: 'M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16l-3-3m3 3l3-3',
+    icon: 'heroicons:scale',
     keyPoints: [
       'Time-consuming manual document review',
       'Difficulty finding relevant case precedents',
@@ -542,25 +542,25 @@ const solutions: Record<string, any> = {
         title: 'Contract Intelligence',
         description:
           'Extract and analyze key contract terms, obligations, and potential risks with AI-powered legal analysis.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Legal Precedent Search',
         description:
           'Find relevant case law and legal precedents from vast legal databases and case libraries.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Compliance Monitoring',
         description:
           'Ensure documents meet current legal standards and regulatory requirements across jurisdictions.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Document Classification',
         description:
           'Automatically categorize and tag legal documents by type, jurisdiction, and practice area.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },
@@ -615,22 +615,22 @@ const solutions: Record<string, any> = {
         title: 'Technical Intelligence',
         description:
           'Search and analyze complex technical specifications with intelligent document processing.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Quality Management',
         description: 'Organize and track quality control documents and inspection records.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Process Optimization',
         description: 'Analyze process documentation to identify optimization opportunities.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Compliance Tracking',
         description: 'Monitor and ensure compliance with manufacturing standards and regulations.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },
@@ -638,7 +638,7 @@ const solutions: Record<string, any> = {
     name: 'Real Estate',
     description:
       'Simplify property documentation and transaction management with intelligent document processing for contracts, leases, and market analysis.',
-    icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+    icon: 'heroicons:home',
     keyPoints: [
       'Complex property documentation',
       'Contract and lease management',
@@ -683,22 +683,22 @@ const solutions: Record<string, any> = {
       {
         title: 'Property Intelligence',
         description: 'Search and analyze property documents with intelligent content recognition.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Contract Analysis',
         description: 'Automatically extract and analyze key terms from contracts and leases.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Market Insights',
         description: 'Analyze market data and reports for informed investment decisions.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Due Diligence',
         description: 'Streamline due diligence processes with comprehensive document analysis.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },
@@ -706,7 +706,7 @@ const solutions: Record<string, any> = {
     name: 'Healthcare',
     description:
       'Improve patient care with intelligent medical document analysis for research studies, treatment protocols, and patient documentation.',
-    icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
+    icon: 'heroicons:heart',
     keyPoints: [
       'Complex medical documentation',
       'Research data management',
@@ -751,22 +751,22 @@ const solutions: Record<string, any> = {
       {
         title: 'Medical Intelligence',
         description: 'Search and analyze medical documents with healthcare-specific understanding.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Research Support',
         description: 'Organize and analyze medical research studies and clinical trial data.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Protocol Management',
         description: 'Access and compare treatment protocols with intelligent categorization.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Patient Care',
         description: 'Enhance patient care with quick access to relevant medical information.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },

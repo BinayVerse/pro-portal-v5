@@ -13,14 +13,7 @@
           @click="showUploadModal = true"
           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-            ></path>
-          </svg>
+          <UIcon name="heroicons:cloud-arrow-up" class="w-4 h-4" />
           <span>Upload Document</span>
         </button>
       </div>
@@ -36,19 +29,7 @@
             <p class="text-3xl font-bold text-white mt-2">{{ totalDocuments }}</p>
           </div>
           <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-            <svg
-              class="w-6 h-6 text-blue-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              ></path>
-            </svg>
+            <UIcon name="heroicons:document-text" class="w-6 h-6 text-blue-400" />
           </div>
         </div>
       </div>
@@ -61,19 +42,7 @@
             <p class="text-3xl font-bold text-white mt-2">{{ processedDocuments }}</p>
           </div>
           <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
-            <svg
-              class="w-6 h-6 text-green-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
+            <UIcon name="heroicons:check-circle" class="w-6 h-6 text-green-400" />
           </div>
         </div>
       </div>
@@ -86,19 +55,7 @@
             <p class="text-3xl font-bold text-white mt-2">{{ totalCategories }}</p>
           </div>
           <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
-            <svg
-              class="w-6 h-6 text-purple-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M7 7h10l4 12H3l4-12z"
-              ></path>
-            </svg>
+            <UIcon name="heroicons:funnel" class="w-6 h-6 text-purple-400" />
           </div>
         </div>
       </div>
@@ -111,19 +68,7 @@
             <p class="text-3xl font-bold text-white mt-2">{{ totalSize }}</p>
           </div>
           <div class="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
-            <svg
-              class="w-6 h-6 text-orange-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
-              ></path>
-            </svg>
+            <UIcon name="heroicons:circle-stack" class="w-6 h-6 text-orange-400" />
           </div>
         </div>
       </div>
@@ -136,19 +81,7 @@
         <div class="flex-1">
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                class="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
+              <UIcon name="heroicons:magnifying-glass" class="h-5 w-5 text-gray-400" />
             </div>
             <input
               v-model="searchQuery"
@@ -184,6 +117,8 @@
             <option value="Word">Word</option>
             <option value="Markdown">Markdown</option>
             <option value="CSV">CSV</option>
+            <option value="Image">Image</option>
+            <option value="Database">Database</option>
           </select>
         </div>
 
@@ -265,19 +200,7 @@
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                   <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                    <svg
-                      class="w-5 h-5 text-blue-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      ></path>
-                    </svg>
+                    <UIcon name="heroicons:document-text" class="w-5 h-5 text-blue-400" />
                   </div>
                   <div class="ml-3">
                     <div class="text-sm font-medium text-white">{{ document.name }}</div>
@@ -333,46 +256,19 @@
                     @click="viewDocument(document)"
                     class="text-blue-400 hover:text-blue-300 transition-colors"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      ></path>
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                      ></path>
-                    </svg>
+                    <UIcon name="heroicons:eye" class="w-4 h-4" />
                   </button>
                   <button
                     @click="downloadDocument(document)"
                     class="text-green-400 hover:text-green-300 transition-colors"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      ></path>
-                    </svg>
+                    <UIcon name="heroicons:arrow-down-tray" class="w-4 h-4" />
                   </button>
                   <button
                     @click="deleteDocument(document)"
                     class="text-red-400 hover:text-red-300 transition-colors"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      ></path>
-                    </svg>
+                    <UIcon name="heroicons:trash" class="w-4 h-4" />
                   </button>
                 </div>
               </td>
@@ -391,14 +287,7 @@
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-white">Upload Document</h3>
           <button @click="showUploadModal = false" class="text-gray-400 hover:text-white">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
+            <UIcon name="heroicons:x-mark" class="w-5 h-5" />
           </button>
         </div>
 
