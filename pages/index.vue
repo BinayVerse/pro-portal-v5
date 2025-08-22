@@ -78,7 +78,7 @@
     >
       <div class="max-w-4xl mx-auto text-center">
         <h2 class="text-3xl sm:text-4xl font-bold text-white mb-6">
-          Ready to Transform Your Document Workflow?
+          Ready to Transform Your Artefact Workflow?
         </h2>
         <p class="text-xl text-gray-300 mb-8">
           Join thousands of businesses already using Provento.ai to unlock the power of their
