@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-black">
     <!-- Header Navigation -->
     <header class="bg-black border-b border-dark-700 sticky top-0 z-50">
-      <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <!-- Logo and brand -->
           <NuxtLink to="/" class="flex items-center space-x-3">
@@ -42,20 +42,11 @@
                 :class="{ 'text-primary-400': $route.path.includes('/solutions') }"
               >
                 Solutions
-                <svg
+                <UIcon
+                  name="i-heroicons-chevron-down"
                   class="ml-1 w-4 h-4 transition-transform duration-200"
                   :class="{ 'rotate-180': showSolutions }"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 9l-7 7-7-7"
-                  ></path>
-                </svg>
+                />
               </button>
 
               <!-- Solutions dropdown -->
@@ -120,14 +111,7 @@
             @click="mobileMenuOpen = !mobileMenuOpen"
             class="md:hidden text-gray-300 hover:text-white p-2"
           >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6h16M4 12h16M4 18h16"
-              ></path>
-            </svg>
+            <UIcon name="i-heroicons-bars-3" class="w-6 h-6" />
           </button>
         </div>
 

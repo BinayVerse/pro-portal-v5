@@ -34,19 +34,7 @@
                 <div
                   class="w-12 h-12 bg-primary-500/20 rounded-lg flex items-center justify-center"
                 >
-                  <svg
-                    class="w-6 h-6 text-primary-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      :d="solution.icon"
-                    ></path>
-                  </svg>
+                  <UIcon :name="solution.icon" class="w-6 h-6 text-primary-400" />
                 </div>
                 <h1 class="text-2xl font-bold text-white">{{ solution.name }}</h1>
               </div>
@@ -59,8 +47,6 @@
                   <span class="text-gray-300 text-sm">{{ point }}</span>
                 </div>
               </div>
-
-              <NuxtLink to="/book-meeting" class="btn-primary w-full mt-6"> Learn More → </NuxtLink>
             </div>
           </div>
 
@@ -74,19 +60,7 @@
                   <div
                     class="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0"
                   >
-                    <svg
-                      class="w-4 h-4 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M5 13l4 4L19 7"
-                      ></path>
-                    </svg>
+                    <UIcon name="i-heroicons-check" class="w-4 h-4 text-white" />
                   </div>
                   <span class="text-gray-300">{{ help }}</span>
                 </div>
@@ -107,19 +81,7 @@
               <div
                 class="w-12 h-12 bg-primary-500/20 rounded-lg flex items-center justify-center mb-4"
               >
-                <svg
-                  class="w-6 h-6 text-primary-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  ></path>
-                </svg>
+                <UIcon name="i-heroicons-document-text" class="w-6 h-6 text-primary-400" />
               </div>
               <h3 class="text-lg font-semibold text-white mb-3">{{ useCase.title }}</h3>
               <p class="text-gray-300 text-sm mb-4">{{ useCase.description }}</p>
@@ -175,19 +137,7 @@
                 <div
                   class="w-12 h-12 bg-primary-500/20 rounded-lg flex items-center justify-center flex-shrink-0"
                 >
-                  <svg
-                    class="w-6 h-6 text-primary-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      :d="feature.icon"
-                    ></path>
-                  </svg>
+                  <UIcon :name="feature.icon" class="w-6 h-6 text-primary-400" />
                 </div>
                 <div>
                   <h3 class="text-lg font-semibold text-white mb-2">{{ feature.title }}</h3>
@@ -255,7 +205,7 @@ const solutions: Record<string, any> = {
     name: 'Education',
     description:
       'Enhance learning experiences and administrative efficiency with intelligent document management for educational institutions.',
-    icon: 'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z',
+    icon: 'i-heroicons-academic-cap',
     keyPoints: [
       'Time-consuming manual document review',
       'Difficulty finding relevant case precedents',
@@ -303,25 +253,25 @@ const solutions: Record<string, any> = {
         title: 'Academic Content Search',
         description:
           'Search across syllabi, lecture notes, research papers, and academic databases with intelligent content recognition.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'i-heroicons-magnifying-glass',
       },
       {
         title: 'Citation Management',
         description:
           'Automatically format and verify academic citations across different style guides like APA, MLA, and Chicago.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'i-heroicons-document-text',
       },
       {
         title: 'Plagiarism Detection',
         description:
           'Identify potential plagiarism and citation issues in student submissions and research papers.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'i-heroicons-check-circle',
       },
       {
         title: 'Learning Analytics',
         description:
           'Track document usage patterns to understand learning preferences and improve curriculum design.',
-        icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+        icon: 'i-heroicons-chart-bar',
       },
     ],
   },
@@ -329,7 +279,7 @@ const solutions: Record<string, any> = {
     name: 'Finance & Banking',
     description:
       'Transform financial research, contract analysis, and case preparation with AI-powered document intelligence. Quickly find relevant precedents, analyze contracts, and extract key legal insights.',
-    icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
+    icon: 'i-heroicons-currency-dollar',
     keyPoints: [
       'Complex financial document analysis',
       'Risk assessment requirements',
@@ -376,24 +326,24 @@ const solutions: Record<string, any> = {
         title: 'Financial Intelligence',
         description:
           'Extract and analyze key financial metrics, ratios, and risk indicators with AI-powered analysis.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'i-heroicons-document-text',
       },
       {
         title: 'Risk Assessment',
         description:
           'Automatically identify and categorize financial risks from document analysis.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'i-heroicons-magnifying-glass',
       },
       {
         title: 'Regulatory Compliance',
         description:
           'Ensure documents meet current financial regulations and compliance standards.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'i-heroicons-check-circle',
       },
       {
         title: 'Document Classification',
         description: 'Automatically categorize and tag financial documents by type and importance.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'i-heroicons-folder',
       },
     ],
   },
@@ -401,7 +351,7 @@ const solutions: Record<string, any> = {
     name: 'Government',
     description:
       'Modernize public sector document management and citizen services with intelligent document processing for policy documents, public records, and regulatory compliance.',
-    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+    icon: 'i-heroicons-building-office',
     keyPoints: [
       'Complex policy document management',
       'Public records accessibility',
