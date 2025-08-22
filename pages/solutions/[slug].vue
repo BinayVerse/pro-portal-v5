@@ -615,22 +615,22 @@ const solutions: Record<string, any> = {
         title: 'Technical Intelligence',
         description:
           'Search and analyze complex technical specifications with intelligent document processing.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Quality Management',
         description: 'Organize and track quality control documents and inspection records.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Process Optimization',
         description: 'Analyze process documentation to identify optimization opportunities.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Compliance Tracking',
         description: 'Monitor and ensure compliance with manufacturing standards and regulations.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },
@@ -638,7 +638,7 @@ const solutions: Record<string, any> = {
     name: 'Real Estate',
     description:
       'Simplify property documentation and transaction management with intelligent document processing for contracts, leases, and market analysis.',
-    icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+    icon: 'heroicons:home',
     keyPoints: [
       'Complex property documentation',
       'Contract and lease management',
