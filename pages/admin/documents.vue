@@ -117,6 +117,8 @@
             <option value="Word">Word</option>
             <option value="Markdown">Markdown</option>
             <option value="CSV">CSV</option>
+            <option value="Image">Image</option>
+            <option value="Database">Database</option>
           </select>
         </div>
 
