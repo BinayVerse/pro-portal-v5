@@ -51,7 +51,7 @@
             </div>
             <h3 class="text-xl font-semibold text-white mb-4">Multi-Format Support</h3>
             <p class="text-gray-300">
-              Support for PDF, DOC, CSV, Markdown, and TXT. Upload from local storage or Google
+              Support for PDF, DOC, CSV, Markdown, TXT, Image, and Database. Upload from local storage or Google
               Drive.
             </p>
           </div>
