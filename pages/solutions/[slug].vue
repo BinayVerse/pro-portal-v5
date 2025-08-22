@@ -542,25 +542,25 @@ const solutions: Record<string, any> = {
         title: 'Contract Intelligence',
         description:
           'Extract and analyze key contract terms, obligations, and potential risks with AI-powered legal analysis.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Legal Precedent Search',
         description:
           'Find relevant case law and legal precedents from vast legal databases and case libraries.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Compliance Monitoring',
         description:
           'Ensure documents meet current legal standards and regulatory requirements across jurisdictions.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Document Classification',
         description:
           'Automatically categorize and tag legal documents by type, jurisdiction, and practice area.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },
