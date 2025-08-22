@@ -683,22 +683,22 @@ const solutions: Record<string, any> = {
       {
         title: 'Property Intelligence',
         description: 'Search and analyze property documents with intelligent content recognition.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Contract Analysis',
         description: 'Automatically extract and analyze key terms from contracts and leases.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Market Insights',
         description: 'Analyze market data and reports for informed investment decisions.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Due Diligence',
         description: 'Streamline due diligence processes with comprehensive document analysis.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },
@@ -706,7 +706,7 @@ const solutions: Record<string, any> = {
     name: 'Healthcare',
     description:
       'Improve patient care with intelligent medical document analysis for research studies, treatment protocols, and patient documentation.',
-    icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
+    icon: 'heroicons:heart',
     keyPoints: [
       'Complex medical documentation',
       'Research data management',
