@@ -470,24 +470,24 @@ const solutions: Record<string, any> = {
         title: 'Claims Intelligence',
         description:
           'Extract key information from claims documents with intelligent document processing.',
-        icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        icon: 'heroicons:document-text',
       },
       {
         title: 'Risk Analysis',
         description:
           'Automatically assess risk factors from application documents and supporting materials.',
-        icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+        icon: 'heroicons:magnifying-glass',
       },
       {
         title: 'Fraud Detection',
         description:
           'Identify potential fraud indicators through document analysis and pattern recognition.',
-        icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        icon: 'heroicons:check-circle',
       },
       {
         title: 'Policy Management',
         description: 'Organize and search policy documents with intelligent categorization.',
-        icon: 'M7 7h10l4 12H3l4-12z',
+        icon: 'heroicons:funnel',
       },
     ],
   },
@@ -495,7 +495,7 @@ const solutions: Record<string, any> = {
     name: 'Legal',
     description:
       'Transform legal research, contract analysis, and case preparation with AI-powered document intelligence. Quickly find relevant precedents, analyze contracts, and extract key legal insights.',
-    icon: 'M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16l-3-3m3 3l3-3',
+    icon: 'heroicons:scale',
     keyPoints: [
       'Time-consuming manual document review',
       'Difficulty finding relevant case precedents',
