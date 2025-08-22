@@ -139,9 +139,9 @@
                     name="i-heroicons-arrow-path"
                     class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
                   />
-                  Booking Demo...
+                  Booking a Demo...
                 </span>
-                <span v-else>Book Demo</span>
+                <span v-else>Book a Demo</span>
               </button>
             </form>
           </div>
@@ -176,7 +176,7 @@
                 </div>
                 <div class="flex items-center">
                   <UIcon name="i-heroicons-document-text" class="w-5 h-5 text-primary-400 mr-3" />
-                  <span class="text-gray-300">Custom document demo</span>
+                  <span class="text-gray-300">Custom artefact demo</span>
                 </div>
                 <div class="flex items-center">
                   <UIcon

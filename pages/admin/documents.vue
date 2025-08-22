@@ -3,9 +3,9 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-white mb-2">Document Management</h1>
+        <h1 class="text-2xl font-bold text-white mb-2">Artefact Management</h1>
         <p class="text-gray-400">
-          Upload, organize, and manage documents for AI processing and chat capabilities.
+          Upload, organize, and manage artefacts for AI processing and chat capabilities.
         </p>
       </div>
       <div>
@@ -14,7 +14,7 @@
           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
         >
           <UIcon name="heroicons:cloud-arrow-up" class="w-4 h-4" />
-          <span>Upload Document</span>
+          <span>Upload Artefact</span>
         </button>
       </div>
     </div>
@@ -25,8 +25,8 @@
       <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-gray-400 text-sm font-medium">Total Documents</p>
-            <p class="text-3xl font-bold text-white mt-2">{{ totalDocuments }}</p>
+            <p class="text-gray-400 text-sm font-medium">Total Artefacts</p>
+            <p class="text-3xl font-bold text-white mt-2">{{ totalArtefacts }}</p>
           </div>
           <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:document-text" class="w-6 h-6 text-blue-400" />
@@ -39,7 +39,7 @@
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Processed</p>
-            <p class="text-3xl font-bold text-white mt-2">{{ processedDocuments }}</p>
+            <p class="text-3xl font-bold text-white mt-2">{{ processedArtefacts }}</p>
           </div>
           <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:check-circle" class="w-6 h-6 text-green-400" />
@@ -86,7 +86,7 @@
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Search documents..."
+              placeholder="Search artefacts..."
               class="block w-full pl-10 pr-3 py-3 border border-dark-700 rounded-lg bg-dark-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
@@ -141,9 +141,9 @@
     <div class="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
       <!-- Table Header -->
       <div class="px-6 py-4 border-b border-dark-700">
-        <h2 class="text-lg font-semibold text-white">All Documents</h2>
+        <h2 class="text-lg font-semibold text-white">All Artefacts</h2>
         <p class="text-gray-400 text-sm">
-          Manage your uploaded documents and view their processing status and AI-generated
+          Manage your uploaded artefacts and view their processing status and AI-generated
           summaries.
         </p>
       </div>
@@ -156,7 +156,7 @@
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"
               >
-                Document
+                Artefact
               </th>
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"
@@ -192,8 +192,8 @@
           </thead>
           <tbody class="divide-y divide-dark-700">
             <tr
-              v-for="document in filteredDocuments"
-              :key="document.id"
+              v-for="artefact in filteredArtefacts"
+              :key="artefact.id"
               class="hover:bg-dark-700/50 transition-colors"
             >
               <!-- Document -->
@@ -203,8 +203,8 @@
                     <UIcon name="heroicons:document-text" class="w-5 h-5 text-blue-400" />
                   </div>
                   <div class="ml-3">
-                    <div class="text-sm font-medium text-white">{{ document.name }}</div>
-                    <div class="text-sm text-gray-400">{{ document.description }}</div>
+                    <div class="text-sm font-medium text-white">{{ artefact.name }}</div>
+                    <div class="text-sm text-gray-400">{{ artefact.description }}</div>
                   </div>
                 </div>
               </td>
@@ -213,59 +213,59 @@
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
                   class="inline-flex px-2 py-1 text-xs font-medium rounded-full"
-                  :class="getCategoryColor(document.category)"
+                  :class="getCategoryColor(artefact.category)"
                 >
-                  {{ document.category }}
+                  {{ artefact.category }}
                 </span>
               </td>
 
               <!-- Type & Size -->
               <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-white">{{ document.type }}</div>
-                <div class="text-sm text-gray-400">{{ document.size }}</div>
+                <div class="text-sm text-white">{{ artefact.type }}</div>
+                <div class="text-sm text-gray-400">{{ artefact.size }}</div>
               </td>
 
               <!-- Status -->
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
                   class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
-                  :class="getStatusColor(document.status)"
+                  :class="getStatusColor(artefact.status)"
                 >
                   <div
                     class="w-1.5 h-1.5 rounded-full mr-1"
-                    :class="getStatusDotColor(document.status)"
+                    :class="getStatusDotColor(artefact.status)"
                   ></div>
-                  {{ document.status }}
+                  {{ artefact.status }}
                 </span>
               </td>
 
               <!-- Uploaded By -->
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                {{ document.uploadedBy }}
+                {{ artefact.uploadedBy }}
               </td>
 
               <!-- Date -->
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                {{ document.date }}
+                {{ artefact.date }}
               </td>
 
               <!-- Actions -->
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div class="flex items-center space-x-2">
                   <button
-                    @click="viewDocument(document)"
+                    @click="viewArtefact(artefact)"
                     class="text-blue-400 hover:text-blue-300 transition-colors"
                   >
                     <UIcon name="heroicons:eye" class="w-4 h-4" />
                   </button>
                   <button
-                    @click="downloadDocument(document)"
+                    @click="downloadArtefact(artefact)"
                     class="text-green-400 hover:text-green-300 transition-colors"
                   >
                     <UIcon name="heroicons:arrow-down-tray" class="w-4 h-4" />
                   </button>
                   <button
-                    @click="deleteDocument(document)"
+                    @click="deleteArtefact(artefact)"
                     class="text-red-400 hover:text-red-300 transition-colors"
                   >
                     <UIcon name="heroicons:trash" class="w-4 h-4" />
@@ -285,13 +285,13 @@
     >
       <div class="bg-dark-800 rounded-lg border border-dark-700 p-6 w-full max-w-md mx-4">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-white">Upload Document</h3>
+          <h3 class="text-lg font-semibold text-white">Upload Artefact</h3>
           <button @click="showUploadModal = false" class="text-gray-400 hover:text-white">
             <UIcon name="heroicons:x-mark" class="w-5 h-5" />
           </button>
         </div>
 
-        <form @submit.prevent="uploadDocument" class="space-y-4">
+        <form @submit.prevent="uploadArtefact" class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-300 mb-1">File</label>
             <input
@@ -322,7 +322,7 @@
               v-model="newDocument.description"
               rows="3"
               class="w-full px-3 py-2 border border-dark-700 rounded-lg bg-dark-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Brief description of the document..."
+              placeholder="Brief description of the artefact..."
             ></textarea>
           </div>
 
@@ -360,13 +360,13 @@ const selectedType = ref('')
 const selectedStatus = ref('')
 const showUploadModal = ref(false)
 
-const newDocument = ref({
+const newArtefact = ref({
   category: '',
   description: '',
 })
 
-// Sample documents data
-const documents = ref([
+// Sample artefacts data
+const artefacts = ref([
   {
     id: 1,
     name: 'Employee Handbook 2024.pdf',
@@ -414,26 +414,26 @@ const documents = ref([
 ])
 
 // Computed properties
-const totalDocuments = computed(() => documents.value.length)
-const processedDocuments = computed(
-  () => documents.value.filter((doc) => doc.status === 'processed').length,
+const totalArtefacts = computed(() => artefacts.value.length)
+const processedArtefacts = computed(
+  () => artefacts.value.filter((doc) => doc.status === 'processed').length,
 )
 const totalCategories = computed(() => {
-  const categories = new Set(documents.value.map((doc) => doc.category))
+  const categories = new Set(artefacts.value.map((doc) => doc.category))
   return categories.size
 })
 const totalSize = computed(() => '7.8 MB') // This would be calculated from actual file sizes
 
-const filteredDocuments = computed(() => {
-  return documents.value.filter((document) => {
+const filteredArtefacts = computed(() => {
+  return artefacts.value.filter((artefact) => {
     const matchesSearch =
       !searchQuery.value ||
-      document.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      document.description.toLowerCase().includes(searchQuery.value.toLowerCase())
+      artefact.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      artefact.description.toLowerCase().includes(searchQuery.value.toLowerCase())
 
-    const matchesCategory = !selectedCategory.value || document.category === selectedCategory.value
-    const matchesType = !selectedType.value || document.type === selectedType.value
-    const matchesStatus = !selectedStatus.value || document.status === selectedStatus.value
+    const matchesCategory = !selectedCategory.value || artefact.category === selectedCategory.value
+    const matchesType = !selectedType.value || artefact.type === selectedType.value
+    const matchesStatus = !selectedStatus.value || artefact.status === selectedStatus.value
 
     return matchesSearch && matchesCategory && matchesType && matchesStatus
   })
@@ -468,35 +468,35 @@ const getStatusDotColor = (status: string) => {
   return colors[status] || 'bg-gray-400'
 }
 
-const viewDocument = (document: any) => {
-  console.log('View document:', document)
+const viewArtefact = (artefact: any) => {
+  console.log('View artefact:', artefact)
 }
 
-const downloadDocument = (document: any) => {
-  console.log('Download document:', document)
+const downloadArtefact = (artefact: any) => {
+  console.log('Download artefact:', artefact)
 }
 
-const deleteDocument = (document: any) => {
-  if (confirm(`Are you sure you want to delete ${document.name}?`)) {
-    const index = documents.value.findIndex((d) => d.id === document.id)
+const deleteArtefact = (artefact: any) => {
+  if (confirm(`Are you sure you want to delete ${artefact.name}?`)) {
+    const index = artefacts.value.findIndex((d) => d.id === artefact.id)
     if (index > -1) {
-      documents.value.splice(index, 1)
+      artefacts.value.splice(index, 1)
     }
   }
 }
 
-const uploadDocument = () => {
-  console.log('Upload document:', newDocument.value)
+const uploadArtefact = () => {
+  console.log('Upload artefact:', newArtefact.value)
   showUploadModal.value = false
 
   // Reset form
-  newDocument.value = {
+  newArtefact.value = {
     category: '',
     description: '',
   }
 }
 
 useHead({
-  title: 'Document Management - Admin Dashboard',
+  title: 'Artefact Management - Admin Dashboard',
 })
 </script>

@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-black">
     <!-- Header Navigation -->
     <header class="bg-black border-b border-dark-700 sticky top-0 z-50">
-      <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <!-- Logo and brand -->
           <NuxtLink to="/" class="flex items-center space-x-3">
@@ -60,12 +60,6 @@
                   By Industries
                 </div>
                 <NuxtLink
-                  to="/solutions"
-                  class="block px-4 py-2 text-gray-300 hover:text-white hover:bg-dark-800 transition-colors duration-200 font-medium"
-                >
-                  All Solutions
-                </NuxtLink>
-                <NuxtLink
                   v-for="industry in industries"
                   :key="industry.slug"
                   :to="`/solutions/${industry.slug}`"
@@ -95,7 +89,7 @@
           <!-- Right side buttons -->
           <div class="flex items-center space-x-4">
             <NuxtLink to="/book-meeting" class="btn-outline hidden sm:inline-flex">
-              Book a Meeting
+              Book a Demo
             </NuxtLink>
             <NuxtLink
               to="/login"
@@ -133,7 +127,7 @@
             >
             <NuxtLink to="/faq" class="block text-gray-300 hover:text-white py-2">FAQ</NuxtLink>
             <NuxtLink to="/book-meeting" class="block text-gray-300 hover:text-white py-2"
-              >Book a Meeting</NuxtLink
+              >Book a Demo</NuxtLink
             >
             <NuxtLink to="/login" class="block text-gray-300 hover:text-white py-2">Login</NuxtLink>
             <NuxtLink to="/signup" class="btn-primary block text-center mt-3">Sign Up</NuxtLink>

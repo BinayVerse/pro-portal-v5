@@ -3,7 +3,7 @@
     <!-- Header -->
     <div>
       <h1 class="text-2xl font-bold text-white mb-2">Dashboard Overview</h1>
-      <p class="text-gray-400">Manage your document chatting platform from here.</p>
+      <p class="text-gray-400">Manage your artefact chatting platform from here.</p>
     </div>
 
     <!-- Stats Grid -->
@@ -30,12 +30,12 @@
       <UCard class="bg-dark-800 border-dark-700">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-gray-400 text-sm font-medium">Documents</p>
+            <p class="text-gray-400 text-sm font-medium">Artefacts</p>
             <p class="text-3xl font-bold text-white mt-2">
-              {{ loading ? '...' : stats.totalDocuments.toLocaleString() }}
+              {{ loading ? '...' : stats.totalArtefacts.toLocaleString() }}
             </p>
             <p class="text-sm mt-2">
-              <span class="text-green-400">+{{ stats.documentsToday }} today</span>
+              <span class="text-green-400">+{{ stats.artefactsToday }} today</span>
             </p>
           </div>
           <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
@@ -131,10 +131,10 @@
       <!-- Recent Documents -->
       <div class="bg-dark-800 rounded-lg border border-dark-700">
         <div class="flex items-center justify-between p-6 border-b border-dark-700">
-          <h2 class="text-lg font-semibold text-white">Recent Documents</h2>
-          <div class="text-sm text-gray-400">Latest document uploads and processing status</div>
+          <h2 class="text-lg font-semibold text-white">Recent Artefacts</h2>
+          <div class="text-sm text-gray-400">Latest artefact uploads and processing status</div>
           <button
-            @click="navigateTo('/admin/documents')"
+            @click="navigateTo('/admin/artefacts')"
             class="text-primary-400 hover:text-primary-300 text-sm font-medium flex items-center gap-1"
           >
             <UIcon name="heroicons:cloud-arrow-up" class="w-4 h-4" />
@@ -154,10 +154,10 @@
           </div>
           <UTable
             v-else
-            :rows="sortedDocuments"
-            :columns="documentColumns"
-            :sort="documentSort"
-            @update:sort="documentSort = $event"
+            :rows="sortedArtefacts"
+            :columns="artefactColumns"
+            :sort="artefactSort"
+            @update:sort="artefactSort = $event"
           >
             <template #icon-data>
               <div class="w-8 h-8 bg-primary-500/20 rounded flex items-center justify-center">
@@ -173,7 +173,7 @@
               </div>
             </template>
             <template #status-data="{ row }">
-              <UBadge :color="getDocumentStatusColor(row.status)" variant="soft" size="xs">
+              <UBadge :color="getArtefactStatusColor(row.status)" variant="soft" size="xs">
                 {{ row.status }}
               </UBadge>
             </template>
@@ -235,7 +235,7 @@ const loading = ref(true)
 
 // Table sorting
 const userSort = ref({ column: 'name', direction: 'asc' })
-const documentSort = ref({ column: 'createdAt', direction: 'desc' })
+const artefactSort = ref({ column: 'createdAt', direction: 'desc' })
 
 // Table columns
 const userColumns = [
@@ -246,9 +246,9 @@ const userColumns = [
   { key: 'status', label: 'Status', sortable: true },
 ]
 
-const documentColumns = [
+const artefactColumns = [
   { key: 'icon', label: '', sortable: false },
-  { key: 'fileInfo', label: 'Document', sortable: false },
+  { key: 'fileInfo', label: 'Artefact', sortable: false },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'createdAt', label: 'Created', sortable: true },
 ]
@@ -256,8 +256,8 @@ const documentColumns = [
 const stats = ref({
   totalUsers: 2847,
   userGrowth: 12,
-  totalDocuments: 18432,
-  documentsToday: 48,
+  totalArtefacts: 18432,
+  artefactsToday: 48,
   totalConversations: 45231,
   conversationGrowth: 24,
   tokensUsed: 1200000,
@@ -299,7 +299,7 @@ const recentUsers = ref([
   },
 ])
 
-const recentDocuments = ref([
+const recentArtefacts = ref([
   {
     id: 1,
     title: 'Employee Handbook 2024',
@@ -407,16 +407,16 @@ const sortedUsers = computed(() => {
   return users
 })
 
-const sortedDocuments = computed(() => {
-  const docs = [...recentDocuments.value]
-  if (documentSort.value.column) {
+const sortedArtefacts = computed(() => {
+  const docs = [...recentArtefacts.value]
+  if (artefactSort.value.column) {
     docs.sort((a, b) => {
-      let aVal = a[documentSort.value.column]
-      let bVal = b[documentSort.value.column]
-      const direction = documentSort.value.direction === 'asc' ? 1 : -1
+      let aVal = a[artefactSort.value.column]
+      let bVal = b[artefactSort.value.column]
+      const direction = artefactSort.value.direction === 'asc' ? 1 : -1
 
       // Handle date sorting
-      if (documentSort.value.column === 'createdAt') {
+      if (artefactSort.value.column === 'createdAt') {
         aVal = new Date(aVal).getTime()
         bVal = new Date(bVal).getTime()
       }
@@ -439,7 +439,7 @@ const getStatusColor = (status: string) => {
   return colors[status] || 'gray'
 }
 
-const getDocumentStatusColor = (status: string) => {
+const getArtefactStatusColor = (status: string) => {
   const colors: Record<string, string> = {
     processed: 'green',
     processing: 'yellow',

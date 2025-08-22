@@ -4,12 +4,6 @@
       <div class="max-w-7xl mx-auto">
         <!-- Filter Tabs -->
         <div class="flex flex-wrap justify-center gap-2 mb-12">
-          <NuxtLink
-            to="/solutions"
-            class="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-dark-800 text-gray-300 hover:bg-dark-700 hover:text-white"
-          >
-            All Industries
-          </NuxtLink>
           <button
             v-for="industry in allIndustries"
             :key="industry.slug"
@@ -90,38 +84,6 @@
           </div>
         </div>
 
-        <!-- Success Story -->
-        <div class="bg-dark-800 rounded-xl p-8 border border-dark-700 mb-20">
-          <h2 class="text-2xl font-bold text-white text-center mb-8">Success Story</h2>
-          <div class="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <blockquote class="text-gray-300 text-lg italic mb-6">
-                "{{ solution.testimonial.quote }}"
-              </blockquote>
-              <div class="flex items-center space-x-3">
-                <div class="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center">
-                  <span class="text-white font-semibold">{{
-                    solution.testimonial.author
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                  }}</span>
-                </div>
-                <div>
-                  <div class="text-white font-semibold">{{ solution.testimonial.author }}</div>
-                  <div class="text-gray-400 text-sm">{{ solution.testimonial.title }}</div>
-                </div>
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-6">
-              <div v-for="stat in solution.stats" :key="stat.label" class="text-center">
-                <div class="text-3xl font-bold text-primary-400 mb-2">{{ stat.value }}</div>
-                <div class="text-gray-300 text-sm">{{ stat.label }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Key Features -->
         <div class="mb-20">
           <h2 class="text-2xl font-bold text-white text-center mb-8">
@@ -156,15 +118,12 @@
             Ready to Transform Your {{ solution.name }} Workflow?
           </h2>
           <p class="text-xl text-gray-300 mb-8">
-            See how Provento.ai can streamline your {{ solution.name.toLowerCase() }} document
+            See how Provento.ai can streamline your {{ solution.name.toLowerCase() }} artefact
             processes.
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center">
             <NuxtLink to="/book-meeting" class="btn-primary text-lg px-8 py-4">
               Book a Demo
-            </NuxtLink>
-            <NuxtLink to="/signup" class="btn-outline text-lg px-8 py-4">
-              Start Free Trial
             </NuxtLink>
           </div>
         </div>
@@ -178,7 +137,7 @@
       <p class="text-gray-400 mb-8 text-sm">
         Available solutions: {{ Object.keys(solutions).join(', ') }}
       </p>
-      <NuxtLink to="/solutions" class="btn-primary"> View All Solutions </NuxtLink>
+      <NuxtLink to="/solutions" class="btn-primary"> Back to Solutions </NuxtLink>
     </div>
   </div>
 </template>
@@ -204,10 +163,10 @@ const solutions: Record<string, any> = {
   education: {
     name: 'Education',
     description:
-      'Enhance learning experiences and administrative efficiency with intelligent document management for educational institutions.',
+      'Enhance learning experiences and administrative efficiency with intelligent artefact management for educational institutions.',
     icon: 'i-heroicons-academic-cap',
     keyPoints: [
-      'Time-consuming manual document review',
+      'Time-consuming manual artefact review',
       'Difficulty finding relevant case precedents',
       'Complex contract analysis requirements',
       'Regulatory compliance tracking',
@@ -270,7 +229,7 @@ const solutions: Record<string, any> = {
       {
         title: 'Learning Analytics',
         description:
-          'Track document usage patterns to understand learning preferences and improve curriculum design.',
+          'Track artefact usage patterns to understand learning preferences and improve curriculum design.',
         icon: 'i-heroicons-chart-bar',
       },
     ],
@@ -278,16 +237,16 @@ const solutions: Record<string, any> = {
   'finance-banking': {
     name: 'Finance & Banking',
     description:
-      'Transform financial research, contract analysis, and case preparation with AI-powered document intelligence. Quickly find relevant precedents, analyze contracts, and extract key legal insights.',
+      'Transform financial research, contract analysis, and case preparation with AI-powered artefact intelligence. Quickly find relevant precedents, analyze contracts, and extract key legal insights.',
     icon: 'i-heroicons-currency-dollar',
     keyPoints: [
-      'Complex financial document analysis',
+      'Complex financial artefact analysis',
       'Risk assessment requirements',
       'Regulatory compliance challenges',
       'Credit and loan processing',
     ],
     helps: [
-      'Automated financial document analysis',
+      'Automated financial artefact analysis',
       'Risk assessment acceleration',
       'Compliance monitoring',
       'Credit decision support',
@@ -331,7 +290,7 @@ const solutions: Record<string, any> = {
       {
         title: 'Risk Assessment',
         description:
-          'Automatically identify and categorize financial risks from document analysis.',
+          'Automatically identify and categorize financial risks from artefact analysis.',
         icon: 'i-heroicons-magnifying-glass',
       },
       {
@@ -341,7 +300,7 @@ const solutions: Record<string, any> = {
         icon: 'i-heroicons-check-circle',
       },
       {
-        title: 'Document Classification',
+        title: 'Artefact Classification',
         description: 'Automatically categorize and tag financial documents by type and importance.',
         icon: 'i-heroicons-folder',
       },
@@ -350,16 +309,16 @@ const solutions: Record<string, any> = {
   government: {
     name: 'Government',
     description:
-      'Modernize public sector document management and citizen services with intelligent document processing for policy documents, public records, and regulatory compliance.',
+      'Modernize public sector artefact management and citizen services with intelligent artefact processing for policy documents, public records, and regulatory compliance.',
     icon: 'i-heroicons-building-office',
     keyPoints: [
-      'Complex policy document management',
+      'Complex policy artefact management',
       'Public records accessibility',
       'Regulatory compliance tracking',
       'Inter-department coordination',
     ],
     helps: [
-      'Policy document organization',
+      'Policy artefact organization',
       'Public record search capabilities',
       'Compliance automation',
       'Citizen service enhancement',
@@ -414,7 +373,7 @@ const solutions: Record<string, any> = {
       {
         title: 'Citizen Services',
         description:
-          'Enhance citizen services with faster document processing and information retrieval.',
+          'Enhance citizen services with faster artefact processing and information retrieval.',
         icon: 'heroicons:funnel',
       },
     ],
@@ -422,7 +381,7 @@ const solutions: Record<string, any> = {
   insurance: {
     name: 'Insurance',
     description:
-      'Streamline claims processing and risk assessment workflows with intelligent document analysis for faster, more accurate insurance operations.',
+      'Streamline claims processing and risk assessment workflows with intelligent artefact analysis for faster, more accurate insurance operations.',
     icon: 'heroicons:shield-check',
     keyPoints: [
       'Complex claims processing workflows',
@@ -469,7 +428,7 @@ const solutions: Record<string, any> = {
       {
         title: 'Claims Intelligence',
         description:
-          'Extract key information from claims documents with intelligent document processing.',
+          'Extract key information from claims documents with intelligent artefact processing.',
         icon: 'heroicons:document-text',
       },
       {
@@ -481,7 +440,7 @@ const solutions: Record<string, any> = {
       {
         title: 'Fraud Detection',
         description:
-          'Identify potential fraud indicators through document analysis and pattern recognition.',
+          'Identify potential fraud indicators through artefact analysis and pattern recognition.',
         icon: 'heroicons:check-circle',
       },
       {
@@ -494,10 +453,10 @@ const solutions: Record<string, any> = {
   legal: {
     name: 'Legal',
     description:
-      'Transform legal research, contract analysis, and case preparation with AI-powered document intelligence. Quickly find relevant precedents, analyze contracts, and extract key legal insights.',
+      'Transform legal research, contract analysis, and case preparation with AI-powered artefact intelligence. Quickly find relevant precedents, analyze contracts, and extract key legal insights.',
     icon: 'heroicons:scale',
     keyPoints: [
-      'Time-consuming manual document review',
+      'Time-consuming manual artefact review',
       'Difficulty finding relevant case precedents',
       'Complex contract analysis requirements',
       'Regulatory compliance tracking',
@@ -522,7 +481,7 @@ const solutions: Record<string, any> = {
       },
       {
         title: 'Due Diligence',
-        description: 'Accelerate due diligence processes with comprehensive document analysis.',
+        description: 'Accelerate due diligence processes with comprehensive artefact analysis.',
         question: 'Ask: "What are the intellectual property risks in these documents?"',
       },
     ],
@@ -557,7 +516,7 @@ const solutions: Record<string, any> = {
         icon: 'heroicons:check-circle',
       },
       {
-        title: 'Document Classification',
+        title: 'Artefact Classification',
         description:
           'Automatically categorize and tag legal documents by type, jurisdiction, and practice area.',
         icon: 'heroicons:funnel',
@@ -567,8 +526,8 @@ const solutions: Record<string, any> = {
   manufacturing: {
     name: 'Manufacturing',
     description:
-      'Optimize technical documentation and quality processes with intelligent document management for manufacturing operations and compliance.',
-    icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
+      'Optimize technical documentation and quality processes with intelligent artefact management for manufacturing operations and compliance.',
+    icon: 'heroicons:building-office-2',
     keyPoints: [
       'Complex technical documentation',
       'Quality control processes',
@@ -576,7 +535,7 @@ const solutions: Record<string, any> = {
       'Process optimization needs',
     ],
     helps: [
-      'Technical document organization',
+      'Technical artefact organization',
       'Quality process automation',
       'Compliance monitoring',
       'Process optimization insights',
@@ -614,7 +573,7 @@ const solutions: Record<string, any> = {
       {
         title: 'Technical Intelligence',
         description:
-          'Search and analyze complex technical specifications with intelligent document processing.',
+          'Search and analyze complex technical specifications with intelligent artefact processing.',
         icon: 'heroicons:document-text',
       },
       {
@@ -637,7 +596,7 @@ const solutions: Record<string, any> = {
   'real-estate': {
     name: 'Real Estate',
     description:
-      'Simplify property documentation and transaction management with intelligent document processing for contracts, leases, and market analysis.',
+      'Simplify property documentation and transaction management with intelligent artefact processing for contracts, leases, and market analysis.',
     icon: 'heroicons:home',
     keyPoints: [
       'Complex property documentation',
@@ -646,7 +605,7 @@ const solutions: Record<string, any> = {
       'Due diligence processes',
     ],
     helps: [
-      'Property document organization',
+      'Property artefact organization',
       'Contract analysis automation',
       'Market data insights',
       'Due diligence acceleration',
@@ -676,7 +635,7 @@ const solutions: Record<string, any> = {
     },
     stats: [
       { value: '45%', label: 'Transaction Time Reduced' },
-      { value: '88%', label: 'Document Accuracy' },
+      { value: '88%', label: 'Artefact Accuracy' },
       { value: '92%', label: 'Client Satisfaction' },
     ],
     keyFeatures: [
@@ -697,7 +656,7 @@ const solutions: Record<string, any> = {
       },
       {
         title: 'Due Diligence',
-        description: 'Streamline due diligence processes with comprehensive document analysis.',
+        description: 'Streamline due diligence processes with comprehensive artefact analysis.',
         icon: 'heroicons:funnel',
       },
     ],
@@ -705,7 +664,7 @@ const solutions: Record<string, any> = {
   healthcare: {
     name: 'Healthcare',
     description:
-      'Improve patient care with intelligent medical document analysis for research studies, treatment protocols, and patient documentation.',
+      'Improve patient care with intelligent medical artefact analysis for research studies, treatment protocols, and patient documentation.',
     icon: 'heroicons:heart',
     keyPoints: [
       'Complex medical documentation',
@@ -714,7 +673,7 @@ const solutions: Record<string, any> = {
       'Patient record accessibility',
     ],
     helps: [
-      'Medical document organization',
+      'Medical artefact organization',
       'Research data insights',
       'Protocol standardization',
       'Patient care enhancement',

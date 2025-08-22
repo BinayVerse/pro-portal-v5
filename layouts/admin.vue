@@ -47,7 +47,7 @@
             :color="$route.name === 'admin-documents' ? 'primary' : 'gray'"
             class="w-full"
           >
-            Documents
+            Artefacts
           </UButton>
 
           <UButton
