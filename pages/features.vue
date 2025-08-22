@@ -28,7 +28,7 @@
                   <div
                     class="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0"
                   >
-                    <UIcon name="i-heroicons-check" class="w-4 h-4 text-white" />
+                    <UIcon name="heroicons:check" class="w-4 h-4 text-white" />
                   </div>
                   <span class="text-gray-300">Natural language processing for complex queries</span>
                 </div>
@@ -36,7 +36,7 @@
                   <div
                     class="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0"
                   >
-                    <UIcon name="i-heroicons-check" class="w-4 h-4 text-white" />
+                    <UIcon name="heroicons:check" class="w-4 h-4 text-white" />
                   </div>
                   <span class="text-gray-300">Context-aware responses with source citations</span>
                 </div>
@@ -44,7 +44,7 @@
                   <div
                     class="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0"
                   >
-                    <UIcon name="i-heroicons-check" class="w-4 h-4 text-white" />
+                    <UIcon name="heroicons:check" class="w-4 h-4 text-white" />
                   </div>
                   <span class="text-gray-300">Multi-document knowledge synthesis</span>
                 </div>
@@ -81,25 +81,25 @@
               <div class="grid grid-cols-2 gap-4">
                 <div class="flex items-center space-x-3">
                   <div class="w-8 h-8 bg-red-500/20 rounded flex items-center justify-center">
-                    <UIcon name="i-heroicons-document-text" class="w-4 h-4 text-red-400" />
+                    <UIcon name="heroicons:document-text" class="w-4 h-4 text-red-400" />
                   </div>
                   <span class="text-gray-300">PDF</span>
                 </div>
                 <div class="flex items-center space-x-3">
                   <div class="w-8 h-8 bg-blue-500/20 rounded flex items-center justify-center">
-                    <UIcon name="i-heroicons-document" class="w-4 h-4 text-blue-400" />
+                    <UIcon name="heroicons:document" class="w-4 h-4 text-blue-400" />
                   </div>
                   <span class="text-gray-300">DOC</span>
                 </div>
                 <div class="flex items-center space-x-3">
                   <div class="w-8 h-8 bg-green-500/20 rounded flex items-center justify-center">
-                    <UIcon name="i-heroicons-table-cells" class="w-4 h-4 text-green-400" />
+                    <UIcon name="heroicons:table-cells" class="w-4 h-4 text-green-400" />
                   </div>
                   <span class="text-gray-300">CSV</span>
                 </div>
                 <div class="flex items-center space-x-3">
                   <div class="w-8 h-8 bg-purple-500/20 rounded flex items-center justify-center">
-                    <UIcon name="i-heroicons-code-bracket" class="w-4 h-4 text-purple-400" />
+                    <UIcon name="heroicons:code-bracket" class="w-4 h-4 text-purple-400" />
                   </div>
                   <span class="text-gray-300">Markdown</span>
                 </div>
@@ -122,7 +122,7 @@
                   <div
                     class="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0"
                   >
-                    <UIcon name="i-heroicons-check" class="w-4 h-4 text-white" />
+                    <UIcon name="heroicons:check" class="w-4 h-4 text-white" />
                   </div>
                   <span class="text-gray-300">Manual file upload with drag & drop</span>
                 </div>
@@ -130,7 +130,7 @@
                   <div
                     class="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0"
                   >
-                    <UIcon name="i-heroicons-check" class="w-4 h-4 text-white" />
+                    <UIcon name="heroicons:check" class="w-4 h-4 text-white" />
                   </div>
                   <span class="text-gray-300">Google Drive integration</span>
                 </div>
@@ -138,7 +138,7 @@
                   <div
                     class="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0"
                   >
-                    <UIcon name="i-heroicons-check" class="w-4 h-4 text-white" />
+                    <UIcon name="heroicons:check" class="w-4 h-4 text-white" />
                   </div>
                   <span class="text-gray-300">Smart categorization and tagging</span>
                 </div>
@@ -154,7 +154,7 @@
               <div
                 class="w-16 h-16 bg-primary-500/20 rounded-xl flex items-center justify-center mx-auto mb-6"
               >
-                <UIcon name="i-simple-icons-slack" class="w-8 h-8 text-primary-400" />
+                <UIcon name="simple-icons:slack" class="w-8 h-8 text-primary-400" />
               </div>
               <h3 class="text-xl font-bold text-white mb-4">Slack Integration</h3>
               <p class="text-gray-300 mb-6">
@@ -166,7 +166,7 @@
               <div
                 class="w-16 h-16 bg-primary-500/20 rounded-xl flex items-center justify-center mx-auto mb-6"
               >
-                <UIcon name="i-simple-icons-microsoftteams" class="w-8 h-8 text-primary-400" />
+                <UIcon name="simple-icons:microsoftteams" class="w-8 h-8 text-primary-400" />
               </div>
               <h3 class="text-xl font-bold text-white mb-4">Teams Integration</h3>
               <p class="text-gray-300 mb-6">
@@ -178,7 +178,7 @@
               <div
                 class="w-16 h-16 bg-primary-500/20 rounded-xl flex items-center justify-center mx-auto mb-6"
               >
-                <UIcon name="i-heroicons-device-phone-mobile" class="w-8 h-8 text-primary-400" />
+                <UIcon name="heroicons:device-phone-mobile" class="w-8 h-8 text-primary-400" />
               </div>
               <h3 class="text-xl font-bold text-white mb-4">Mobile Integration</h3>
               <p class="text-gray-300 mb-6">
@@ -202,7 +202,7 @@
               <div
                 class="w-16 h-16 bg-primary-500/20 rounded-xl flex items-center justify-center mx-auto mb-4"
               >
-                <UIcon name="i-heroicons-chart-bar" class="w-8 h-8 text-primary-400" />
+                <UIcon name="heroicons:chart-bar" class="w-8 h-8 text-primary-400" />
               </div>
               <h3 class="text-lg font-bold text-white mb-3">Usage Analytics</h3>
               <p class="text-gray-300 text-sm">
