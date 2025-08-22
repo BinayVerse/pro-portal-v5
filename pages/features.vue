@@ -78,7 +78,7 @@
           <div class="grid lg:grid-cols-2 gap-12 items-center">
             <div class="bg-dark-800 rounded-xl p-8 border border-dark-700">
               <h3 class="text-xl font-bold text-white mb-6">Supported File Types</h3>
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <div class="flex items-center space-x-3">
                   <div class="w-8 h-8 bg-red-500/20 rounded flex items-center justify-center">
                     <UIcon name="heroicons:document-text" class="w-4 h-4 text-red-400" />
