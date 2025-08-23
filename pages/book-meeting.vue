@@ -58,134 +58,162 @@
           <!-- Demo Form -->
           <div class="card">
             <h2 class="text-2xl font-bold text-white mb-6">Schedule Your Demo</h2>
-            <form @submit.prevent="handleSubmit" class="space-y-6">
+            <UForm :schema="schema" :state="state" class="space-y-6" @submit="onSubmit">
               <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label for="firstName" class="block text-sm font-medium text-gray-300 mb-2">
-                    First Name *
-                  </label>
-                  <input
-                    id="firstName"
-                    v-model="form.firstName"
-                    type="text"
-                    required
-                    class="input-field w-full"
-                    placeholder="John"
-                  />
+                <div class="form-field-wrapper">
+                  <UFormField
+                    name="firstName"
+                    :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
+                  >
+                    <label class="block text-sm font-medium text-gray-300 mb-2">First Name *</label>
+                    <UInput
+                      v-model="state.firstName"
+                      placeholder="John"
+                      inputClass="custom-input"
+                    />
+                  </UFormField>
                 </div>
-                <div>
-                  <label for="lastName" class="block text-sm font-medium text-gray-300 mb-2">
-                    Last Name *
-                  </label>
-                  <input
-                    id="lastName"
-                    v-model="form.lastName"
-                    type="text"
-                    required
-                    class="input-field w-full"
-                    placeholder="Doe"
-                  />
+                <div class="form-field-wrapper">
+                  <UFormField
+                    name="lastName"
+                    :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
+                  >
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Last Name *</label>
+                    <UInput v-model="state.lastName" placeholder="Doe" inputClass="custom-input" />
+                  </UFormField>
                 </div>
               </div>
 
-              <div>
-                <label for="email" class="block text-sm font-medium text-gray-300 mb-2">
-                  Work Email *
-                </label>
-                <input
-                  id="email"
-                  v-model="form.email"
-                  type="email"
-                  required
-                  class="input-field w-full"
-                  placeholder="john@company.com"
-                />
-              </div>
-
-              <div>
-                <label for="company" class="block text-sm font-medium text-gray-300 mb-2">
-                  Company *
-                </label>
-                <input
-                  id="company"
-                  v-model="form.company"
-                  type="text"
-                  required
-                  class="input-field w-full"
-                  placeholder="Your company name"
-                />
-              </div>
-
-              <div>
-                <label for="jobTitle" class="block text-sm font-medium text-gray-300 mb-2">
-                  Job Title
-                </label>
-                <input
-                  id="jobTitle"
-                  v-model="form.jobTitle"
-                  type="text"
-                  class="input-field w-full"
-                  placeholder="Your role"
-                />
-              </div>
-
-              <div>
-                <label for="companySize" class="block text-sm font-medium text-gray-300 mb-2">
-                  Company Size
-                </label>
-                <select id="companySize" v-model="form.companySize" class="input-field w-full">
-                  <option value="">Select company size</option>
-                  <option value="1-10">1-10 employees</option>
-                  <option value="11-50">11-50 employees</option>
-                  <option value="51-200">51-200 employees</option>
-                  <option value="201-1000">201-1000 employees</option>
-                  <option value="1000+">1000+ employees</option>
-                </select>
-              </div>
-
-              <div>
-                <label for="useCase" class="block text-sm font-medium text-gray-300 mb-2">
-                  Primary Use Case
-                </label>
-                <select id="useCase" v-model="form.useCase" class="input-field w-full">
-                  <option value="">Select use case</option>
-                  <option value="legal">Legal document analysis</option>
-                  <option value="hr">HR documentation</option>
-                  <option value="finance">Financial documents</option>
-                  <option value="research">Research and analysis</option>
-                  <option value="customer-support">Customer support</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label for="message" class="block text-sm font-medium text-gray-300 mb-2">
-                  Message (Optional)
-                </label>
-                <textarea
-                  id="message"
-                  v-model="form.message"
-                  rows="4"
-                  class="input-field w-full"
-                  placeholder="Tell us about your specific needs or questions..."
-                ></textarea>
-              </div>
-
-              <button
-                type="submit"
-                :disabled="loading"
-                class="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span v-if="loading" class="flex items-center justify-center">
-                  <UIcon
-                    name="i-heroicons-arrow-path"
-                    class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+              <div class="form-field-wrapper">
+                <UFormField
+                  name="email"
+                  :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
+                >
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Work Email *</label>
+                  <UInput
+                    v-model="state.email"
+                    type="email"
+                    placeholder="john@company.com"
+                    inputClass="custom-input"
                   />
-                  Booking a Demo...
-                </span>
-                <span v-else>Book a Demo</span>
-              </button>
-            </form>
+                </UFormField>
+              </div>
+
+              <div class="form-field-wrapper">
+                <UFormField
+                  name="phone"
+                  :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
+                >
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
+                  <LibVueTelInput
+                    ref="phoneRef"
+                    :prop-phone="phoneModel"
+                    placeholder="Your phone number"
+                    class="my-4"
+                  />
+                  <p class="text-xs text-gray-400 mt-1">NB: We'll use this for scheduling calls</p>
+                </UFormField>
+              </div>
+
+              <div class="form-field-wrapper">
+                <UFormField
+                  name="company"
+                  :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
+                >
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Company *</label>
+                  <UInput
+                    v-model="state.company"
+                    placeholder="Your company name"
+                    inputClass="custom-input"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="form-field-wrapper">
+                <UFormField
+                  name="jobTitle"
+                  :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
+                >
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Job Title</label>
+                  <UInput
+                    v-model="state.jobTitle"
+                    placeholder="Your role"
+                    inputClass="custom-input"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="form-field-wrapper">
+                <UFormField
+                  name="companySize"
+                  :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
+                >
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Company Size</label>
+                  <USelect
+                    v-model="state.companySize"
+                    :options="companySizeOptions"
+                    value-attribute="value"
+                    option-attribute="label"
+                    selectClass="custom-select"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="form-field-wrapper">
+                <UFormField
+                  name="useCase"
+                  :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
+                >
+                  <label class="block text-sm font-medium text-gray-300 mb-2"
+                    >Primary Use Case</label
+                  >
+                  <USelect
+                    v-model="state.useCase"
+                    :options="useCaseOptions"
+                    value-attribute="value"
+                    option-attribute="label"
+                    selectClass="custom-select"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="form-field-wrapper">
+                <UFormField
+                  name="message"
+                  :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
+                >
+                  <label class="block text-sm font-medium text-gray-300 mb-2"
+                    >Message (Optional)</label
+                  >
+                  <UTextarea
+                    v-model="state.message"
+                    :rows="4"
+                    placeholder="Tell us about your specific needs or questions..."
+                    :ui="{
+                      base: 'w-full resize-none',
+                    }"
+                    textareaClass="custom-textarea"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="form-field-wrapper">
+                <button
+                  type="submit"
+                  :disabled="loading"
+                  class="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="loading" class="flex items-center justify-center">
+                    <UIcon
+                      name="i-heroicons-arrow-path"
+                      class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    />
+                    Booking a Demo...
+                  </span>
+                  <span v-else>Book a Demo</span>
+                </button>
+              </div>
+            </UForm>
           </div>
 
           <!-- Demo Information -->
@@ -262,6 +290,8 @@
 
 <script setup lang="ts">
 import { useContactStore } from '~/stores/contact'
+import { z } from 'zod'
+import type { FormSubmitEvent } from '#ui/types'
 
 definePageMeta({
   layout: 'main',
@@ -272,7 +302,30 @@ const contactStore = useContactStore()
 const loading = computed(() => contactStore.loading)
 const showSuccessModal = ref(false)
 
-const form = ref({
+// Zod schema for form validation
+const schema = z.object({
+  firstName: z.string().min(1, 'First name is required').max(50, 'First name too long'),
+  lastName: z.string().min(1, 'Last name is required').max(50, 'Last name too long'),
+  email: z.string().email('Invalid email address').max(255, 'Email too long'),
+  company: z.string().min(1, 'Company name is required').max(255, 'Company name too long'),
+  jobTitle: z.string().max(255, 'Job title too long').optional(),
+  companySize: z
+    .enum(['', '1-10', '11-50', '51-200', '201-1000', '1000+'], {
+      errorMap: () => ({ message: 'Please select a company size' }),
+    })
+    .optional(),
+  useCase: z
+    .enum(['', 'legal', 'hr', 'finance', 'research', 'customer-support', 'other'], {
+      errorMap: () => ({ message: 'Please select a use case' }),
+    })
+    .optional(),
+  message: z.string().max(1000, 'Message too long').optional(),
+  phone: z.string().optional(),
+})
+
+type Schema = z.output<typeof schema>
+
+const state = reactive({
   firstName: '',
   lastName: '',
   email: '',
@@ -281,7 +334,32 @@ const form = ref({
   companySize: '',
   useCase: '',
   message: '',
+  phone: '',
 })
+
+// Phone number handling
+const phoneModel = ref('')
+const defaultCountry = ref('US')
+
+// Options for selects
+const companySizeOptions = [
+  { value: '', label: 'Select company size' },
+  { value: '1-10', label: '1-10 employees' },
+  { value: '11-50', label: '11-50 employees' },
+  { value: '51-200', label: '51-200 employees' },
+  { value: '201-1000', label: '201-1000 employees' },
+  { value: '1000+', label: '1000+ employees' },
+]
+
+const useCaseOptions = [
+  { value: '', label: 'Select use case' },
+  { value: 'legal', label: 'Legal document analysis' },
+  { value: 'hr', label: 'HR documentation' },
+  { value: 'finance', label: 'Financial documents' },
+  { value: 'research', label: 'Research and analysis' },
+  { value: 'customer-support', label: 'Customer support' },
+  { value: 'other', label: 'Other' },
+]
 
 const demoExpectations = [
   'Personalized demo based on your use case',
@@ -291,22 +369,23 @@ const demoExpectations = [
   'Next steps and trial setup',
 ]
 
-const handleSubmit = async () => {
+async function onSubmit(event: FormSubmitEvent<Schema>) {
   try {
     const domain = window.location.hostname
-
     const isProd = domain.includes('provento.ai') && !domain.includes('test')
     const isTest = domain.includes('test') || domain.includes('refactor')
+
     // Prepare data for API
     const contactData = {
-      name: form.value.firstName,
-      lastname: form.value.lastName,
-      email: form.value.email,
-      company: form.value.company || undefined,
-      jobTitle: form.value.jobTitle || undefined,
-      companySize: form.value.companySize || undefined,
-      requestFor: form.value.useCase || undefined,
-      message: form.value.message || undefined,
+      name: event.data.firstName,
+      lastname: event.data.lastName,
+      email: event.data.email,
+      phone: phoneModel.value || undefined,
+      company: event.data.company || undefined,
+      jobTitle: event.data.jobTitle || undefined,
+      companySize: event.data.companySize || undefined,
+      requestFor: event.data.useCase || undefined,
+      message: event.data.message || undefined,
       domain: isProd ? 'Prod' : isTest ? 'Test' : 'Local',
       // Note: reCAPTCHA token would be needed for production
       token: 'demo-token', // Replace with actual reCAPTCHA token
@@ -319,7 +398,7 @@ const handleSubmit = async () => {
     showSuccessModal.value = true
 
     // Reset form
-    form.value = {
+    Object.assign(state, {
       firstName: '',
       lastName: '',
       email: '',
@@ -328,7 +407,9 @@ const handleSubmit = async () => {
       companySize: '',
       useCase: '',
       message: '',
-    }
+      phone: '',
+    })
+    phoneModel.value = ''
   } catch (error: any) {
     console.error('Demo submission error:', error)
     showNotification(
@@ -338,3 +419,230 @@ const handleSubmit = async () => {
   }
 }
 </script>
+
+<style scoped>
+/* Form field wrapper spacing */
+.form-field-wrapper {
+  margin-bottom: 1.5rem;
+}
+
+/* Custom input styles to match reference design */
+:deep(.custom-input) {
+  background-color: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-radius: 0.5rem !important;
+  color: #e2e8f0 !important;
+  font-size: 0.875rem !important;
+  padding: 0.875rem 1rem !important;
+  transition: all 0.2s ease-in-out !important;
+  width: 100% !important;
+  box-shadow: none !important;
+}
+
+:deep(.custom-input:hover) {
+  border-color: #475569 !important;
+  background-color: #1e293b !important;
+}
+
+:deep(.custom-input:focus) {
+  border-color: #3b82f6 !important;
+  background-color: #1e293b !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+  outline: none !important;
+}
+
+:deep(.custom-input::placeholder) {
+  color: #64748b !important;
+}
+
+/* Custom select styles */
+:deep(.custom-select) {
+  background-color: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-radius: 0.5rem !important;
+  color: #e2e8f0 !important;
+  font-size: 0.875rem !important;
+  padding: 0.875rem 1rem !important;
+  transition: all 0.2s ease-in-out !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+}
+
+:deep(.custom-select:hover) {
+  border-color: #475569 !important;
+  background-color: #1e293b !important;
+}
+
+:deep(.custom-select:focus) {
+  border-color: #3b82f6 !important;
+  background-color: #1e293b !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+  outline: none !important;
+}
+
+/* Custom textarea styles */
+:deep(.custom-textarea) {
+  background-color: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-radius: 0.5rem !important;
+  color: #e2e8f0 !important;
+  font-size: 0.875rem !important;
+  padding: 0.875rem 1rem !important;
+  transition: all 0.2s ease-in-out !important;
+  width: 100% !important;
+  resize: none !important;
+  box-shadow: none !important;
+}
+
+:deep(.custom-textarea:hover) {
+  border-color: #475569 !important;
+  background-color: #1e293b !important;
+}
+
+:deep(.custom-textarea:focus) {
+  border-color: #3b82f6 !important;
+  background-color: #1e293b !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+  outline: none !important;
+}
+
+:deep(.custom-textarea::placeholder) {
+  color: #64748b !important;
+}
+
+/* Vue-tel-input custom styling to match design */
+:deep(.vue-tel-custom-input) {
+  background-color: transparent !important;
+  border: none !important;
+  color: #f3f4f6 !important;
+  font-size: 0.875rem !important;
+  padding: 0.75rem !important;
+  padding-left: 1rem !important;
+}
+
+:deep(.vue-tel-custom-input::placeholder) {
+  color: #9ca3af !important;
+}
+
+:deep(.vue-tel-custom-input:focus) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Custom styling for vue3-tel-input to match the design */
+:deep(.vue-tel-input) {
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  background-color: #1e293b;
+  transition: all 0.2s ease-in-out;
+  box-shadow: none;
+}
+
+:deep(.vue-tel-input:hover) {
+  border-color: #475569;
+  background-color: #1e293b;
+}
+
+:deep(.vue-tel-input:focus-within) {
+  border-color: #3b82f6;
+  background-color: #1e293b;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+:deep(.vue-tel-input .vti__dropdown) {
+  background-color: #1e293b;
+  border-right: 1px solid #334155;
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+
+:deep(.vue-tel-input .vti__dropdown:hover) {
+  background-color: #1e293b;
+}
+
+:deep(.vue-tel-input .vti__dropdown-list) {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+:deep(.vue-tel-input .vti__dropdown-item) {
+  color: #e2e8f0;
+  padding: 8px 12px;
+}
+
+:deep(.vue-tel-input .vti__dropdown-item:hover) {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+:deep(.vue-tel-input .vti__dropdown-item.highlighted) {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+:deep(.vue-tel-input .vti__selection) {
+  color: #e2e8f0;
+  font-size: 0.875rem;
+}
+
+:deep(.vue-tel-input .vti__input) {
+  background-color: transparent !important;
+  border: none !important;
+  color: #e2e8f0 !important;
+  font-size: 0.875rem;
+  padding: 0.875rem 1rem !important;
+}
+
+:deep(.vue-tel-input .vti__input::placeholder) {
+  color: #9ca3af;
+}
+
+:deep(.vue-tel-input .vti__input:focus) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:deep(.vue-tel-input .vti__dropdown-arrow) {
+  color: #9ca3af;
+}
+
+/* Search box styling */
+:deep(.vti__search-box) {
+  background-color: rgba(31, 41, 55, 0.9) !important;
+  border: 1px solid rgba(75, 85, 99, 0.7) !important;
+  color: #f3f4f6 !important;
+  border-radius: 0.5rem !important;
+  margin: 8px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+  width: calc(100% - 16px) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+:deep(.vti__search-box::placeholder) {
+  color: #9ca3af !important;
+}
+
+:deep(.vti__search-box:focus) {
+  outline: none !important;
+  border-color: #3b82f6 !important;
+  background-color: rgba(37, 47, 63, 1) !important;
+  box-shadow:
+    0 0 0 2px rgba(59, 130, 246, 0.1),
+    inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Ensure dropdown list is properly positioned and sized */
+:deep(.vue-tel-input .vti__dropdown-list) {
+  background-color: rgba(17, 24, 39, 0.95) !important;
+  border: 1px solid rgba(55, 65, 81, 0.6) !important;
+  border-radius: 0.5rem !important;
+  backdrop-filter: blur(10px) !important;
+  max-height: 250px !important;
+  overflow-y: auto !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+  z-index: 50 !important;
+}
+</style>
