@@ -268,11 +268,11 @@
               </p>
               <div class="space-y-3">
                 <a
-                  href="mailto:sales@provento.ai"
+                  href="mailto:contact@provento.ai"
                   class="flex items-center text-primary-400 hover:text-primary-300 transition-colors"
                 >
                   <UIcon name="i-heroicons-envelope" class="w-5 h-5 mr-3" />
-                  sales@provento.ai
+                  contact@provento.ai
                 </a>
                 <a
                   href="tel:+1-555-0123"
