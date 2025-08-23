@@ -107,9 +107,11 @@
                   <label class="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
                   <LibVueTelInput
                     ref="phoneRef"
-                    :prop-phone="phoneModel"
+                    v-model="state.phone"
                     placeholder="Your phone number"
                     class="my-4"
+                    @update:phoneData="onPhoneDataChange"
+                    @validation="onPhoneValidation"
                   />
                   <p class="text-xs text-gray-400 mt-1">NB: We'll use this for scheduling calls</p>
                 </UFormField>
@@ -338,8 +340,28 @@ const state = reactive({
 })
 
 // Phone number handling
-const phoneModel = ref('')
+const phoneRef = ref()
+const phoneValidation = ref({ status: true, message: '' })
 const defaultCountry = ref('US')
+
+// Phone event handlers
+function onPhoneDataChange(data: any) {
+  // Update the form state with the full international phone number (includes country code)
+  if (data.valid && data.number) {
+    // Use the full international number which includes country code (e.g., "+12345678900")
+    state.phone = data.number
+  } else if (data.formatted) {
+    // Fallback to formatted number if available
+    state.phone = data.formatted
+  } else {
+    // Clear phone if invalid
+    state.phone = ''
+  }
+}
+
+function onPhoneValidation(result: any) {
+  phoneValidation.value = result
+}
 
 // Options for selects
 const companySizeOptions = [
@@ -380,7 +402,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       name: event.data.firstName,
       lastname: event.data.lastName,
       email: event.data.email,
-      phone: phoneModel.value || undefined,
+      phone: state.phone || undefined,
       company: event.data.company || undefined,
       jobTitle: event.data.jobTitle || undefined,
       companySize: event.data.companySize || undefined,
@@ -409,7 +431,12 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       message: '',
       phone: '',
     })
-    phoneModel.value = ''
+
+    // Reset phone component
+    if (phoneRef.value && phoneRef.value.resetPhoneField) {
+      phoneRef.value.resetPhoneField()
+    }
+    phoneValidation.value = { status: true, message: '' }
   } catch (error: any) {
     console.error('Demo submission error:', error)
     showNotification(
@@ -537,6 +564,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   background-color: #1e293b;
   transition: all 0.2s ease-in-out;
   box-shadow: none;
+  position: relative;
+  overflow: visible;
 }
 
 :deep(.vue-tel-input:hover) {
@@ -548,6 +577,13 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   border-color: #3b82f6;
   background-color: #1e293b;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Focused error state - maintain consistent border width */
+:deep(.vue-tel-input.errorState:focus-within) {
+  border-color: #ef4444 !important;
+  background-color: #1e293b;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
 }
 
 :deep(.vue-tel-input .vti__dropdown) {
@@ -602,6 +638,32 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 :deep(.vue-tel-input .vti__input:focus) {
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* Ensure input is clickable and not blocked */
+:deep(.vue-tel-input .vti__input) {
+  pointer-events: all !important;
+  user-select: text !important;
+  cursor: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+/* Remove any potential overlays or blocking elements */
+:deep(.vue-tel-input::before),
+:deep(.vue-tel-input::after) {
+  display: none !important;
+}
+
+/* Ensure the phone input container is interactive */
+:deep(.vue-tel-input) {
+  pointer-events: all !important;
+}
+
+/* Fix any potential z-index issues */
+:deep(.vue-tel-input *) {
+  z-index: auto !important;
 }
 
 :deep(.vue-tel-input .vti__dropdown-arrow) {
