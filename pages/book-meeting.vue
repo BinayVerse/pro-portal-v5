@@ -208,24 +208,13 @@
                 </UFormField>
               </div>
 
-              <!-- Temporary test button -->
-              <div class="form-field-wrapper mb-4">
-                <button
-                  type="button"
-                  class="w-full bg-red-500 text-white py-2 px-4 rounded"
-                  @click="testClick"
-                >
-                  TEST BUTTON - Click Me First
-                </button>
-              </div>
-
               <div class="form-field-wrapper">
                 <button
-                  type="button"
+                  type="submit"
                   :disabled="loading"
                   class="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                  @click="handleSubmit"
                 >
+                  <!-- @click="handleSubmit" -->
                   <span v-if="loading" class="flex items-center justify-center">
                     <UIcon
                       name="i-heroicons-arrow-path"
@@ -394,12 +383,6 @@ function onPhoneValidation(result: any) {
   phoneValidation.value = result
 }
 
-// Simple test function
-function testClick() {
-  alert('TEST: Click handler working!')
-  console.log('TEST: Button clicked')
-}
-
 // Function to validate the entire form
 function validateForm() {
   try {
@@ -435,80 +418,6 @@ function onFormError(event: any) {
     const firstError = event[0]
     showNotification(firstError.message, 'error')
   }
-}
-
-// Handle form submission with immediate validation
-async function handleSubmit() {
-  alert('Button clicked! Function is working!')
-  console.log('Handle submit called')
-  console.log('Current state:', JSON.stringify(state, null, 2))
-
-  // Test notification to verify click handler works
-  showNotification('Form validation started...', 'info')
-
-  // Check each required field individually and show specific errors
-  if (!state.firstName?.trim()) {
-    showNotification('First name is required', 'error')
-    return
-  }
-
-  if (!state.lastName?.trim()) {
-    showNotification('Last name is required', 'error')
-    return
-  }
-
-  if (!state.email?.trim()) {
-    showNotification('Email is required', 'error')
-    return
-  }
-
-  // Basic email validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(state.email)) {
-    showNotification('Please enter a valid email address', 'error')
-    return
-  }
-
-  if (!state.company?.trim()) {
-    showNotification('Company name is required', 'error')
-    return
-  }
-
-  if (!state.jobTitle?.trim()) {
-    showNotification('Job title is required', 'error')
-    return
-  }
-
-  if (!state.companySize?.trim()) {
-    showNotification('Please select a company size', 'error')
-    return
-  }
-
-  if (!state.useCase?.trim()) {
-    showNotification('Please select a use case', 'error')
-    return
-  }
-
-  if (!state.phone?.trim()) {
-    showNotification('Phone number is required', 'error')
-    return
-  }
-
-  // Additional phone validation using the Vue Tel Input component
-  if (phoneRef.value && phoneRef.value.handlePhoneValidation) {
-    const phoneValidationResult = phoneRef.value.handlePhoneValidation()
-    if (!phoneValidationResult.status) {
-      showNotification('Please enter a valid phone number', 'error')
-      return
-    }
-  }
-
-  console.log('All validation passed, calling onSubmit')
-
-  // If all validation passes, call the original submit function
-  await onSubmit({
-    data: state
-  } as FormSubmitEvent<Schema>)
 }
 
 // Options for selects
