@@ -58,7 +58,14 @@
           <!-- Demo Form -->
           <div class="card">
             <h2 class="text-2xl font-bold text-white mb-6">Schedule Your Demo</h2>
-            <UForm :schema="schema" :state="state" class="space-y-6" @submit="onSubmit">
+            <UForm
+              ref="formRef"
+              :schema="schema"
+              :state="state"
+              class="space-y-6"
+              @submit="onSubmit"
+              @error="onFormError"
+            >
               <div class="grid grid-cols-2 gap-4">
                 <div class="form-field-wrapper">
                   <UFormField
@@ -104,7 +111,7 @@
                   name="phone"
                   :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
                 >
-                  <label class="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Phone Number *</label>
                   <LibVueTelInput
                     ref="phoneRef"
                     v-model="state.phone"
@@ -113,7 +120,7 @@
                     @update:phoneData="onPhoneDataChange"
                     @validation="onPhoneValidation"
                   />
-                  <p class="text-xs text-gray-400 mt-1">NB: We'll use this for scheduling calls</p>
+                  <p class="text-xs text-gray-400 mt-1">We'll use this for scheduling calls</p>
                 </UFormField>
               </div>
 
@@ -136,7 +143,7 @@
                   name="jobTitle"
                   :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
                 >
-                  <label class="block text-sm font-medium text-gray-300 mb-2">Job Title</label>
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Job Title *</label>
                   <UInput
                     v-model="state.jobTitle"
                     placeholder="Your role"
@@ -150,12 +157,13 @@
                   name="companySize"
                   :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
                 >
-                  <label class="block text-sm font-medium text-gray-300 mb-2">Company Size</label>
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Company Size *</label>
                   <USelect
                     v-model="state.companySize"
                     :options="companySizeOptions"
                     value-attribute="value"
                     option-attribute="label"
+                    placeholder="Select company size"
                     selectClass="custom-select"
                   />
                 </UFormField>
@@ -167,13 +175,14 @@
                   :ui="{ container: 'space-y-0', error: 'mt-2 text-red-400 text-sm' }"
                 >
                   <label class="block text-sm font-medium text-gray-300 mb-2"
-                    >Primary Use Case</label
+                    >Primary Use Case *</label
                   >
                   <USelect
                     v-model="state.useCase"
                     :options="useCaseOptions"
                     value-attribute="value"
                     option-attribute="label"
+                    placeholder="Select use case"
                     selectClass="custom-select"
                   />
                 </UFormField>
@@ -199,11 +208,23 @@
                 </UFormField>
               </div>
 
+              <!-- Temporary test button -->
+              <div class="form-field-wrapper mb-4">
+                <button
+                  type="button"
+                  class="w-full bg-red-500 text-white py-2 px-4 rounded"
+                  @click="testClick"
+                >
+                  TEST BUTTON - Click Me First
+                </button>
+              </div>
+
               <div class="form-field-wrapper">
                 <button
-                  type="submit"
+                  type="button"
                   :disabled="loading"
                   class="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click="handleSubmit"
                 >
                   <span v-if="loading" class="flex items-center justify-center">
                     <UIcon
@@ -293,7 +314,7 @@
 <script setup lang="ts">
 import { useContactStore } from '~/stores/contact'
 import { z } from 'zod'
-import type { FormSubmitEvent } from '#ui/types'
+import type { FormError, FormSubmitEvent } from '#ui/types'
 
 definePageMeta({
   layout: 'main',
@@ -304,25 +325,36 @@ const contactStore = useContactStore()
 const loading = computed(() => contactStore.loading)
 const showSuccessModal = ref(false)
 
+// Form reference for manual validation
+const formRef = ref()
+
+// Add form errors state for better error display
+const formErrors = ref<Record<string, string[]>>({})
+
 // Zod schema for form validation
 const schema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50, 'First name too long'),
   lastName: z.string().min(1, 'Last name is required').max(50, 'Last name too long'),
   email: z.string().email('Invalid email address').max(255, 'Email too long'),
   company: z.string().min(1, 'Company name is required').max(255, 'Company name too long'),
-  jobTitle: z.string().max(255, 'Job title too long').optional(),
+  jobTitle: z.string().min(1, 'Job title is required').max(255, 'Job title too long'),
   companySize: z
-    .enum(['', '1-10', '11-50', '51-200', '201-1000', '1000+'], {
-      errorMap: () => ({ message: 'Please select a company size' }),
-    })
-    .optional(),
+    .string()
+    .min(1, 'Please select a company size')
+    .refine((val) => ['1-10', '11-50', '51-200', '201-1000', '1000+'].includes(val), {
+      message: 'Please select a valid company size',
+    }),
   useCase: z
-    .enum(['', 'legal', 'hr', 'finance', 'research', 'customer-support', 'other'], {
-      errorMap: () => ({ message: 'Please select a use case' }),
-    })
-    .optional(),
+    .string()
+    .min(1, 'Please select a use case')
+    .refine(
+      (val) => ['legal', 'hr', 'finance', 'research', 'customer-support', 'other'].includes(val),
+      {
+        message: 'Please select a valid use case',
+      },
+    ),
   message: z.string().max(1000, 'Message too long').optional(),
-  phone: z.string().optional(),
+  phone: z.string().min(1, 'Phone number is required').max(20, 'Phone number too long'),
 })
 
 type Schema = z.output<typeof schema>
@@ -342,7 +374,6 @@ const state = reactive({
 // Phone number handling
 const phoneRef = ref()
 const phoneValidation = ref({ status: true, message: '' })
-const defaultCountry = ref('US')
 
 // Phone event handlers
 function onPhoneDataChange(data: any) {
@@ -363,9 +394,125 @@ function onPhoneValidation(result: any) {
   phoneValidation.value = result
 }
 
+// Simple test function
+function testClick() {
+  alert('TEST: Click handler working!')
+  console.log('TEST: Button clicked')
+}
+
+// Function to validate the entire form
+function validateForm() {
+  try {
+    // Try to validate using Zod schema
+    schema.parse(state)
+    formErrors.value = {}
+    return true
+  } catch (error: any) {
+    // Extract validation errors from Zod
+    if (error.errors) {
+      const errors: Record<string, string[]> = {}
+      error.errors.forEach((err: any) => {
+        const field = err.path[0]
+        if (!errors[field]) errors[field] = []
+        errors[field].push(err.message)
+      })
+      formErrors.value = errors
+
+      // Show the first error as notification
+      const firstError = error.errors[0]
+      showNotification(firstError.message, 'error')
+    }
+    return false
+  }
+}
+
+// Handle UForm validation errors
+function onFormError(event: any) {
+  console.log('Form validation error:', event)
+
+  // Find the first error and show it
+  if (event.length > 0) {
+    const firstError = event[0]
+    showNotification(firstError.message, 'error')
+  }
+}
+
+// Handle form submission with immediate validation
+async function handleSubmit() {
+  alert('Button clicked! Function is working!')
+  console.log('Handle submit called')
+  console.log('Current state:', JSON.stringify(state, null, 2))
+
+  // Test notification to verify click handler works
+  showNotification('Form validation started...', 'info')
+
+  // Check each required field individually and show specific errors
+  if (!state.firstName?.trim()) {
+    showNotification('First name is required', 'error')
+    return
+  }
+
+  if (!state.lastName?.trim()) {
+    showNotification('Last name is required', 'error')
+    return
+  }
+
+  if (!state.email?.trim()) {
+    showNotification('Email is required', 'error')
+    return
+  }
+
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(state.email)) {
+    showNotification('Please enter a valid email address', 'error')
+    return
+  }
+
+  if (!state.company?.trim()) {
+    showNotification('Company name is required', 'error')
+    return
+  }
+
+  if (!state.jobTitle?.trim()) {
+    showNotification('Job title is required', 'error')
+    return
+  }
+
+  if (!state.companySize?.trim()) {
+    showNotification('Please select a company size', 'error')
+    return
+  }
+
+  if (!state.useCase?.trim()) {
+    showNotification('Please select a use case', 'error')
+    return
+  }
+
+  if (!state.phone?.trim()) {
+    showNotification('Phone number is required', 'error')
+    return
+  }
+
+  // Additional phone validation using the Vue Tel Input component
+  if (phoneRef.value && phoneRef.value.handlePhoneValidation) {
+    const phoneValidationResult = phoneRef.value.handlePhoneValidation()
+    if (!phoneValidationResult.status) {
+      showNotification('Please enter a valid phone number', 'error')
+      return
+    }
+  }
+
+  console.log('All validation passed, calling onSubmit')
+
+  // If all validation passes, call the original submit function
+  await onSubmit({
+    data: state
+  } as FormSubmitEvent<Schema>)
+}
+
 // Options for selects
 const companySizeOptions = [
-  { value: '', label: 'Select company size' },
   { value: '1-10', label: '1-10 employees' },
   { value: '11-50', label: '11-50 employees' },
   { value: '51-200', label: '51-200 employees' },
@@ -374,7 +521,6 @@ const companySizeOptions = [
 ]
 
 const useCaseOptions = [
-  { value: '', label: 'Select use case' },
   { value: 'legal', label: 'Legal document analysis' },
   { value: 'hr', label: 'HR documentation' },
   { value: 'finance', label: 'Financial documents' },
