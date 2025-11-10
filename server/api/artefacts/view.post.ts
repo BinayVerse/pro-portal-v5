@@ -35,8 +35,9 @@ export default defineEventHandler(async (event) => {
         throw new CustomError('Unauthorized: Invalid token', 401)
     }
 
+    // Determine caller org/role and allow superadmin override
     const userQuery = `
-        SELECT u.org_id, o.org_name
+        SELECT u.org_id, u.role_id, o.org_name
         FROM users u
         INNER JOIN organizations o ON u.org_id = o.org_id
         WHERE u.user_id = $1;
@@ -48,17 +49,27 @@ export default defineEventHandler(async (event) => {
         throw new CustomError('User or organization not found', 404)
     }
 
-    const { org_id, org_name } = userResult.rows[0]
-    if (!org_id || !org_name) {
-        setResponseStatus(event, 400)
-        throw new CustomError('Organization information is incomplete', 400)
-    }
+    const tokenUserOrg = userResult.rows[0].org_id
+    const tokenUserRole = userResult.rows[0].role_id
 
-    const { artefactId } = await readBody<{ artefactId: number }>(event)
+    const body = await readBody<{ artefactId?: number, org_id?: string }>(event)
+    const { artefactId } = body
     if (!artefactId) {
         setResponseStatus(event, 400)
         throw new CustomError('Artefact ID is required', 400)
     }
+
+    const q = getQuery(event) as Record<string, any>
+    const requestedOrg = q?.org || q?.org_id || body?.org_id || null
+    const effectiveOrg = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
+
+    // Fetch org_name for effectiveOrg
+    const orgRow = await query('SELECT org_name FROM organizations WHERE org_id = $1 LIMIT 1', [effectiveOrg])
+    if (!orgRow?.rows?.length) {
+        setResponseStatus(event, 404)
+        throw new CustomError('Organization not found', 404)
+    }
+    const org_name = orgRow.rows[0].org_name
 
     try {
         // Fetch document details from database
@@ -67,7 +78,7 @@ export default defineEventHandler(async (event) => {
             FROM organization_documents
             WHERE org_id = $1 AND id = $2;
         `
-        const documentResult = await query(documentQuery, [org_id, artefactId])
+        const documentResult = await query(documentQuery, [effectiveOrg, artefactId])
 
         if (documentResult.rows.length === 0) {
             setResponseStatus(event, 404)

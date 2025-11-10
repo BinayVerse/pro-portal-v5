@@ -52,6 +52,11 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('Your account access has been restricted. Please contact your administrator for assistance.', 403);
     }
 
+    // Prevent sign-in for deactivated accounts
+    if (typeof user.is_active !== 'undefined' && user.is_active === false) {
+      throw new CustomError('This account has been deactivated. Please contact your administrator.', 403);
+    }
+
     // Check if user has a password set
     if (!user.password || user.password.length === 0) {
       throw new CustomError('Your account password is not set. Please contact support or reset your password.', 403);
@@ -79,7 +84,7 @@ export default defineEventHandler(async (event) => {
       status: 'success',
       token,
       user,
-      redirect: '/profile',
+      redirect: '/admin/dashboard',
     };
 
   } catch (error: unknown) {
@@ -96,7 +101,13 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, 500);
     return {
       status: 'error',
-      message: 'We\'re experiencing technical difficulties. Please try again in a few moments.',
+      message:
+        typeof error === 'object' &&
+          error !== null &&
+          'message' in error &&
+          typeof (error as any).message === 'string'
+          ? (error as any).message
+          : 'We\'re experiencing technical difficulties. Please try again in a few moments.',
     };
   }
 });

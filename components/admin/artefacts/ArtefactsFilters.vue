@@ -19,7 +19,7 @@
           @update:model-value="$emit('update:selectedCategory', $event)"
           :options="[
             { label: categoriesLoading ? 'Loading categories...' : 'All Categories', value: '' },
-            ...availableCategories.map(cat => ({ label: cat, value: cat }))
+            ...availableCategories.map((cat) => ({ label: cat, value: cat })),
           ]"
           :loading="categoriesLoading"
           :disabled="categoriesLoading"
@@ -39,8 +39,8 @@
             { label: 'Markdown', value: 'Markdown' },
             { label: 'TXT', value: 'TXT' },
             { label: 'CSV', value: 'CSV' },
-            { label: 'Image', value: 'Image' },
-            { label: 'Database', value: 'Database' }
+            // { label: 'Image', value: 'Image' },
+            // { label: 'Database', value: 'Database' }
           ]"
           size="lg"
         />
@@ -55,7 +55,7 @@
             { label: 'All Status', value: '' },
             { label: 'Processed', value: 'processed' },
             { label: 'Processing', value: 'processing' },
-            { label: 'Failed', value: 'failed' }
+            { label: 'Failed', value: 'failed' },
           ]"
           size="lg"
         />
@@ -76,7 +76,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  categoriesLoading: false
+  categoriesLoading: false,
 })
 
 defineEmits<{

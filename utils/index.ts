@@ -1,3 +1,10 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 // Personal email domains list
 export const personalEmailDomains = [
   'gmail.com',
@@ -46,23 +53,16 @@ export function isPersonalEmail(email: string, domains: string[]): boolean {
  * Format date in DD/MM/YYYY HH:MM AM/PM format
  * @param date - Date to format (can be Date object, string, or timestamp)
  * @returns Formatted date string in DD/MM/YYYY HH:MM AM/PM format
+ * DD/MM/YYYY, hh:mm A
  */
-export function formatDateTime(date: Date | string | number): string {
-  if (!date) return '';
+export function formatDateTime(date: Date | string | number, userTimezone?: string, format = 'DD/MM/YYYY') {
+  if (!date) return 'Unknown';
 
-  const dateObj = new Date(date);
-  if (isNaN(dateObj.getTime())) return '';
+  const dateObj = dayjs.utc(date).tz(userTimezone);
 
-  const options: Intl.DateTimeFormatOptions = {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  };
+  if (!dateObj.isValid()) return 'Unknown';
 
-  return dateObj.toLocaleString('en-GB', options);
+  return dateObj.format(format);
 }
 
 /**

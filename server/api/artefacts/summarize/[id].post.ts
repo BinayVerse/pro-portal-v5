@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     try {
         // Step 1: Validate org
         const userQuery = `
-            SELECT u.org_id, o.org_name
+            SELECT u.org_id, u.role_id, o.org_name
             FROM users u
             INNER JOIN organizations o ON u.org_id = o.org_id
             WHERE u.user_id = $1;
@@ -41,7 +41,33 @@ export default defineEventHandler(async (event) => {
             throw new CustomError('User or organization not found', 404)
         }
 
-        const { org_id, org_name } = userResult.rows[0]
+        const tokenUserOrg = userResult.rows[0].org_id
+        const tokenUserRole = userResult.rows[0].role_id
+
+        // Allow org override via query param, body.org_id, or Referer URL (fallback)
+        const q = getQuery(event) as Record<string, any>
+        let requestedOrg = q?.org || q?.org_id || null
+        const body = await readBody(event)
+        if (!requestedOrg) requestedOrg = body?.org_id || null
+        if (!requestedOrg) {
+          const referer = (event.node.req.headers['referer'] || event.node.req.headers['referrer'] || null) as string | null
+          if (referer) {
+            try {
+              const refUrl = new URL(String(referer))
+              requestedOrg = refUrl.searchParams.get('org') || refUrl.searchParams.get('org_id') || requestedOrg
+            } catch (e) {
+              // ignore invalid referer
+            }
+          }
+        }
+
+        // Only allow superadmin to override org
+        const effectiveOrg = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
+
+        // Fetch org_name for effectiveOrg
+        const orgRow = await query('SELECT org_name FROM organizations WHERE org_id = $1 LIMIT 1', [effectiveOrg])
+        if (!orgRow?.rows?.length) throw new CustomError('Organization not found', 404)
+        const org_name = orgRow.rows[0].org_name
 
         // Step 2: Fetch and verify document
         const documentQuery = `
@@ -49,7 +75,7 @@ export default defineEventHandler(async (event) => {
             FROM organization_documents
             WHERE org_id = $1 AND id = $2;
         `
-        const documentResult = await query(documentQuery, [org_id, documentId])
+        const documentResult = await query(documentQuery, [effectiveOrg, documentId])
 
         if (documentResult.rows.length === 0) {
             throw new CustomError('Document not found for the organization', 404)
@@ -70,7 +96,7 @@ export default defineEventHandler(async (event) => {
         }]
 
         // Step 4: Process summarization
-        await summarizeDocument(bucketName, folderName, org_name, org_id, userId, documentData, token)
+        await summarizeDocument(bucketName, folderName, org_name, effectiveOrg, userId, documentData, token)
 
         // Set 200 OK for successful summarization
         setResponseStatus(event, 200)

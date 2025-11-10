@@ -1,4 +1,3 @@
-<!-- /pages/admin/users.vue -->
 <template>
   <div class="space-y-6">
     <!-- Header -->
@@ -12,14 +11,22 @@
       <div class="flex items-center space-x-3">
         <button
           @click="openBulkUplaod"
-          class="bg-dark-800 hover:bg-dark-700 text-white px-4 py-2 rounded-lg border border-dark-700 transition-colors flex items-center space-x-2"
+          :class="[
+            baseButtonClass,
+            'bg-dark-800 text-white hover:bg-dark-700',
+            'flex items-center space-x-2',
+          ]"
         >
           <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4" />
           <span>Bulk Upload</span>
         </button>
         <button
           @click="openAddUserModal"
-          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+          :class="[
+            baseButtonClass,
+            'bg-blue-600 hover:bg-blue-700 text-white',
+            'flex items-center space-x-2',
+          ]"
         >
           <UIcon name="i-heroicons-plus" class="w-4 h-4" />
           <span>Add User</span>
@@ -82,9 +89,9 @@
       </div>
     </div>
 
-    <!-- Search and Filters -->
+    <!-- Search, Filters and Sort -->
     <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
-      <div class="flex flex-col sm:flex-row gap-4">
+      <div class="flex flex-col sm:flex-row gap-4 items-center">
         <!-- Search Input -->
         <div class="flex-1">
           <div class="relative">
@@ -95,17 +102,14 @@
               v-model="searchQuery"
               type="text"
               placeholder="Search users..."
-              class="block w-full pl-10 pr-3 py-3 border border-dark-700 rounded-lg bg-dark-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              :class="baseInputWithIcon"
             />
           </div>
         </div>
 
         <!-- Role Filter -->
         <div class="sm:w-48">
-          <select
-            v-model="selectedRole"
-            class="block w-full px-3 py-3 border border-dark-700 rounded-lg bg-dark-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-          >
+          <select v-model="selectedRole" :class="baseInputClass">
             <option value="">All Roles</option>
             <option value="admin">Admin</option>
             <option value="user">User</option>
@@ -114,10 +118,7 @@
 
         <!-- Status Filter -->
         <div class="sm:w-48">
-          <select
-            v-model="selectedStatus"
-            class="block w-full px-3 py-3 border border-dark-700 rounded-lg bg-dark-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-          >
+          <select v-model="selectedStatus" :class="baseInputClass">
             <option value="">All Status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
@@ -147,7 +148,7 @@
         <UIcon name="i-heroicons-exclamation-triangle" class="w-12 h-12 text-red-400 mx-auto" />
         <p class="text-red-400 mt-2">Failed to load users</p>
         <button
-          @click="loadUsers"
+          @click="() => loadUsers()"
           class="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
         >
           Retry
@@ -159,8 +160,8 @@
         <UTable
           :columns="columns"
           :rows="paginatedUsers"
-          :sort="sort"
-          @sort="(s) => (sort = s)"
+          v-model:sort="sort"
+          sort-mode="manual"
           class="text-white"
         >
           <!-- Custom cells -->
@@ -198,13 +199,14 @@
 
           <template #contact-data="{ row }">
             <div class="text-sm text-white">{{ row.email }}</div>
-            <div class="text-sm text-gray-400">{{ row.phone }}</div>
+            <div class="text-sm text-gray-400">{{ row.phone || '-' }}</div>
           </template>
 
           <template #role-data="{ row }">
             <span
               class="inline-flex px-2 py-1 text-xs font-medium rounded-full"
               :class="{
+                'bg-red-500/20 text-red-400': row.role === 'super admin',
                 'bg-purple-500/20 text-purple-400': row.role === 'admin',
                 'bg-gray-500/20 text-gray-400': row.role === 'user',
               }"
@@ -233,7 +235,7 @@
           </template>
 
           <template #tokensUsed-data="{ row }">
-            {{ row.tokensUsed.toLocaleString() }}
+            {{ formatTokenCount(row.tokensUsed) }}
           </template>
 
           <template #actions-data="{ row }">
@@ -246,20 +248,47 @@
                 <UIcon name="i-heroicons-pencil" class="w-4 h-4" />
               </button>
               <button
+                :disabled="row.id === authUser?.user_id || row.primaryContact"
+                @click="
+                  (row.id !== authUser?.user_id || !row.primaryContact) && showToggleConfirm(row)
+                "
+                :class="`transition-colors ${
+                  row.id === authUser?.user_id || row.primaryContact
+                    ? 'cursor-not-allowed disabled:opacity-50 text-gray-500'
+                    : row.isActive
+                      ? 'text-red-400 hover:text-red-300'
+                      : 'text-green-400 hover:text-green-300'
+                }`"
+                :title="row.isActive ? 'Deactivate user' : 'Activate user'"
+                :aria-label="row.isActive ? 'Deactivate user' : 'Activate user'"
+              >
+                <UIcon
+                  :name="row.isActive ? 'heroicons:no-symbol' : 'heroicons:bolt'"
+                  class="w-4 h-4"
+                />
+              </button>
+              <!-- <button
                 @click="deleteUser(row)"
                 class="text-red-400 hover:text-red-300 transition-colors"
                 title="Delete user"
               >
                 <UIcon name="i-heroicons-trash" class="w-4 h-4" />
-              </button>
+              </button> -->
             </div>
           </template>
         </UTable>
-        <div class="p-4 flex justify-end border-t border-dark-700">
+        <div class="p-4 flex items-center justify-between border-t border-dark-700">
+          <div class="flex items-center space-x-3">
+            <div class="text-sm text-gray-400 hidden sm:block">Rows per page</div>
+            <div class="w-24">
+              <USelect v-model="perPage" :options="perPageOptions" size="sm" />
+            </div>
+          </div>
+
           <UPagination
             v-model="page"
             :total="sortedRows.length"
-            :page-count="pageSize"
+            :page-count="computedPageCount"
             :show-first="true"
             :show-last="true"
             :show-edges="true"
@@ -271,7 +300,7 @@
     </div>
 
     <!-- User Modal (Add/Edit) -->
-    <UModal v-model="showUserModal">
+    <UModal v-model="showUserModal" prevent-close>
       <UCard>
         <template #header>
           <div class="flex items-center justify-between">
@@ -291,10 +320,12 @@
               v-model="userForm.name"
               type="text"
               placeholder="Enter full name"
+              inputClass="custom-input"
               :ui="{
                 base: 'w-full px-3 py-3 border border-dark-700 rounded-lg bg-dark-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500',
                 padding: { sm: 'p-3' },
               }"
+              icon="i-heroicons-user"
             />
           </UFormGroup>
 
@@ -304,15 +335,17 @@
               v-model="userForm.email"
               type="email"
               placeholder="Enter email address"
+              inputClass="custom-input"
               :ui="{
                 base: 'w-full px-3 py-3 border border-dark-700 rounded-lg bg-dark-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500',
                 padding: { sm: 'p-3' },
               }"
+              icon="i-heroicons-envelope"
             />
           </UFormGroup>
 
           <!-- Phone -->
-          <UFormGroup name="phone" label="Phone Number">
+          <UFormGroup name="phone" label="Phone Number" required>
             <LibVueTelInput
               ref="phoneRef"
               :prop-phone="userForm.phone"
@@ -322,17 +355,29 @@
           </UFormGroup>
 
           <!-- Role -->
-          <UFormGroup label="Role" name="role_id" required>
+          <UFormGroup
+            label="Role"
+            name="role_id"
+            required
+            :area-disabled="
+              usersStore.users.find((u) => u.user_id === userForm.user_id)?.primary_contact
+            "
+          >
             <USelect
               v-model="userForm.role_id"
               :options="roleOptions"
               option-attribute="label"
               value-attribute="value"
               placeholder="Select Role"
+              selectClass="custom-select"
+              :disabled="
+                usersStore.users.find((u) => u.user_id === userForm.user_id)?.primary_contact
+              "
               :ui="{
                 base: 'w-full px-3 py-3 border border-dark-700 rounded-lg bg-dark-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500',
                 padding: { sm: 'p-3' },
               }"
+              icon="i-heroicons-cursor-arrow-ripple"
             />
           </UFormGroup>
 
@@ -384,7 +429,7 @@
     </UModal>
 
     <!-- Delete User Modal -->
-    <UModal v-model="showDeleteUserModal">
+    <UModal v-model="showDeleteUserModal" prevent-close>
       <UCard>
         <template #header>
           <h3 class="text-lg font-semibold text-white">Delete User</h3>
@@ -415,8 +460,65 @@
       </UCard>
     </UModal>
 
+    <!-- Confirm Activate/Deactivate Modal -->
+    <UModal v-model="showToggleConfirmModal" prevent-close>
+      <UCard>
+        <template #header>
+          <h3 class="text-lg font-semibold text-white">Confirm Action</h3>
+        </template>
+
+        <p class="text-gray-300 mb-2">
+          Are you sure you want to
+          <span class="font-semibold">{{
+            selectedUser?.isActive ? 'deactivate' : 'activate'
+          }}</span>
+          user <span class="font-semibold">{{ selectedUser?.name }}</span
+          >?
+        </p>
+        <p class="text-sm text-gray-400 mb-6">
+          <!-- Role-aware message: only mention sign-in restriction for admin/super admin -->
+          <template v-if="selectedUser?.isActive">
+            <template v-if="selectedUser?.role_id === 0 || selectedUser?.role_id === 1">
+              Deactivating will immediately revoke this user's access, prevent them from signing in,
+              and they will lose bot access.
+            </template>
+            <template v-else>
+              Deactivating will remove this user's access within the organization and they'll lose
+              bot access.
+            </template>
+          </template>
+
+          <template v-else>
+            <template v-if="selectedUser?.role_id === 0 || selectedUser?.role_id === 1">
+              Activating will restore this user's access, allow them to sign in, and restore their
+              bot access.
+            </template>
+            <template v-else>
+              Activating will restore this user's access within the organization.
+            </template>
+          </template>
+        </p>
+
+        <div class="flex space-x-3">
+          <UButton
+            @click="showToggleConfirmModal = false"
+            label="Cancel"
+            color="gray"
+            class="flex-1 px-3 py-3 justify-center"
+          />
+          <UButton
+            @click="confirmToggleActive"
+            :loading="togglingUser"
+            label="Confirm"
+            color="blue"
+            class="flex-1 px-3 py-3 justify-center"
+          />
+        </div>
+      </UCard>
+    </UModal>
+
     <!-- Confirm Primary COntact -->
-    <UModal v-model="showPrimaryContactConfirm">
+    <UModal v-model="showPrimaryContactConfirm" prevent-close>
       <UCard>
         <template #header>
           <h3 class="text-lg font-semibold text-white">Confirm Primary Contact</h3>
@@ -491,6 +593,7 @@
         <!-- Modal Body -->
         <div class="upload-area space-y-4">
           <!-- File Upload Section -->
+
           <div
             class="drag-area border-dashed border-2 border-gray-300 rounded-md p-6 flex flex-col items-center justify-center cursor-pointer"
             @dragover.prevent
@@ -518,6 +621,25 @@
             <h4 class="font-semibold mb-2">Users Preview</h4>
             <div v-html="viewContent" class="users-preview"></div>
           </div>
+
+          <!-- Inline error summary when validation fails -->
+          <div
+            v-if="errors.length && !hideInline"
+            class="p-4 bg-red-800/10 text-red-800 rounded border border-red-200"
+          >
+            <div class="flex items-start justify-between">
+              <div>
+                <strong class="block">Invalid or missing user details</strong>
+                <p class="text-sm">Please correct the highlighted fields and try again.</p>
+              </div>
+            </div>
+
+            <ul class="mt-3 list-disc pl-5 text-sm max-h-40 overflow-auto">
+              <li v-for="(err, idx) in errors" :key="idx" class="mb-1">
+                {{ err.errorMessage }}
+              </li>
+            </ul>
+          </div>
         </div>
 
         <!-- Modal Footer -->
@@ -528,7 +650,7 @@
             </UButton>
             <UButton
               type="button"
-              :disabled="errors.length > 0 || !selectedFile"
+              :disabled="errors.length > 0 || !selectedFile || validating"
               @click="handleUpload"
               class="bg-custom1-400 text-white hover:bg-custom1-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -544,6 +666,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { z } from 'zod'
+import { useRoute } from 'vue-router'
 
 // Types
 interface ApiUser {
@@ -557,6 +680,7 @@ interface ApiUser {
   added_by: string
   primary_contact: boolean
   org_name: string
+  last_active: string
   updated_at: string
   created_at: string
   source: string
@@ -569,7 +693,7 @@ interface MappedUser {
   name: string
   email: string
   phone: string
-  role_id: string | number
+  role_id: number
   role: string
   status: string
   initials: string
@@ -577,6 +701,7 @@ interface MappedUser {
   lastActive: string
   created: string
   tokensUsed: number
+  tokensUsedRaw: number
   source: string
   primaryContact?: boolean
   isActive?: boolean
@@ -594,7 +719,7 @@ interface UserForm {
   name: string
   email: string
   phone: string
-  role_id?: string
+  role_id?: number
   primaryContact: boolean
   isActive: boolean
 }
@@ -602,19 +727,43 @@ interface UserForm {
 // Using admin layout
 definePageMeta({
   layout: 'admin',
+  middleware: 'auth',
 })
 
 // Store
 const usersStore = useUsersStore()
+const baseInputClass =
+  'block w-full px-3 py-3 border border-dark-700 rounded-lg bg-dark-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors'
+const baseInputWithIcon =
+  'block w-full pl-10 pr-3 py-3 border border-dark-700 rounded-lg bg-dark-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors'
+const baseButtonClass = 'px-4 py-2 rounded-lg border border-dark-700 transition-colors'
 const profileStore = useProfileStore()
 const authStore = useAuthStore()
+const integrationsStore = useIntegrationsStore()
 
 const authUser = computed(() => authStore.getAuthUser)
+// WhatsApp connection status
+const isWhatsAppConnected = computed(() => {
+  try {
+    // Prefer overview status if available and connected
+    const status = integrationsStore.getIntegrationStatus('whatsapp')
+    if (status === 'connected') return true
+
+    // If overview reports disconnected (or not available) check whatsappDetails directly
+    const wd = integrationsStore.whatsappDetails
+    if (wd && wd.whatsapp_status && wd.business_whatsapp_number) return true
+
+    // Otherwise not connected
+    return false
+  } catch (e) {
+    return false
+  }
+})
 
 // Reactive state
 const phoneRef = ref(null)
 const phoneValidation = ref({ status: true, message: '' })
-
+const route = useRoute()
 const searchQuery = ref('')
 const selectedRole = ref('')
 const selectedStatus = ref('')
@@ -635,6 +784,10 @@ const pendingPrimaryContactChange = ref(false)
 const primaryContactConfirmMessage = ref('')
 const isPrimaryContactConfirming = ref(false)
 
+// Toggle confirm modal state
+const showToggleConfirmModal = ref(false)
+const togglingUser = ref(false)
+
 const confirmPrimaryContactChange = async () => {
   userForm.primaryContact = true
   showUserModal.value = true
@@ -648,7 +801,7 @@ const userForm = reactive<UserForm>({
   name: '',
   email: '',
   phone: '',
-  role_id: '2', // default to 'user'
+  role_id: 2, // default to 'user'
   primaryContact: false,
   isActive: true,
 })
@@ -668,45 +821,113 @@ const columns = [
   { key: 'actions', label: 'Actions' },
 ]
 
+const filteredUsers = computed(() => {
+  return (
+    usersList.value
+      // .filter((user) => user.role.toLowerCase() !== 'super admin')
+      .filter((user) => {
+        const matchesSearch =
+          !searchQuery.value ||
+          user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchQuery.value.toLowerCase())
+
+        const matchesRole = !selectedRole.value || user.role === selectedRole.value
+        const matchesStatus = !selectedStatus.value || user.status === selectedStatus.value
+
+        return matchesSearch && matchesRole && matchesStatus
+      })
+  )
+})
+
 const sort = ref<{ column: string; direction: 'asc' | 'desc' | null }>({
   column: 'name',
   direction: 'asc',
 })
 
+// UI model for the sort select control
+const sortOption = ref('name_asc')
+
+const applySort = () => {
+  const [col, dir] = sortOption.value.split('_')
+  sort.value = { column: col, direction: dir as 'asc' | 'desc' }
+}
+
+// Ensure initial sort is applied
+applySort()
+
 const sortedRows = computed(() => {
-  if (!sort.value.column || !sort.value.direction) return rows.value
+  if (!sort.value.column || !sort.value.direction) return filteredUsers.value
 
-  return [...rows.value].sort((a, b) => {
-    const col = sort.value.column as keyof typeof a
-    const dir = sort.value.direction === 'asc' ? 1 : -1
+  const colKey = sort.value.column
+  const dir = sort.value.direction === 'asc' ? 1 : -1
 
-    if (a[col] < b[col]) return -1 * dir
-    if (a[col] > b[col]) return 1 * dir
+  const fieldMap: Record<string, string> = {
+    lastActive: 'lastActive',
+    created: 'created',
+    tokensUsed: 'tokensUsedRaw',
+    name: 'name',
+    contact: 'email',
+    role: 'role',
+    status: 'status',
+    source: 'source',
+  }
+
+  const field = fieldMap[colKey] || colKey
+
+  return [...filteredUsers.value].sort((a, b) => {
+    let aVal = (a as any)[field]
+    let bVal = (b as any)[field]
+
+    // For date fields
+    if (field === 'lastActive' || field === 'created') {
+      const parseDate = (dateStr: string) => {
+        if (!dateStr) return new Date(0)
+        const parts = dateStr.split('/')
+        if (parts.length !== 3) return new Date(0)
+        const [day, month, year] = parts.map(Number)
+        return new Date(year, month - 1, day)
+      }
+
+      const aDate = parseDate(aVal)
+      const bDate = parseDate(bVal)
+
+      if (aDate < bDate) return -1 * dir
+      if (aDate > bDate) return 1 * dir
+      return 0
+    }
+
+    // Fallback to other fields without changes
+    aVal = aVal ? String(aVal).toLowerCase() : ''
+    bVal = bVal ? String(bVal).toLowerCase() : ''
+    if (aVal < bVal) return -1 * dir
+    if (aVal > bVal) return 1 * dir
     return 0
   })
 })
 
-const rows = computed(() =>
-  filteredUsers.value.map((user) => ({
-    ...user,
-    contact: `${user.email} \n ${user.phone}`,
-  })),
-)
-
 const page = ref(1)
-const pageSize = ref(5) // rows per page
+const perPage = ref(5) // rows per page
+const perPageOptions = [
+  { label: '5', value: 5 },
+  { label: '10', value: 10 },
+  { label: '20', value: 20 },
+  { label: '50', value: 50 },
+  { label: 'All', value: 'all' },
+]
+const computedPageCount = computed(() => (perPage.value === 'all' ? Math.max(sortedRows.value.length, 1) : (perPage.value as number)))
+watch(perPage, () => { page.value = 1 })
 
 const paginatedUsers = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredUsers.value.slice(start, end)
+  if (perPage.value === 'all') return sortedRows.value
+  const start = (page.value - 1) * perPage.value
+  const end = start + perPage.value
+  return sortedRows.value.slice(start, end)
 })
 
 const roleOptions = computed(() => {
-  console.log('Auth User in users.vue:', authUser.value)
+  // const superAdmin = [{ value: 0, label: 'Super Admin' }]
 
-  const superAdmin = [{ value: 0, label: 'Super Admin' }]
-
+  const superAdmin = []
   const mappedRoles = usersStore.roles.map((role: any) => ({
     value: role.role_id,
     label: role.role_name,
@@ -719,8 +940,16 @@ const roleOptions = computed(() => {
   }
 })
 
+watch([selectedRole, selectedStatus, searchQuery], () => {
+  page.value = 1
+})
+
+watch([sort], () => {
+  page.value = 1
+})
+
 const userSchema = z.object({
-  name: z.string().min(5, 'Name is required'),
+  name: z.string().nonempty('Name is required').min(5, 'Name should be at least 5 characters long'),
   email: z.string().email('Invalid email address'),
   role_id: z.union([z.string(), z.number()]).refine((val) => val !== '', {
     message: 'Role is required',
@@ -730,16 +959,9 @@ const userSchema = z.object({
 })
 
 // Function to validate phone and update UI
-const validatePhoneField = () => {
-  const phoneData = phoneRef.value?.phoneData
-
-  if (phoneData && phoneData.valid) {
-    phoneValidation.value = { status: true, message: '' }
-    return true
-  } else {
-    phoneValidation.value = { status: false, message: 'Please enter a valid phone number' }
-    return false
-  }
+function validatePhoneField() {
+  const phoneValidation = phoneRef.value?.handlePhoneValidation?.(true)
+  return phoneValidation?.status || false
 }
 // Computed properties
 const stats = computed<UserStats>(() => {
@@ -747,44 +969,31 @@ const stats = computed<UserStats>(() => {
   const activeUsers = usersList.value.filter((user) => user.status === 'active').length
   const adminUsers = usersList.value.filter((user) => user.role === 'admin').length
   const newThisMonth = usersList.value.filter((user) => {
-    const created = new Date(user.created)
     const now = new Date()
-    return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear()
+    const createdStr = user.created || ''
+    let createdDate: Date | null = null
+
+    // If date is in DD/MM/YYYY format (from server), parse accordingly
+    if (createdStr.includes('/')) {
+      const parts = createdStr.split('/').map(Number)
+      if (parts.length === 3) {
+        const [day, month, year] = parts
+        createdDate = new Date(year, month - 1, day)
+      }
+    } else {
+      // Fallback to native parsing for ISO or other formats
+      const d = new Date(createdStr)
+      if (!isNaN(d.getTime())) createdDate = d
+    }
+
+    if (!createdDate) return false
+    return (
+      createdDate.getMonth() === now.getMonth() && createdDate.getFullYear() === now.getFullYear()
+    )
   }).length
 
   return { totalUsers, activeUsers, adminUsers, newThisMonth }
 })
-
-const filteredUsers = computed(() => {
-  return usersList.value
-    .filter((user) => user.role.toLowerCase() !== 'super admin')
-    .filter((user) => {
-      const matchesSearch =
-        !searchQuery.value ||
-        user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.value.toLowerCase())
-
-      const matchesRole = !selectedRole.value || user.role === selectedRole.value
-      const matchesStatus = !selectedStatus.value || user.status === selectedStatus.value
-
-      return matchesSearch && matchesRole && matchesStatus
-    })
-})
-
-// Helper functions
-const formatDate = (dateString: string | undefined): string => {
-  if (!dateString) return '-'
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch {
-    return '-'
-  }
-}
 
 const getInitials = (name: string): string => {
   if (!name) return 'UU'
@@ -796,10 +1005,39 @@ const getInitials = (name: string): string => {
     .slice(0, 2)
 }
 
+const formatTokenCount = (tokens: number | string): string => {
+  const n = Number(tokens) || 0
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1).replace(/\.0$/, '')}M`
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K`
+  return n.toLocaleString()
+}
+
+const parseFormattedTokens = (val: number | string | undefined): number => {
+  if (val === undefined || val === null) return 0
+  if (typeof val === 'number') return val
+  let s = String(val).trim()
+  if (!s) return 0
+  // Remove commas and spaces
+  s = s.replace(/,/g, '').replace(/\s+/g, '')
+  const lastChar = s.slice(-1).toUpperCase()
+  if (lastChar === 'M') {
+    const num = parseFloat(s.slice(0, -1))
+    return Number.isFinite(num) ? Math.round(num * 1000000) : 0
+  }
+  if (lastChar === 'K') {
+    const num = parseFloat(s.slice(0, -1))
+    return Number.isFinite(num) ? Math.round(num * 1000) : 0
+  }
+  // fallback parse number
+  const num = parseFloat(s)
+  return Number.isFinite(num) ? Math.round(num) : 0
+}
+
 const mapRole = (roleId: number, roleName?: string): string => {
   if (roleName) return roleName.toLowerCase()
 
   const roleMap: { [key: number]: string } = {
+    0: 'super admin',
     1: 'admin',
     2: 'user',
   }
@@ -810,35 +1048,47 @@ const mapApiUserToMappedUser = (user: ApiUser): MappedUser => ({
   id: user.user_id,
   name: user.name,
   email: user.email,
-  phone: user.contact_number || '-',
+  phone: user.contact_number || '',
   role_id: user.role_id,
   role: mapRole(user.role_id, user.role),
   status: user.status || 'active',
   initials: getInitials(user.name),
+  isActive: (user.status || 'active') === 'active',
   username: user.email.split('@')[0],
-  lastActive: formatDate(user.updated_at),
-  created: formatDate(user.added_at || user.created_at),
-  tokensUsed: user.tokens_used || 0,
+  lastActive: user.last_active || user.updated_at || user.created_at,
+  created: user.added_at || user.created_at,
+  tokensUsedRaw: parseFormattedTokens(user.tokens_used),
+  tokensUsed: parseFormattedTokens(user.tokens_used),
   source: user.source,
   primaryContact: user.primary_contact,
-  isActive: (user.status || 'active') === 'active',
 })
 
 // API functions
-const loadUsers = async () => {
-  loading.value = true
-  error.value = null
+const loadUsers = async (showLoading = true) => {
+  // Only show the global loading spinner on the first (explicit) load
+  if (showLoading) {
+    loading.value = true
+    error.value = null
+  }
 
   try {
-    await usersStore.fetchUsers()
+    // If superadmin is viewing org-scoped page, pass org query param to store
+    const orgIdFromQuery =
+      route.query?.org || route.query?.org_id
+        ? String(route.query?.org || route.query?.org_id)
+        : null
+    await usersStore.fetchUsers(orgIdFromQuery)
     if (usersStore.users?.length) {
       usersList.value = usersStore.users.map(mapApiUserToMappedUser)
     }
   } catch (err: any) {
     console.error('Failed to load users:', err)
-    error.value = usersStore.getUserError || err.message || 'Failed to load users'
+    // Only surface the error to UI if it was the initial load
+    if (showLoading) {
+      error.value = usersStore.getUserError || err.message || 'Failed to load users'
+    }
   } finally {
-    loading.value = false
+    if (showLoading) loading.value = false
   }
 }
 
@@ -849,12 +1099,13 @@ const handlePrimaryContactUpdate = async () => {
   const currentPrimaryContact = usersStore.users.find((u) => u.primary_contact)
 
   // If the logged-in user is currently primary, unset them
+  const orgIdFromQuery = route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
   if (profileStore.userProfile.primary_contact) {
-    await usersStore.editUser(profileStore.userProfile.user_id, { primary_contact: false }, true)
+    await usersStore.editUser(profileStore.userProfile.user_id, { primary_contact: false }, true, orgIdFromQuery)
   }
   // If another user is primary, unset them
   else if (currentPrimaryContact && currentPrimaryContact.user_id !== userForm.user_id) {
-    await usersStore.editUser(currentPrimaryContact.user_id, { primary_contact: false }, true)
+    await usersStore.editUser(currentPrimaryContact.user_id, { primary_contact: false }, true, orgIdFromQuery)
   }
 
   // Optionally refresh profile or users list
@@ -863,7 +1114,9 @@ const handlePrimaryContactUpdate = async () => {
 }
 
 const saveUser = async () => {
-  if (!validatePhoneField()) return
+  if (!validatePhoneField()) {
+    return
+  }
 
   const phoneData = phoneRef.value?.phoneData
   const phoneNumberWithCountryCode = phoneData?.number || userForm.phone || ''
@@ -878,28 +1131,50 @@ const saveUser = async () => {
     status: userForm.isActive ? 'active' : 'inactive',
   }
 
-  updatingUser.value = true
+  // Set appropriate loading flag to prevent duplicate submissions
+  if (isEditMode.value) {
+    updatingUser.value = true
+  } else {
+    addingUser.value = true
+  }
+
   try {
-    // If editing and primary_contact is checked, handle old primary contact
+    let result
+
     if (isEditMode.value && userForm.primaryContact) {
       await handlePrimaryContactUpdate()
     }
 
-    // Save or update user
-    if (isEditMode.value && userForm.user_id) {
-      await usersStore.editUser(userForm.user_id, payload)
-    } else {
-      await usersStore.createUser(payload)
+    const orgIdFromQuery =
+      route?.query?.org || route?.query?.org_id
+        ? String(route.query?.org || route.query?.org_id)
+        : null
+
+    if (!isEditMode.value && authUser.value?.role_id === 0 && orgIdFromQuery) {
+      // Superadmin creating for selected org — include org_id in payload
+      payload['org_id'] = orgIdFromQuery
     }
 
-    await loadUsers()
+    if (isEditMode.value && userForm.user_id) {
+      const orgIdFromQuery = route?.query?.org || route?.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
+      result = await usersStore.editUser(userForm.user_id, payload, false, orgIdFromQuery)
+    } else {
+      result = await usersStore.createUser(payload)
+    }
+
+    if (!result?.success) {
+      // show a user-friendly error message from the store
+      return
+    }
 
     showUserModal.value = false
-  } catch (err: any) {
-    console.error('Error saving user:', err)
-    error.value = usersStore.getUserError || 'Failed to save user'
+    await loadUsers()
+  } catch (err) {
+    console.error('Unexpected error saving user:', err)
   } finally {
+    // reset both flags to be safe
     updatingUser.value = false
+    addingUser.value = false
   }
 }
 
@@ -909,7 +1184,7 @@ const resetUserForm = () => {
   userForm.name = ''
   userForm.email = ''
   userForm.phone = ''
-  userForm.role_id = ''
+  userForm.role_id = 2
   userForm.primaryContact = false
   userForm.isActive = true
 
@@ -971,6 +1246,49 @@ const editUser = (user: MappedUser) => {
 const deleteUser = (user: MappedUser) => {
   selectedUser.value = user
   showDeleteUserModal.value = true
+}
+
+// Toggle active/inactive status for a user (replaces delete action)
+const toggleActive = async (user: MappedUser) => {
+  try {
+    const result = await usersStore.setUserActive(user.id, !user.isActive)
+    if (result?.success) {
+      // Update local usersList state for immediate UI feedback
+      const idx = usersList.value.findIndex((u) => u.id === user.id)
+      if (idx !== -1) {
+        const current = usersList.value[idx]
+        const newActive = !current.isActive
+        usersList.value[idx] = {
+          ...current,
+          isActive: newActive,
+          status: newActive ? 'active' : 'inactive',
+        }
+      }
+      // NOTE: success notification is handled by the store. Do not show duplicate toasts here.
+    } else {
+      showError(result?.message || 'Failed to update user status')
+    }
+  } catch (err: any) {
+    console.error('Toggle active error', err)
+    showError('Failed to update user status')
+  }
+}
+
+const showToggleConfirm = (user: MappedUser) => {
+  selectedUser.value = user
+  showToggleConfirmModal.value = true
+}
+
+const confirmToggleActive = async () => {
+  if (!selectedUser.value) return
+  try {
+    togglingUser.value = true
+    // Use the toggleActive helper to perform the action and update local state
+    await toggleActive(selectedUser.value)
+    showToggleConfirmModal.value = false
+  } finally {
+    togglingUser.value = false
+  }
 }
 
 // Handle Primary Contact Toggle
@@ -1038,6 +1356,8 @@ const isViewMode = ref(true)
 const previewData = ref([])
 const showForm2 = ref(false)
 const viewContent = ref('')
+// Validation in progress flag
+const validating = ref(false)
 
 const openBulkUplaod = () => {
   showForm2.value = true
@@ -1068,12 +1388,52 @@ const validateFile = (file?: File) => {
   const type = file.type.toLowerCase()
 
   if (!(ext === 'csv' || type.includes('csv'))) {
-    showError('Invalid file type. Only CSV is allowed.')
+    showInlineError('Invalid file type. Only CSV is allowed.')
     return
   }
 
   selectedFile.value = file
   openPreview(file)
+}
+
+// Show inline error summary and toast
+const showInlineError = (msg: string) => {
+  errors.value = [{ errorMessage: msg }]
+  // Ensure modal is visible so user sees the inline summary
+  showForm2.value = true
+  showPreview.value = false
+  isViewMode.value = false
+  // Re-render previewData without highlights if available
+  if (previewData.value && previewData.value.length) {
+    viewContent.value = renderCSVToHTML(previewData.value)
+  } else {
+    viewContent.value = ''
+  }
+
+  // Use available notification helper(s)
+  try {
+    if (typeof showError === 'function') showError(msg)
+  } catch (e) {}
+}
+
+// Helper to show multiple error toasts sequentially
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms))
+const hideInline = ref(false)
+const showErrorsSequentially = async (messages: string[], perMs = 3500) => {
+  if (!messages || !messages.length) return
+  // Show modal context
+  showForm2.value = true
+  // Hide inline banner while showing sequential toasts
+  hideInline.value = true
+
+  for (let i = 0; i < messages.length; i++) {
+    try {
+      showError(messages[i], { duration: perMs })
+    } catch (e) {}
+    // wait before showing next
+    // eslint-disable-next-line no-await-in-loop
+    await sleep(perMs + 200)
+  }
 }
 
 const openPreview = async (file: File) => {
@@ -1089,37 +1449,77 @@ const openPreview = async (file: File) => {
       })
     })
 
+    if (!parsedData || parsedData.length === 0) {
+      throw new Error('The uploaded CSV file is empty. Please upload a file with user data.')
+    }
+
     // Render the data into a preview and display it
     previewData.value = parsedData
     showPreview.value = true
     showForm2.value = true
 
     // Call validation API
-    const validationResponse = await usersStore.uploadAndValidateJson(parsedData as any)
+    validating.value = true
+    const route = useRoute()
+    const orgIdFromQuery =
+      route?.query?.org || route?.query?.org_id
+        ? String(route.query?.org || route.query?.org_id)
+        : null
+    const validationResponse = await usersStore.uploadAndValidateJson(parsedData as any, orgIdFromQuery)
 
     if (validationResponse.errors && validationResponse.errors.length > 0) {
       errors.value = validationResponse.errors.map(
         (error: { rowNumber: number; invalidFields: any[] }) => ({
-          errorMessage: `Row: ${error.rowNumber} - ${error.invalidFields.map((field: { field: any; message: any }) => `${field.field}: ${field.message}`).join(', ')}`,
+          errorMessage: `Row: ${error.rowNumber} - ${error.invalidFields
+            .map((field: { field: any; message: any }) => `${field.field}: ${field.message}`)
+            .join(', ')}`,
           rowIndex: error.rowNumber - 1,
           invalidFields: error.invalidFields,
         }),
       )
 
-      // Show toast for each error
+      // Group errors by row so we don't repeat 'Row X' for every field
+      const grouped: Record<number, string[]> = {}
       validationResponse.errors.forEach((error: { rowNumber: number; invalidFields: any[] }) => {
+        const row = error.rowNumber
+        grouped[row] = grouped[row] || []
         error.invalidFields.forEach((field: { field: any; message: any }) => {
-          const errorMessage = `Row: ${error.rowNumber} - ${field.field}: ${field.message}`
-          showError(errorMessage)
+          grouped[row].push(`${field.field}: ${field.message}`)
         })
       })
-      // Extract error row indices
+
+      // Build concatenated message with each message on a new line and rows grouped
+      const rowKeys = Object.keys(grouped)
+        .map((k) => Number(k))
+        .sort((a, b) => a - b)
+
+      // Build per-row blocks where each field appears on a new line.
+      // Between rows, insert two new lines (i.e., one blank line) as requested.
+      const rowBlocks: string[] = []
+      rowKeys.forEach((row) => {
+        const fields = grouped[row]
+        if (!fields || !fields.length) return
+
+        // Compose block: Row X:\nfield1\nfield2...
+        const block = `Row ${row}:\n${fields.join('\n')}`
+        rowBlocks.push(block)
+      })
+
+      // Join rows with two newlines between them
+      const concatenated = rowBlocks.join('\n\n')
+      // duration based on number of lines, capped
+      const duration = Math.min(20000, rowBlocks.length * 2500)
+
+      // Show single toast with concatenated message
+      try {
+        showError(concatenated, { duration })
+      } catch (e) {}
+
       const errorRows = validationResponse.errors.map(
         (error: { rowNumber: number }) => error.rowNumber - 1,
       )
 
-      // Map errors by row index for correct table rendering
-      const errorMessages = {}
+      const errorMessages: Record<number, { field: string; message: string }[]> = {}
       validationResponse.errors.forEach((error: { rowNumber: number; invalidFields: any[] }) => {
         errorMessages[error.rowNumber - 1] = error.invalidFields.map(
           (field: { field: any; message: any }) => ({
@@ -1139,47 +1539,47 @@ const openPreview = async (file: File) => {
       showForm2.value = true
       viewContent.value = renderCSVToHTML(parsedData)
     }
-  } catch (error) {
-    const errorMsg = error.message || 'An error occurred while validating the file'
-    showError('An error occurred while importing the Users: ' + errorMsg)
+  } catch (error: any) {
+    const errorMsg =
+      error.message === 'The uploaded CSV file is empty. Please upload a file with user data.'
+        ? error.message
+        : 'An error occurred while validating the file. Please check your CSV and try again.'
+
+    showInlineError(errorMsg)
     errors.value = [
       {
         errorMessage: errorMsg,
       },
     ]
-    // Ensure preview shows even on unexpected errors
-    showPreview.value = true
+    showPreview.value = false // don’t show preview for errors
     isViewMode.value = false
-    // Render basic preview without validation highlights
     viewContent.value = renderCSVToHTML(previewData.value)
+  } finally {
+    validating.value = false
   }
 }
 
 const handleUpload = async () => {
   if (!selectedFile.value) {
-    showError('Please select a file to upload.')
+    showInlineError('Please select a file to upload.')
     return
   }
   if (errors.value.length > 0) {
-    showError('Please fix the errors before uploading.')
+    showInlineError('Please fix the errors before uploading.')
     return
   }
   if (!previewData.value.length) {
-    showError('No data to upload.')
+    showInlineError('No data to upload.')
     return
   }
-
-  try {
-    const response = await usersStore.createBulkUsers(previewData.value as any)
-    if (response.status) {
-      showSuccess(response.message || 'Users imported successfully!')
-      closePreviewForm()
-    } else {
-      showError(response.message || 'Failed to import data.')
-    }
-  } catch (err: any) {
-    showError(`Unexpected error: ${err.message}`)
-  }
+  const route = useRoute()
+  const orgIdFromQuery =
+    route?.query?.org || route?.query?.org_id
+      ? String(route.query?.org || route.query?.org_id)
+      : null
+  await usersStore.createBulkUsers(previewData.value as any, orgIdFromQuery)
+  closePreviewForm()
+  await loadUsers()
 }
 
 // Render CSV preview with error highlighting
@@ -1226,20 +1626,91 @@ const closePreviewForm = () => {
   previewData.value = []
   viewContent.value = ''
   errors.value = []
+  hideInline.value = false
 }
+
+// Polling controls
+const pollInterval = ref<number | null>(null)
 
 // Lifecycle
 onMounted(async () => {
-  loadUsers()
-  await usersStore.fetchRoles()
+  const initialLoads: Promise<any>[] = [
+    loadUsers(true),
+    usersStore.fetchRoles(),
+    // pass org from route for superadmin
+    (async () => {
+      const route = useRoute()
+      const orgId =
+        route.query?.org || route.query?.org_id
+          ? String(route.query?.org || route.query?.org_id)
+          : null
+      await integrationsStore.fetchOverview(orgId, false, false).catch(() => {})
+    })(),
+  ]
+  await Promise.all(initialLoads)
+
+  pollInterval.value = window.setInterval(() => {
+    loadUsers(false).catch((e) => console.warn('Polling loadUsers failed', e))
+  }, 30000)
+})
+
+onBeforeUnmount(() => {
+  if (pollInterval.value) {
+    clearInterval(pollInterval.value)
+    pollInterval.value = null
+  }
 })
 
 useHead({
-  title: 'User Management - Admin Dashboard',
+  title: 'User Management - Admin Dashboard - provento.ai',
 })
 </script>
 
 <style scoped>
+:deep(.custom-input) {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  font-size: 0.875rem !important;
+  padding: 0.875rem 2.5rem !important;
+  transition: all 0.2s ease-in-out !important;
+  width: 100% !important;
+  border-radius: 0.5rem !important;
+}
+
+:deep(.custom-input:hover) {
+  background-color: #1e293b !important;
+}
+
+:deep(.custom-input:focus) {
+  background-color: #1e293b !important;
+  outline: none !important;
+}
+
+:deep(.custom-input::placeholder) {
+  color: #64748b !important;
+}
+
+/* Custom select styles - no border styling to allow UForm errors */
+:deep(.custom-select) {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  font-size: 0.875rem !important;
+  padding: 0.875rem 2.5rem !important;
+  transition: all 0.2s ease-in-out !important;
+  width: 100% !important;
+  cursor: pointer;
+  border-radius: 0.5rem !important;
+}
+
+:deep(.custom-select:hover) {
+  background-color: #1e293b !important;
+}
+
+:deep(.custom-select:focus) {
+  background-color: #1e293b !important;
+  outline: none !important;
+}
+
 /* Custom styling for vue3-tel-input to match the design */
 :deep(.vue-tel-input) {
   border: 1px solid #334155;
@@ -1359,15 +1830,18 @@ useHead({
 }
 
 select option {
-  background-color: #1e293b; /* dark background */
-  color: #e2e8f0; /* light text */
+  background-color: #1e293b;
+  /* dark background */
+  color: #e2e8f0;
+  /* light text */
   padding: 10px;
 }
 
 /* Hover/selected states (for browsers that support it) */
 select option:hover,
 select option:checked {
-  background-color: #3b82f6; /* blue */
+  background-color: #3b82f6;
+  /* blue */
   color: white;
 }
 </style>

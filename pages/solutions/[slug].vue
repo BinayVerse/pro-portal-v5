@@ -46,9 +46,9 @@
 
           <!-- Right Content -->
           <div class="lg:col-span-8">
-            <!-- How Provento.ai Helps -->
+            <!-- How provento.ai Helps -->
             <div class="bg-dark-800 rounded-xl p-8 border border-dark-700">
-              <h2 class="text-2xl font-bold text-white mb-6">How Provento.ai Helps</h2>
+              <h2 class="text-2xl font-bold text-white mb-6">How provento.ai Helps</h2>
               <div class="space-y-4">
                 <div v-for="help in solution.helps" :key="help" class="flex items-center space-x-3">
                   <div
@@ -118,7 +118,7 @@
             Ready to Transform Your {{ solution.name }} Workflow?
           </h2>
           <p class="text-xl text-gray-300 mb-8">
-            See how Provento.ai can streamline your {{ solution.name.toLowerCase() }} artefact
+            See how provento.ai can streamline your {{ solution.name.toLowerCase() }} artefact
             processes.
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center">
@@ -735,7 +735,7 @@ const solution = computed(() => solutions[slug] || null)
 
 useHead({
   title: solution.value
-    ? `${solution.value.name} Solutions - Provento.ai`
-    : 'Solution Not Found - Provento.ai',
+    ? `${solution.value.name} Solutions - provento.ai`
+    : 'Solution Not Found - provento.ai',
 })
 </script>

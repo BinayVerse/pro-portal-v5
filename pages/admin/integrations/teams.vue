@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-          <UIcon name="simple-icons:microsoftteams" class="w-6 h-6 text-white" />
+          <UIcon name="mdi:microsoft-teams" class="w-6 h-6 text-white" />
         </div>
         <div>
           <h1 class="text-2xl font-bold text-white">Microsoft Teams Integration</h1>
@@ -46,18 +46,28 @@
           Disconnect
         </UButton>
 
-        <UButton
-          v-else-if="connectionStatus.hasBeenConnected"
-          @click="launchTeamsOAuthRedirect"
-          color="blue"
-          icon="heroicons:arrow-path"
-        >
-          Reconnect
-        </UButton>
+        <template v-else-if="connectionStatus.hasBeenConnected">
+          <UButton
+            v-if="!isSuperAdmin"
+            @click="launchTeamsOAuthRedirect"
+            color="blue"
+            icon="heroicons:arrow-path"
+          >
+            Reconnect
+          </UButton>
+          <UButton v-else disabled color="gray" icon="heroicons:arrow-path" title="Super admin cannot connect integrations">
+            Reconnect
+          </UButton>
+        </template>
 
-        <UButton v-else @click="launchTeamsOAuthRedirect" color="blue" icon="heroicons:plus">
-          Connect
-        </UButton>
+        <template v-else>
+          <UButton v-if="!isSuperAdmin" @click="launchTeamsOAuthRedirect" color="blue" icon="heroicons:plus">
+            Connect
+          </UButton>
+          <UButton v-else disabled color="gray" icon="heroicons:plus" title="Super admin cannot connect integrations">
+            Connect
+          </UButton>
+        </template>
       </div>
     </div>
 
@@ -160,25 +170,6 @@
             </span>
           </div>
 
-          <!-- Tenant ID -->
-          <div
-            class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700"
-          >
-            <span class="text-gray-600 dark:text-gray-300">Tenant ID:</span>
-            <span class="text-gray-900 dark:text-white font-medium text-sm">
-              {{ teamsConfig.tenantId || 'Not configured' }}
-            </span>
-          </div>
-
-          <!-- Application ID -->
-          <div
-            class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700"
-          >
-            <span class="text-gray-600 dark:text-gray-300">Application ID:</span>
-            <span class="text-gray-900 dark:text-white font-medium text-sm">
-              {{ teamsConfig.applicationId || 'Not configured' }}
-            </span>
-          </div>
 
           <!-- Integration Status -->
           <div class="flex items-center justify-between py-3">
@@ -312,6 +303,8 @@ const config = useRuntimeConfig()
 const route = useRoute()
 const router = useRouter()
 const integrationsStore = useIntegrationsStore()
+const authStore = useAuthStore()
+const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 
 // Reactive data
 const showDisconnectModal = ref(false)
@@ -402,7 +395,8 @@ const launchTeamsOAuthRedirect = async () => {
 }
 
 const disconnectTeams = async () => {
-  await integrationsStore.disconnectTeamsApp()
+  const orgQuery = route?.query?.org || route?.query?.org_id || null
+  await integrationsStore.disconnectTeamsApp(orgQuery ? String(orgQuery) : null)
   showDisconnectModal.value = false
 }
 
@@ -424,11 +418,12 @@ onMounted(async () => {
     }, 3000)
   }
 
-  // Fetch current Teams details
-  await integrationsStore.fetchTeamsAppDetails()
+  // Fetch current Teams details (pass selected org for superadmin)
+  const orgQuery = route?.query?.org || route?.query?.org_id || null
+  await integrationsStore.fetchTeamsAppDetails(orgQuery ? String(orgQuery) : null)
 })
 
 useHead({
-  title: 'Microsoft Teams Integration - Admin Dashboard',
+  title: 'Microsoft Teams Integration - Admin Dashboard - provento.ai',
 })
 </script>

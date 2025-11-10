@@ -24,14 +24,23 @@ export default defineEventHandler(async (event) => {
     throw new CustomError('Unauthorized: No token provided', 401)
   }
 
-  let orgId
+  // Determine caller role/org and allow superadmin to update cross-org
+  let callerUserId: any
   try {
-    const decodedToken = jwt.verify(token, config.jwtToken as string)
-    orgId = (decodedToken as { org_id: number }).org_id
+    const decodedToken = jwt.verify(token, config.jwtToken as string) as { user_id: number }
+    callerUserId = decodedToken.user_id
   } catch {
     setResponseStatus(event, 401)
     throw new CustomError('Unauthorized: Invalid token', 401)
   }
+
+  const callerRow = await query('SELECT org_id, role_id FROM users WHERE user_id = $1', [callerUserId])
+  if (!callerRow?.rows?.length) {
+    setResponseStatus(event, 404)
+    throw new CustomError('Caller not found', 404)
+  }
+  const callerOrg = callerRow.rows[0].org_id
+  const callerRole = callerRow.rows[0].role_id
 
   if (!userId) {
     setResponseStatus(event, 400)
@@ -39,13 +48,14 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    // Fetch the target user without scoping to caller org so superadmin can edit across orgs
     const fetchUserQuery = `
-      SELECT users.*, organizations.org_name, organizations.qr_code 
-      FROM users 
-      LEFT JOIN organizations ON users.org_id = organizations.org_id 
-      WHERE users.user_id = $1 AND users.org_id = $2;
+      SELECT users.*, organizations.org_name, organizations.qr_code
+      FROM users
+      LEFT JOIN organizations ON users.org_id = organizations.org_id
+      WHERE users.user_id = $1;
     `
-    const userResult = await query(fetchUserQuery, [userId, orgId])
+    const userResult = await query(fetchUserQuery, [userId])
 
     if (userResult.rows.length === 0) {
       setResponseStatus(event, 404)
@@ -53,6 +63,23 @@ export default defineEventHandler(async (event) => {
     }
 
     const currentUser = userResult.rows[0]
+    let orgId = currentUser.org_id
+
+    // Allow superadmin to target a different org via query param (org or org_id)
+    try {
+      const q = getQuery(event) as Record<string, any>
+      const requestedOrg = q?.org || q?.org_id || null
+      if (callerRole === 0 && requestedOrg) {
+        const parsed = Number(requestedOrg)
+        orgId = Number.isFinite(parsed) ? parsed : String(requestedOrg)
+      }
+    } catch (e) {}
+
+    // If not superadmin, ensure caller belongs to same org
+    if (callerRole !== 0 && String(callerOrg) !== String(orgId)) {
+      setResponseStatus(event, 403)
+      throw new CustomError('Forbidden: Cannot modify users from another organization', 403)
+    }
     const appLink = `${config.public.appUrl}/login`
     const updates: string[] = []
     const values: any[] = []
@@ -77,7 +104,7 @@ export default defineEventHandler(async (event) => {
         throw new CustomError('Email is already in use within this organization', 409)
       }
 
-      updates.push(`email = $${updates.length + 1}`)
+      updates.push(`email = $${updates.length + 1}::text`)
       values.push(params.email)
     }
 
@@ -97,20 +124,20 @@ export default defineEventHandler(async (event) => {
         throw new CustomError('Contact number is already in use within this organization', 409)
       }
 
-      updates.push(`contact_number = $${updates.length + 1}`)
+      updates.push(`contact_number = $${values.length + 1}::text`)
       values.push(params.contact_number)
     }
 
     if (params.name) {
-      updates.push(`name = $${updates.length + 1}`)
+      updates.push(`name = $${values.length + 1}::text`)
       values.push(params.name)
     }
     if (params.role_id) {
-      updates.push(`role_id = $${updates.length + 1}`)
+      updates.push(`role_id = $${values.length + 1}::int`)
       values.push(params.role_id)
     }
     if (params.primary_contact !== undefined) {
-      updates.push(`primary_contact = $${updates.length + 1}`)
+      updates.push(`primary_contact = $${values.length + 1}::boolean`)
       values.push(params.primary_contact)
     }
 
@@ -120,46 +147,81 @@ export default defineEventHandler(async (event) => {
         JOIN organizations o ON u.org_id = o.org_id
         WHERE u.email = $1 AND u.role_id = '1' AND u.org_id != $2;
       `
-      const adminCheckResult = await query(checkAdminQuery, [params.email, orgId])
+      const emailToCheck = params.email || currentUser.email
+      const adminCheckResult = await query(checkAdminQuery, [emailToCheck, orgId])
 
       if (adminCheckResult.rows.length > 0) {
         setResponseStatus(event, 409)
         throw new CustomError(
-          `Cannot assign the admin role to the user, as the user is already an admin of ${adminCheckResult.rows[0].org_name}`,
+          `Cannot assign the admin role to the user, as the user is already an admin of ${adminCheckResult.rows[0].org_name} organization`,
           409,
         )
       }
 
       const password = generateRandomPassword()
       const hashedPassword = await bcrypt.hash(password, 10)
-      updates.push(`password = $${updates.length + 1}`)
-      values.push(hashedPassword)
+      updates.push(`password = $${values.length + 1}::text`)
+      values.push(null)
 
-      const { resetLink } = await generateResetLink(currentUser.email, config.public.appUrl)
+      const { resetLink } = await generateResetLink(currentUser.email, config.public.appUrl, userId)
       await sendWelcomeMail(currentUser.name, currentUser.email, password, appLink, resetLink)
     } else if (currentUser.role_id == '1' && params.role_id != '1') {
       updates.push(`password = NULL`)
-      const qrUrl = currentUser.qr_code as string
-      const qrKey = new URL(qrUrl).pathname.slice(1)
 
-      const s3 = new S3Client({
-        region: config.awsRegion,
-        credentials: {
-          accessKeyId: config.awsAccessKeyId,
-          secretAccessKey: config.awsSecretAccessKey,
-        },
-      })
+      try {
+        // Determine available channels for the org
+        const integ = await query(
+          `SELECT o.qr_code, COALESCE(w.whatsapp_status, false) AS whatsapp_status, COALESCE(s.status, 'inactive') AS slack_status, COALESCE(t.status, 'inactive') AS teams_status
+           FROM organizations o
+           LEFT JOIN meta_app_details w ON o.org_id = w.org_id
+           LEFT JOIN slack_team_mappings s ON o.org_id = s.org_id
+           LEFT JOIN teams_tenant_mappings t ON o.org_id = t.org_id
+           WHERE o.org_id = $1 LIMIT 1`,
+          [orgId]
+        )
+        const row = integ.rows[0] || {}
+        const channels: string[] = []
+        if (row.whatsapp_status) channels.push('whatsapp')
+        if (row.slack_status === 'active' || row.slack_status === 'connected') channels.push('slack')
+        if (row.teams_status === 'active' || row.teams_status === 'connected') channels.push('teams')
 
-      const signedUrl = await getSignedUrl(
-        s3,
-        new GetObjectCommand({
-          Bucket: config.awsBucketName,
-          Key: qrKey,
-        }),
-        { expiresIn: 604800 },
-      )
+        // If no channels connected, skip sending the invitation
+        if (channels.length === 0) {
+          console.info('No channels connected for org; skipping user addition email for', currentUser.email)
+        } else {
+          // Prepare QR signed URL only if whatsapp is enabled and qr exists
+          let signedUrl: string | null = null
+          if (channels.includes('whatsapp') && currentUser.qr_code) {
+            try {
+              const qrUrl = currentUser.qr_code as string
+              const qrKey = new URL(qrUrl).pathname.slice(1)
 
-      await sendUserAdditionMail(currentUser.name, currentUser.email, signedUrl)
+              const s3 = new S3Client({
+                region: config.awsRegion,
+                credentials: {
+                  accessKeyId: config.awsAccessKeyId,
+                  secretAccessKey: config.awsSecretAccessKey,
+                },
+              })
+
+              signedUrl = await getSignedUrl(
+                s3,
+                new GetObjectCommand({
+                  Bucket: config.awsBucketName,
+                  Key: qrKey,
+                }),
+                { expiresIn: 604800 },
+              )
+            } catch (err) {
+              console.warn('Failed to generate signed QR url for user invite:', err)
+            }
+          }
+
+          await sendUserAdditionMail(currentUser.name, currentUser.email, signedUrl, orgId)
+        }
+      } catch (err) {
+        console.error('Failed to determine integrations or send user addition email on role change:', err)
+      }
     }
 
     if (updates.length === 0) {
@@ -167,18 +229,33 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('No fields to update', 400)
     }
 
+    // set who updated
+    // updated_by — store as text to avoid mismatched column types
+    updates.push(`updated_by = $${values.length + 1}::text`)
+    values.push(callerUserId)
+
+    // updated_at is set by DB
     updates.push(`updated_at = CURRENT_TIMESTAMP`)
+
+    // Determine placeholder indexes for WHERE clause
+    const whereUserIndex = values.length + 1
+    const whereOrgIndex = values.length + 2
+
+    // userId and orgId may be stored as text/varchar; pass as-is and cast to text
     values.push(userId)
     values.push(orgId)
 
     const updateUserQuery = `
-      UPDATE users 
-      SET ${updates.join(', ')} 
-      WHERE user_id = $${values.length - 1} AND org_id = $${values.length}
+      UPDATE users
+      SET ${updates.join(', ')}
+      WHERE user_id = $${whereUserIndex}::text AND org_id = $${whereOrgIndex}::text
       RETURNING user_id;
     `
 
-    const result = await query(updateUserQuery, values)
+    // Sanitize undefined values to null (pg cannot accept undefined)
+    const sanitizedValues = values.map(v => (typeof v === 'undefined' ? null : v))
+
+    const result = await query(updateUserQuery, sanitizedValues)
 
     if (result.rowCount === 0) {
       setResponseStatus(event, 404)

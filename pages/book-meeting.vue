@@ -3,6 +3,8 @@ import { useContactStore } from '~/stores/contact'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '#ui/types'
 
+useHead({ title: 'Book a Meeting - provento.ai' })
+
 definePageMeta({
   layout: 'main',
 })
@@ -115,10 +117,22 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     const phoneData = phoneRef.value?.phoneData
     // Use the raw number format (e.g., "+917008081842") without additional formatting
     const phoneNumberWithCountryCode = phoneData?.number || state.phone || ''
-    console.log('Submitting phone number with country code:', phoneNumberWithCountryCode)
-    console.log('Phone data:', phoneData)
 
     // Prepare data for API
+    // Obtain reCAPTCHA token using injected recaptcha plugin (skips on admin routes or if siteKey not configured)
+    const nuxtApp = useNuxtApp()
+    const recaptcha = (nuxtApp.$recaptcha as any) || null
+    let token = 'demo-token'
+    try {
+      if (recaptcha && typeof recaptcha.execute === 'function') {
+        token = await recaptcha.execute('book_meeting')
+      }
+    } catch (err) {
+      // fallback to demo-token for development
+      console.warn('reCAPTCHA fetch failed, falling back to demo-token', err)
+      token = 'demo-token'
+    }
+
     const contactData = {
       name: event.data.firstName,
       lastname: event.data.lastName,
@@ -130,8 +144,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       requestFor: event.data.useCase || undefined,
       message: event.data.message || undefined,
       domain: isProd ? 'Prod' : isTest ? 'Test' : 'Local',
-      // Note: reCAPTCHA token would be needed for production
-      token: 'demo-token', // Replace with actual reCAPTCHA token
+      token,
     }
 
     // Submit via store
@@ -188,7 +201,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             Demo Request Submitted Successfully!
           </h3>
           <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Thank you for your interest in Provento.ai! Our team will contact you within 24 hours to
+            Thank you for your interest in provento.ai! Our team will contact you within 24 hours to
             schedule your personalized demo session.
           </p>
           <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
@@ -220,7 +233,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             <span class="text-primary-400">Demo</span>
           </h1>
           <p class="text-xl text-gray-300">
-            See Provento.ai in action and discover how it can transform your artefact workflow
+            See provento.ai in action and discover how it can transform your artefact workflow
           </p>
         </div>
 

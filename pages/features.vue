@@ -9,7 +9,7 @@
             <span class="text-primary-400">Smart Artefacts Management</span>
           </h1>
           <p class="text-xl text-gray-300 max-w-3xl mx-auto">
-            Discover how Provento.ai transforms your artefacts workflow with cutting-edge AI
+            Discover how provento.ai transforms your artefacts workflow with cutting-edge AI
             technology and seamless integrations.
           </p>
         </div>
@@ -63,7 +63,7 @@
                     the Q3 financial report?
                   </div>
                   <div class="text-gray-300 text-sm">
-                    <span class="text-green-400">Provento.ai:</span> Based on the Q3 financial
+                    <span class="text-green-400">provento.ai:</span> Based on the Q3 financial
                     report, the key risks identified are: 1) Market volatility affecting revenue
                     projections...
                   </div>
@@ -166,7 +166,7 @@
               <div
                 class="w-16 h-16 bg-primary-500/20 rounded-xl flex items-center justify-center mx-auto mb-6"
               >
-                <UIcon name="simple-icons:slack" class="w-8 h-8 text-primary-400" />
+                <UIcon name="mdi:slack" class="w-8 h-8 text-primary-400" />
               </div>
               <h3 class="text-xl font-bold text-white mb-4">Slack Integration</h3>
               <p class="text-gray-300 mb-6">
@@ -178,7 +178,7 @@
               <div
                 class="w-16 h-16 bg-primary-500/20 rounded-xl flex items-center justify-center mx-auto mb-6"
               >
-                <UIcon name="simple-icons:microsoftteams" class="w-8 h-8 text-primary-400" />
+                <UIcon name="mdi:microsoft-teams" class="w-8 h-8 text-primary-400" />
               </div>
               <h3 class="text-xl font-bold text-white mb-4">Teams Integration</h3>
               <p class="text-gray-300 mb-6">
@@ -240,7 +240,7 @@
         >
           <h2 class="text-3xl font-bold text-white mb-4">Ready to Experience These Features?</h2>
           <p class="text-xl text-gray-300 mb-8">
-            Join thousands of teams already using Provento.ai to transform their artefacts
+            Join thousands of teams already using provento.ai to transform their artefacts
             workflows.
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center">
@@ -258,6 +258,6 @@
 // The default layout will be used automatically
 
 useHead({
-  title: 'Features - Provento.ai',
+  title: 'Features - provento.ai',
 })
 </script>

@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const userQuery = `
-    SELECT u.org_id, o.org_name
+    SELECT u.org_id, u.role_id, o.org_name
     FROM users u
     INNER JOIN organizations o ON u.org_id = o.org_id
     WHERE u.user_id = $1;
@@ -34,10 +34,15 @@ export default defineEventHandler(async (event) => {
     throw new CustomError('User or organization not found', 404)
   }
 
-  const { org_id } = userResult.rows[0]
+  const tokenUserOrg = userResult.rows[0].org_id
+  const tokenUserRole = userResult.rows[0].role_id
 
-  const body = await readBody<{ fileName?: string; fileNames?: string[] }>(event)
+  const body = await readBody<{ fileName?: string; fileNames?: string[]; org_id?: string }>(event)
   const { fileName, fileNames } = body
+
+  const q = getQuery(event) as Record<string, any>
+  const requestedOrg = q?.org || q?.org_id || body?.org_id || null
+  const org_id = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
   // Handle both single file and multiple files
   const filesToCheck = fileName ? [fileName] : (fileNames || [])

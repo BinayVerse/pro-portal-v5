@@ -123,10 +123,12 @@
 </template>
 
 <script setup lang="ts">
+useHead({ title: 'Sign In - provento.ai' })
 import { useAuthStore } from '~/stores/auth/index'
 
 definePageMeta({
   layout: 'minimal',
+  middleware: 'guest',
 })
 
 const authStore = useAuthStore()
@@ -170,7 +172,7 @@ const handleLogin = async () => {
     await authStore.handlePostLoginRedirect()
   } catch (error: any) {
     // Show error notification
-    showNotification(error?.message || 'Login failed. Please try again.', 'error')
+    // showNotification(error?.message || 'Login failed. Please try again.', 'error')
     console.error('Login failed:', error?.message)
   }
 }

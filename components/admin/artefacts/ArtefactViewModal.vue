@@ -98,7 +98,19 @@ const fileUrl = ref<string | null>(null)
 const fileType = ref<string | null>(null)
 
 // Import stores and composables
+import { useAuthStore } from '~/stores/auth'
+import { useRoute } from 'vue-router'
 const artefactsStore = useArtefactsStore()
+const authStore = useAuthStore()
+const route = useRoute()
+const authUser = computed(() => authStore.getAuthUser)
+const modalOrgId = computed(() => {
+  if (authUser.value?.role_id === 0) {
+    const q = route && route.query ? route.query.org || route.query.org_id : null
+    if (q && String(q).trim()) return String(q)
+  }
+  return authUser.value?.org_id || null
+})
 const { showError } = useNotification()
 
 // Helper function to clear content
@@ -133,7 +145,7 @@ const loadDocument = async () => {
   fileUrl.value = null
 
   try {
-    const result = await artefactsStore.viewArtefact(props.artefact.id)
+    const result = await artefactsStore.viewArtefact(props.artefact.id, modalOrgId.value)
 
     if (result.success && result.data) {
       fileUrl.value = result.data.fileUrl

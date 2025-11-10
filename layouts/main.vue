@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen bg-black">
-    <!-- Header Navigation -->
-    <header class="bg-black border-b border-dark-700 sticky top-0 z-50">
-      <nav class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-black h-screen flex flex-col">
+    <!-- Header Navigation (fixed height) -->
+    <header class="bg-black border-b border-dark-700 h-16">
+      <nav class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 h-16">
         <div class="flex justify-between items-center h-16">
           <!-- Logo and brand -->
           <NuxtLink to="/" class="flex items-center space-x-3">
@@ -91,13 +91,33 @@
             <NuxtLink to="/book-meeting" class="btn-outline hidden sm:inline-flex">
               Book a Demo
             </NuxtLink>
-            <NuxtLink
-              to="/login"
-              class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              Login
-            </NuxtLink>
-            <NuxtLink to="/signup" class="btn-primary"> Sign Up </NuxtLink>
+
+            <template v-if="auth.isAuthenticated">
+              <UDropdown :items="profileItems" :popper="{ placement: 'bottom-end' }">
+                <UButton variant="ghost" trailing-icon="heroicons:chevron-down">
+                  <UAvatar
+                    src=""
+                    :alt="profileStore.userProfile?.name?.toUpperCase()"
+                    size="sm"
+                    :ui="{ background: 'bg-primary-500' }"
+                  />
+                  <span class="hidden sm:block ml-2">
+                    {{
+                      profileStore.userProfile?.name || profileStore.userProfile?.email || 'User'
+                    }}
+                  </span>
+                </UButton>
+              </UDropdown>
+            </template>
+            <template v-else>
+              <NuxtLink
+                to="/login"
+                class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Login
+              </NuxtLink>
+              <NuxtLink to="/signup" class="btn-primary"> Sign Up </NuxtLink>
+            </template>
           </div>
 
           <!-- Mobile menu button -->
@@ -129,20 +149,58 @@
             <NuxtLink to="/book-meeting" class="block text-gray-300 hover:text-white py-2"
               >Book a Demo</NuxtLink
             >
-            <NuxtLink to="/login" class="block text-gray-300 hover:text-white py-2">Login</NuxtLink>
-            <NuxtLink to="/signup" class="btn-primary block text-center mt-3">Sign Up</NuxtLink>
+            <template v-if="auth.isAuthenticated">
+              <NuxtLink
+                v-if="isProfileComplete"
+                :to="auth.user?.role_id === 0 ? '/admin/superadmin' : '/admin/dashboard'"
+                class="block text-gray-300 hover:text-white py-2"
+                >Dashboard</NuxtLink
+              >
+              <NuxtLink to="/change-password" class="block text-gray-300 hover:text-white py-2"
+                >Change Password</NuxtLink
+              >
+              <button
+                @click="auth.signOut()"
+                class="block text-gray-300 hover:text-white py-2 text-left w-full"
+              >
+                Logout
+              </button>
+            </template>
+            <template v-else>
+              <NuxtLink to="/login" class="block text-gray-300 hover:text-white py-2"
+                >Login</NuxtLink
+              >
+              <NuxtLink to="/signup" class="btn-primary block text-center mt-3">Sign Up</NuxtLink>
+            </template>
           </div>
         </div>
       </nav>
     </header>
 
-    <!-- Main content -->
-    <main>
-      <slot />
+    <!-- Profile completion banner for logged in users -->
+    <div
+      v-if="auth.isAuthenticated && !isProfileComplete && $route.path !== '/admin/profile'"
+      class="px-4 sm:px-6 lg:px-8 mt-4"
+    >
+      <UAlert
+        icon="i-heroicons-exclamation-triangle"
+        color="yellow"
+        variant="subtle"
+        title="Please complete your profile to access the application."
+      >
+        Please complete your profile to access the application.
+      </UAlert>
+    </div>
+
+    <!-- Main content (scrollable area only) -->
+    <main class="flex-1 overflow-auto flex flex-col" style="height: calc(100vh - 4rem)">
+      <div class="flex-1">
+        <slot />
+      </div>
+      <FooterComponent />
     </main>
 
-    <!-- Footer -->
-    <FooterComponent />
+    <ChatWidget v-if="auth && auth.isAuthenticated" />
   </div>
 </template>
 
@@ -165,6 +223,53 @@ const handleSolutionsEnter = () => {
   }
   showSolutions.value = true
 }
+
+// Auth and profile stores
+import { useAuthStore } from '~/stores/auth/index'
+import ChatWidget from '~/components/chat/ChatWidget.vue'
+import { useProfileStore } from '~/stores/profile/index'
+const auth = useAuthStore()
+const profileStore = useProfileStore()
+
+if (process.client) {
+  if (auth.isAuthenticated) {
+    void profileStore.fetchUserProfile().catch(() => {})
+  }
+}
+
+const isProfileComplete = computed(() => {
+  const up: any = profileStore.userProfile || {}
+  return !!(up && up.name && up.contact_number && up.company)
+})
+
+const profileItems = computed(() => {
+  const base: any[] = []
+  if (auth.user?.role_id !== 0) {
+    base.push({ label: 'My Account', icon: 'heroicons:user', click: () => navigateTo('/admin/profile') })
+  }
+  base.push({
+    label: 'Change Password',
+    icon: 'heroicons:key',
+    click: () => navigateTo('/change-password'),
+  })
+  const dashboard = {
+    label: 'Dashboard',
+    icon: 'heroicons:squares-2x2',
+    click: () => navigateTo(auth.user?.role_id === 0 ? '/admin/superadmin' : '/admin/dashboard'),
+  }
+  const logout = {
+    label: 'Logout',
+    icon: 'heroicons:arrow-right-on-rectangle',
+    click: async () => {
+      await auth.signOut()
+    },
+  }
+  // Return grouped profile menu items to match UDropdown expectations (groups shown as sections)
+  const items: any[] = []
+  items.push(isProfileComplete.value ? [dashboard, ...base] : base)
+  items.push([logout])
+  return items
+})
 
 const industries = [
   { name: 'Education', slug: 'education' },

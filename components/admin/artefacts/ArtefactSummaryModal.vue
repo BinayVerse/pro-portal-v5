@@ -54,16 +54,10 @@
 
       <div class="border-t border-dark-700 pt-4">
         <h4 class="text-sm font-medium text-white mb-3">AI-Generated Summary</h4>
-        <div class="bg-dark-700 rounded-lg p-4">
-          <p class="text-gray-300 text-sm leading-relaxed">
-            {{
-              artefact?.summarized && artefact?.summary
-                ? artefact.summary
-                : artefact?.status === 'processed'
-                ? `This ${artefact?.type} document contains comprehensive information about ${artefact?.category?.toLowerCase()} matters. The AI analysis reveals key insights and important data points that can be leveraged for decision-making processes. Based on the document structure and content patterns, this artefact provides valuable resource material for organizational operations and strategic planning.`
-                : 'Summary is not available yet. The document is still being processed by our AI system. Please check back once the processing is complete.'
-            }}
-          </p>
+        <div class="bg-dark-700 rounded-lg p-4 text-sm text-gray-300">
+          <div v-if="artefact?.summarized && artefact?.summary" v-html="formatResponse(artefact.summary)" class="prose prose-invert max-w-none"></div>
+          <div v-else-if="artefact?.status === 'processed'" v-html="formatResponse(generatedSummary)" class="prose prose-invert max-w-none"></div>
+          <div v-else class="text-gray-400">Summary is not available yet. The document is still being processed by our AI system. Please check back once the processing is complete.</div>
         </div>
       </div>
 
@@ -97,7 +91,9 @@ interface Props {
   artefact: Artefact | null
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+import { toRef, computed } from 'vue'
+const artefact = toRef(props, 'artefact')
 
 defineEmits<{
   'update:isOpen': [value: boolean]
@@ -130,4 +126,17 @@ const getStatusDotColor = (status: string | undefined) => {
 const capitalizeStatus = (status: string) => {
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
+import { formatResponseToHtml } from '~/utils/formatResponse'
+
+const formatResponse = (text: string | undefined) => {
+  return formatResponseToHtml(text || '')
+}
+
+const generatedSummary = computed(() => {
+  const a = artefact.value
+  return a && a.type && a.category
+    ? `This ${a.type} document contains comprehensive information about ${a.category.toLowerCase()} matters. The AI analysis reveals key insights and important data points that can be leveraged for decision-making processes. Based on the document structure and content patterns, this artefact provides valuable resource material for organizational operations and strategic planning.`
+    : ''
+})
+
 </script>

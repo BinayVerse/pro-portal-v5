@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
-          <UIcon name="simple-icons:slack" class="w-6 h-6 text-white" />
+          <UIcon name="mdi:slack" class="w-6 h-6 text-white" />
         </div>
         <div>
           <h1 class="text-2xl font-bold text-white">Slack Integration</h1>
@@ -46,21 +46,39 @@
           Disconnect
         </UButton>
 
-        <UButton
-          v-else-if="connectionStatus.hasBeenConnected"
-          :to="slackOauthUrl"
-          external
-          color="purple"
-          icon="heroicons:arrow-path"
-        >
-          Reconnect
-        </UButton>
+        <template v-else-if="connectionStatus.hasBeenConnected">
+          <UButton
+            v-if="!isSuperAdmin"
+            :to="slackOauthUrl"
+            external
+            color="purple"
+            icon="heroicons:arrow-path"
+          >
+            Reconnect
+          </UButton>
+          <UButton v-else disabled color="gray" icon="heroicons:arrow-path" title="Super admin cannot connect integrations">
+            Reconnect
+          </UButton>
+        </template>
 
-        <UButton v-else :to="slackOauthUrl" external color="purple" icon="heroicons:plus">
-          Connect
-        </UButton>
+        <template v-else>
+          <UButton v-if="!isSuperAdmin" :to="slackOauthUrl" external color="purple" icon="heroicons:plus">
+            Connect
+          </UButton>
+          <UButton v-else disabled color="gray" icon="heroicons:plus" title="Super admin cannot connect integrations">
+            Connect
+          </UButton>
+        </template>
       </div>
     </div>
+
+    <!-- Show error banner if any -->
+    <!-- <div v-if="integrationsStore.getError" class="mb-4">
+      <div class="p-3 rounded-lg bg-red-600/10 border border-red-600 text-red-400 flex justify-between items-start">
+        <div class="text-sm" v-html="integrationsStore.getError"></div>
+        <button @click="integrationsStore.setError(null)" class="text-red-400 ml-4">Close</button>
+      </div>
+    </div> -->
 
     <!-- Main Content Grid -->
     <div class="grid lg:grid-cols-2 gap-6">
@@ -205,7 +223,7 @@
             <ul class="text-sm text-gray-500 dark:text-gray-400 space-y-1">
               <li>• Read and write messages</li>
               <li>• Access user profiles</li>
-              <li>• Join channels automatically</li>
+              <li>�� Join channels automatically</li>
               <li>• Process @mentions</li>
             </ul>
           </div>
@@ -299,6 +317,8 @@ const config = useRuntimeConfig()
 const route = useRoute()
 const router = useRouter()
 const integrationsStore = useIntegrationsStore()
+const authStore = useAuthStore()
+const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 
 // Reactive data
 const showDisconnectModal = ref(false)
@@ -330,7 +350,8 @@ const connectionStatus = computed(() => {
 
 // Methods
 const disconnectSlack = async () => {
-  await integrationsStore.disconnectSlackApp()
+  const orgQuery = route?.query?.org || route?.query?.org_id || null
+  await integrationsStore.disconnectSlackApp(orgQuery ? String(orgQuery) : null)
   showDisconnectModal.value = false
 }
 
@@ -354,11 +375,12 @@ onMounted(async () => {
     }, 8000)
   }
 
-  // Fetch current Slack details
-  await integrationsStore.fetchSlackAppDetails()
+  // Fetch current Slack details (pass org for superadmin if present)
+  const orgQuery = route?.query?.org || route?.query?.org_id || null
+  await integrationsStore.fetchSlackAppDetails(orgQuery ? String(orgQuery) : null)
 })
 
 useHead({
-  title: 'Slack Integration - Admin Dashboard',
+  title: 'Slack Integration - Admin Dashboard - provento.ai',
 })
 </script>

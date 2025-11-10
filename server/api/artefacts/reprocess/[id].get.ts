@@ -28,9 +28,9 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Get user's org_id and org_name
+    // Determine caller org/role and allow superadmin override
     const userResult = await query(
-      `SELECT u.org_id, o.org_name
+      `SELECT u.org_id, u.role_id, o.org_name
        FROM users u
        INNER JOIN organizations o ON u.org_id = o.org_id
        WHERE u.user_id = $1;`,
@@ -41,14 +41,24 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('User or organization not found', 404)
     }
 
-    const { org_id, org_name } = userResult.rows[0]
+    const tokenUserOrg = userResult.rows[0].org_id
+    const tokenUserRole = userResult.rows[0].role_id
 
-    // Check if the artefact exists and belongs to user's org
+    const q = getQuery(event) as Record<string, any>
+    const requestedOrg = q?.org || q?.org_id || null
+    const effectiveOrg = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
+
+    // Fetch org_name for effectiveOrg
+    const orgRow = await query('SELECT org_name FROM organizations WHERE org_id = $1 LIMIT 1', [effectiveOrg])
+    if (!orgRow?.rows?.length) throw new CustomError('Organization not found', 404)
+    const org_name = orgRow.rows[0].org_name
+
+    // Check if the artefact exists and belongs to user's org (or requested org for superadmin)
     const artefactResult = await query(
       `SELECT id, name, doc_type, document_link, status
        FROM organization_documents
        WHERE org_id = $1 AND id = $2;`,
-      [org_id, artefactId]
+      [effectiveOrg, artefactId]
     )
 
     if (artefactResult.rows.length === 0) {
@@ -67,7 +77,7 @@ export default defineEventHandler(async (event) => {
       `UPDATE organization_documents
        SET status = 'processing', summary = NULL, is_summarized = FALSE, updated_at = NOW()
        WHERE id = $1 AND org_id = $2;`,
-      [artefactId, org_id]
+      [artefactId, effectiveOrg]
     )
 
     // Prepare document data for reprocessing
@@ -79,7 +89,7 @@ export default defineEventHandler(async (event) => {
     }]
 
     // Trigger re-processing using the existing processDocument utility
-    await processDocument(bucketName, folderName, org_name, org_id, userId, documentData, token)
+    await processDocument(bucketName, folderName, org_name, effectiveOrg, userId, documentData, token)
 
     setResponseStatus(event, 200)
     return {

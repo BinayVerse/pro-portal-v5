@@ -76,10 +76,12 @@
 </template>
 
 <script setup lang="ts">
+useHead({ title: 'Forgot Password - provento.ai' })
 import { useAuthStore } from '~/stores/auth/index'
 
 definePageMeta({
   layout: 'minimal',
+  middleware: 'guest',
 })
 
 const authStore = useAuthStore()

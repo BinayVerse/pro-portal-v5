@@ -38,10 +38,10 @@ export default defineEventHandler(async (event) => {
 
   try {
     const userQuery = `
-      SELECT u.org_id, o.org_name
-      FROM users u
-      INNER JOIN organizations o ON u.org_id = o.org_id
-      WHERE u.user_id = $1;
+    SELECT u.org_id, u.role_id, o.org_name
+    FROM users u
+    INNER JOIN organizations o ON u.org_id = o.org_id
+    WHERE u.user_id = $1;
     `
     const userResult = await query(userQuery, [userId])
 
@@ -49,7 +49,22 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('User or organization not found', 404)
     }
 
-    const { org_name, org_id } = userResult.rows[0]
+    const tokenUserOrg = userResult.rows[0].org_id
+    const tokenUserRole = userResult.rows[0].role_id
+
+    const body = await readBody<{ artefactId?: number; artefactName?: string; org_id?: string }>(event)
+
+    const q = getQuery(event) as Record<string, any>
+    const requestedOrg = q?.org || q?.org_id || body?.org_id || null
+    const org_id = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
+
+    // Fetch org_name for effective org
+    const orgRow = await query('SELECT org_name FROM organizations WHERE org_id = $1 LIMIT 1', [org_id])
+    if (!orgRow?.rows?.length) {
+      throw new CustomError('Organization not found', 404)
+    }
+    const org_name = orgRow.rows[0].org_name
+
     if (!org_name) {
       throw new CustomError('Organization information is incomplete', 400)
     }

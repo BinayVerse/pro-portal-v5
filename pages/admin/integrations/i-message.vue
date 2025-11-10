@@ -152,6 +152,7 @@
 </template>
 
 <script setup lang="ts">
+useHead({ title: 'iMessage Integration - Admin Dashboard - provento.ai' })
 definePageMeta({
   layout: 'admin',
   middleware: 'auth',

@@ -2,12 +2,7 @@ import { defineEventHandler, readBody, setResponseStatus } from 'h3'
 import { CustomError } from '../../utils/custom.error'
 import { query } from '../../utils/db'
 import jwt from 'jsonwebtoken'
-import dayjs from 'dayjs'
-import utc from 'dayjs/plugin/utc.js'
-import timezone from 'dayjs/plugin/timezone.js'
-
-dayjs.extend(utc)
-dayjs.extend(timezone)
+import { formatDateTime } from '../../../utils'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -30,7 +25,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const userResult = await query(
-      `SELECT u.org_id, o.org_name
+      `SELECT u.org_id, u.role_id, o.org_name
       FROM users u
       INNER JOIN organizations o ON u.org_id = o.org_id
       WHERE u.user_id = $1;
@@ -42,7 +37,14 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('User or organization not found', 404)
     }
 
-    const { org_id } = userResult.rows[0]
+    const tokenUserOrg = userResult.rows[0].org_id
+    const tokenUserRole = userResult.rows[0].role_id
+
+    // Allow superadmin to request a different org via body.org_id or query param 'org'/'org_id'
+    const q = getQuery(event) as Record<string, any>
+    const body = await readBody(event)
+    const requestedOrg = q?.org || q?.org_id || body?.org_id || null
+    const org_id = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
     // Fetch documents with category information and user who added them
     const documentResults = await query(
@@ -68,12 +70,12 @@ export default defineEventHandler(async (event) => {
     const processedArtefacts = documents.filter((doc: any) => doc.status === 'processed').length
     const uniqueCategories = new Set(documents.map((doc: any) => doc.category_name || 'Uncategorized'))
     const totalCategories = uniqueCategories.size
-    
+
     // Calculate total size in bytes, then format
     const totalSizeBytes = documents.reduce((sum: number, doc: any) => {
       return sum + (doc.file_size || 0)
     }, 0)
-    
+
     const formatFileSize = (bytes: number): string => {
       if (bytes === 0) return '0 Bytes'
       const k = 1024
@@ -91,7 +93,7 @@ export default defineEventHandler(async (event) => {
         if (contentType.includes('text/markdown')) return 'Markdown'
         if (contentType.includes('image')) return 'Image'
       }
-      
+
       // Fallback to file extension
       const extension = fileName?.split('.').pop()?.toLowerCase()
       const typeMap: Record<string, string> = {
@@ -118,9 +120,7 @@ export default defineEventHandler(async (event) => {
       size: formatFileSize(doc.file_size || 0),
       status: doc.status,
       uploadedBy: doc.uploaded_by_name || 'Unknown User',
-      lastUpdated: doc.updated_at
-        ? dayjs.utc(doc.updated_at).tz(userTimezone).format('DD/MM/YYYY, hh:mm A')
-        : 'Unknown',
+      lastUpdated: formatDateTime(doc.updated_at, userTimezone),
       artefact: doc.name,
       publicUrl: doc.document_link,
       summarized: doc.summarized ? 'Yes' : 'No',

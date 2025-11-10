@@ -1,3 +1,4 @@
+<!-- pages/admin/dashboard.vue -->
 <template>
   <div class="space-y-6">
     <!-- Header -->
@@ -16,9 +17,11 @@
             <p class="text-3xl font-bold text-white mt-2">
               {{ loading ? '...' : stats.totalUsers.toLocaleString() }}
             </p>
-            <p class="text-sm mt-2">
-              <span class="text-green-400">+{{ stats.userGrowth }}% from last month</span>
-            </p>
+            <!-- <p class="text-sm mt-2">
+              <span :class="stats.userGrowth >= 0 ? 'text-green-400' : 'text-red-400'">
+                {{ stats.userGrowth >= 0 ? '+' : '' }}{{ stats.userGrowth }}% from last month
+              </span>
+            </p> -->
           </div>
           <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:users" class="w-6 h-6 text-blue-400" />
@@ -34,9 +37,9 @@
             <p class="text-3xl font-bold text-white mt-2">
               {{ loading ? '...' : stats.totalArtefacts.toLocaleString() }}
             </p>
-            <p class="text-sm mt-2">
+            <!-- <p class="text-sm mt-2">
               <span class="text-green-400">+{{ stats.artefactsToday }} today</span>
-            </p>
+            </p> -->
           </div>
           <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:document-text" class="w-6 h-6 text-green-400" />
@@ -52,9 +55,11 @@
             <p class="text-3xl font-bold text-white mt-2">
               {{ loading ? '...' : stats.totalConversations.toLocaleString() }}
             </p>
-            <p class="text-sm mt-2">
-              <span class="text-green-400">+{{ stats.conversationGrowth }}% from last month</span>
-            </p>
+            <!-- <p class="text-sm mt-2">
+              <span :class="stats.conversationGrowth >= 0 ? 'text-green-400' : 'text-red-400'">
+                {{ stats.conversationGrowth >= 0 ? '+' : '' }}{{ stats.conversationGrowth }}% from last month
+              </span>
+            </p> -->
           </div>
           <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:chat-bubble-left-right" class="w-6 h-6 text-purple-400" />
@@ -68,11 +73,13 @@
           <div>
             <p class="text-gray-400 text-sm font-medium">Tokens Used</p>
             <p class="text-3xl font-bold text-white mt-2">
-              {{ loading ? '...' : formatTokens(stats.tokensUsed) }}
+              {{ loading ? '...' : formatCompactNumber(stats.tokensUsed) }}
             </p>
-            <p class="text-sm mt-2">
-              <span class="text-green-400">+{{ stats.tokenGrowth }}% from last month</span>
-            </p>
+            <!-- <p class="text-sm mt-2">
+              <span :class="stats.tokenGrowth >= 0 ? 'text-green-400' : 'text-red-400'">
+                {{ stats.tokenGrowth >= 0 ? '+' : '' }}{{ stats.tokenGrowth }}% from last month
+              </span>
+            </p> -->
           </div>
           <div class="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:bolt" class="w-6 h-6 text-orange-400" />
@@ -88,9 +95,18 @@
         <div class="flex items-center justify-between p-6 border-b border-dark-700">
           <h2 class="text-lg font-semibold text-white">Recent Users</h2>
           <div class="text-sm text-gray-400">Latest user registrations and activity</div>
+          <!-- :disabled="disableAddUser" -->
+          <!-- :title="
+              disableAddUser
+                ? 'Please complete the Meta account integration to enable Add User and Bulk Upload features.'
+                : ''
+            " -->
           <button
-            @click="navigateTo('/admin/users')"
-            class="text-primary-400 hover:text-primary-300 text-sm font-medium flex items-center gap-1"
+            @click="navigateToUsers"
+            :class="[
+              'text-primary-400 hover:text-primary-300',
+              'text-sm font-medium flex items-center gap-1',
+            ]"
           >
             <UIcon name="heroicons:plus" class="w-4 h-4" />
             Add User
@@ -107,18 +123,22 @@
               <div class="h-6 w-16 bg-gray-600 rounded-full"></div>
             </div>
           </div>
-          <UTable
-            v-else
-            :rows="sortedUsers"
-            :columns="userColumns"
-            :sort="userSort"
-            @update:sort="userSort = $event"
-          >
-            <template #initials-data="{ row }">
-              <div class="w-8 h-8 bg-primary-500/20 rounded-full flex items-center justify-center">
-                <span class="text-primary-400 font-medium text-xs">{{ row.initials }}</span>
+          <UTable v-else :rows="recentUsers" :columns="userColumns">
+            <template #name-data="{ row }">
+              <div class="flex flex-col">
+                <span class="text-white font-medium text-sm truncate">
+                  {{ row.name }}
+                </span>
               </div>
             </template>
+            <template #email-data="{ row }">
+              <div class="flex flex-col">
+                <span class="text-white truncate">
+                  {{ row.email }}
+                </span>
+              </div>
+            </template>
+
             <template #status-data="{ row }">
               <UBadge :color="getStatusColor(row.status)" variant="soft" size="xs">
                 {{ row.status }}
@@ -134,7 +154,7 @@
           <h2 class="text-lg font-semibold text-white">Recent Artefacts</h2>
           <div class="text-sm text-gray-400">Latest artefact uploads and processing status</div>
           <button
-            @click="navigateTo('/admin/artefacts')"
+            @click="navigateToArtefacts"
             class="text-primary-400 hover:text-primary-300 text-sm font-medium flex items-center gap-1"
           >
             <UIcon name="heroicons:cloud-arrow-up" class="w-4 h-4" />
@@ -144,7 +164,6 @@
         <div class="p-6">
           <div v-if="loading" class="space-y-4">
             <div v-for="i in 4" :key="i" class="flex items-center space-x-3 animate-pulse">
-              <div class="w-10 h-10 bg-gray-600 rounded"></div>
               <div class="flex-1">
                 <div class="h-4 bg-gray-600 rounded mb-2"></div>
                 <div class="h-3 bg-gray-700 rounded w-2/3"></div>
@@ -152,24 +171,13 @@
               <div class="h-6 w-20 bg-gray-600 rounded"></div>
             </div>
           </div>
-          <UTable
-            v-else
-            :rows="sortedArtefacts"
-            :columns="artefactColumns"
-            :sort="artefactSort"
-            @update:sort="artefactSort = $event"
-          >
-            <template #icon-data>
-              <div class="w-8 h-8 bg-primary-500/20 rounded flex items-center justify-center">
-                <UIcon name="heroicons:document-text" class="w-4 h-4 text-primary-400" />
-              </div>
-            </template>
+          <UTable v-else :rows="sortedArtefacts" :columns="artefactColumns">
             <template #fileInfo-data="{ row }">
               <div>
-                <p class="text-white font-medium text-sm">{{ row.title }}</p>
-                <p class="text-gray-400 text-xs">
+                <p class="text-white font-medium text-sm max-w-[24rem] truncate">{{ row.title }}</p>
+                <!-- <p class="text-gray-400 text-xs max-w-[24rem] truncate">
                   {{ row.fileName }} • {{ formatFileSize(row.fileSize) }}
-                </p>
+                </p> -->
               </div>
             </template>
             <template #status-data="{ row }">
@@ -177,8 +185,8 @@
                 {{ row.status }}
               </UBadge>
             </template>
-            <template #createdAt-data="{ row }">
-              <span class="text-gray-400 text-xs">{{ formatTime(row.createdAt) }}</span>
+            <template #updatedAt-data="{ row }">
+              <span class="text-gray-400 text-xs">{{ row.updatedAt }}</span>
             </template>
           </UTable>
         </div>
@@ -212,7 +220,7 @@
               </div>
             </div>
             <UButton
-              @click="toggleIntegration(integration)"
+              @click="navigateToIntegration(integration.path)"
               :color="integration.isConnected ? 'green' : 'blue'"
               size="xs"
               :icon="integration.isConnected ? 'heroicons:check' : 'heroicons:link'"
@@ -227,139 +235,58 @@
 </template>
 
 <script setup lang="ts">
-import { formatDateTime } from '~/utils'
+useHead({ title: 'Dashboard - Admin Dashboard - provento.ai' })
+import { handleAuthError as handleAuthErrorShared } from '~/composables/useAuthError'
 
 definePageMeta({
   layout: 'admin',
   middleware: 'auth',
 })
 
-const loading = ref(true)
+// Import stores - keep only necessary ones
+import { useAuthStore } from '~/stores'
+import { useDashboardStore } from '~/stores/dashboard'
 
-// Table sorting
-const userSort = ref({ column: 'name', direction: 'asc' })
-const artefactSort = ref({ column: 'createdAt', direction: 'desc' })
+const loading = ref(true)
+const authStore = useAuthStore()
+const dashboardStore = useDashboardStore()
+
+const authUser = computed(() => authStore.getAuthUser)
 
 // Table columns
 const userColumns = [
-  { key: 'initials', label: '', sortable: false },
-  { key: 'name', label: 'Name', sortable: true },
-  { key: 'email', label: 'Email', sortable: true },
-  { key: 'role', label: 'Role', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
+  { key: 'name', label: 'Name', sortable: false },
+  { key: 'email', label: 'Email', sortable: false },
+  { key: 'role', label: 'Role', sortable: false },
+  { key: 'status', label: 'Status', sortable: false },
 ]
 
 const artefactColumns = [
-  { key: 'icon', label: '', sortable: false },
   { key: 'fileInfo', label: 'Artefact', sortable: false },
-  { key: 'status', label: 'Status', sortable: true },
-  { key: 'createdAt', label: 'Created', sortable: true },
+  { key: 'status', label: 'Status', sortable: false },
+  { key: 'updatedAt', label: 'Updated At', sortable: false },
 ]
 
+// Reactive data
 const stats = ref({
-  totalUsers: 2847,
-  userGrowth: 12,
-  totalArtefacts: 18432,
-  artefactsToday: 48,
-  totalConversations: 45231,
-  conversationGrowth: 24,
-  tokensUsed: 1200000,
-  tokenGrowth: 18,
+  totalUsers: 0,
+  userGrowth: 0,
+  totalArtefacts: 0,
+  artefactsToday: 0,
+  totalConversations: 0,
+  conversationGrowth: 0,
+  tokensUsed: 0,
+  tokenGrowth: 0,
+  processedArtefacts: 0,
 })
 
-const recentUsers = ref([
-  {
-    id: 1,
-    name: 'Sarah Johnson',
-    email: 'sarah@company.com',
-    initials: 'SJ',
-    status: 'Active',
-    role: 'Admin',
-  },
-  {
-    id: 2,
-    name: 'Mike Chen',
-    email: 'mike@company.com',
-    initials: 'MC',
-    status: 'Active',
-    role: 'User',
-  },
-  {
-    id: 3,
-    name: 'Emily Davis',
-    email: 'emily@company.com',
-    initials: 'ED',
-    status: 'Inactive',
-    role: 'Manager',
-  },
-  {
-    id: 4,
-    name: 'Alex Rodriguez',
-    email: 'alex@company.com',
-    initials: 'AR',
-    status: 'Active',
-    role: 'User',
-  },
-])
+const recentUsers = ref([])
+const recentArtefacts = ref([])
+const integrations = ref([])
 
-const recentArtefacts = ref([
-  {
-    id: 1,
-    title: 'Employee Handbook 2024',
-    fileName: 'employee-handbook.pdf',
-    fileSize: 2457600,
-    status: 'processed',
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-  },
-  {
-    id: 2,
-    title: 'Q4 Financial Report',
-    fileName: 'q4-report.docx',
-    fileSize: 1843200,
-    status: 'processing',
-    createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
-  },
-  {
-    id: 3,
-    title: 'Product Specifications',
-    fileName: 'product-specs.pdf',
-    fileSize: 3276800,
-    status: 'processed',
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-  },
-  {
-    id: 4,
-    title: 'Marketing Guidelines',
-    fileName: 'marketing-guide.pdf',
-    fileSize: 1638400,
-    status: 'processed',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-  },
-])
-
-const integrations = ref([
-  {
-    id: 1,
-    name: 'Slack',
-    description: 'Team communication',
-    isConnected: true,
-    logo: null,
-  },
-  {
-    id: 2,
-    name: 'Microsoft Teams',
-    description: 'Video conferencing',
-    isConnected: true,
-    logo: null,
-  },
-  {
-    id: 3,
-    name: 'WhatsApp Business',
-    description: 'Customer messaging',
-    isConnected: false,
-    logo: null,
-  },
-])
+const isWhatsAppConnected = computed(() => {
+  return integrations.value.some((i: any) => i.name === 'WhatsApp Business' && i.isConnected)
+})
 
 const formatTokens = (tokens: number) => {
   if (tokens >= 1000000) {
@@ -370,60 +297,22 @@ const formatTokens = (tokens: number) => {
   return tokens.toString()
 }
 
-const formatFileSize = (bytes: number) => {
-  if (!bytes) return '0 B'
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`
-}
-
-const formatTime = (date: Date) => {
-  return formatDateTime(date)
-}
-
-// Computed properties for sorted data
-const sortedUsers = computed(() => {
-  const users = [...recentUsers.value]
-  if (userSort.value.column) {
-    users.sort((a, b) => {
-      const aVal = a[userSort.value.column]
-      const bVal = b[userSort.value.column]
-      const direction = userSort.value.direction === 'asc' ? 1 : -1
-
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return aVal.localeCompare(bVal) * direction
-      }
-      return (aVal < bVal ? -1 : aVal > bVal ? 1 : 0) * direction
-    })
-  }
-  return users
-})
-
 const sortedArtefacts = computed(() => {
   const docs = [...recentArtefacts.value]
-  if (artefactSort.value.column) {
-    docs.sort((a, b) => {
-      let aVal = a[artefactSort.value.column]
-      let bVal = b[artefactSort.value.column]
-      const direction = artefactSort.value.direction === 'asc' ? 1 : -1
 
-      // Handle date sorting
-      if (artefactSort.value.column === 'createdAt') {
-        aVal = new Date(aVal).getTime()
-        bVal = new Date(bVal).getTime()
-      }
+  docs.sort((a, b) => {
+    const aTime = new Date(a.updated_at).getTime()
+    const bTime = new Date(b.updated_at).getTime()
+    return bTime - aTime // newest first
+  })
 
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return aVal.localeCompare(bVal) * direction
-      }
-      return (aVal < bVal ? -1 : aVal > bVal ? 1 : 0) * direction
-    })
-  }
   return docs
 })
 
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
+type BadgeColor = 'green' | 'red' | 'yellow' | 'gray'
+
+const getStatusColor = (status: string): BadgeColor => {
+  const colors: Record<string, BadgeColor> = {
     Active: 'green',
     Inactive: 'red',
     Pending: 'yellow',
@@ -431,8 +320,8 @@ const getStatusColor = (status: string) => {
   return colors[status] || 'gray'
 }
 
-const getArtefactStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
+const getArtefactStatusColor = (status: string): BadgeColor => {
+  const colors: Record<string, BadgeColor> = {
     processed: 'green',
     processing: 'yellow',
     failed: 'red',
@@ -458,19 +347,111 @@ const getIntegrationIconColor = (name: string) => {
   return colorMap[name] || 'text-gray-400'
 }
 
-const toggleIntegration = async (integration: any) => {
+// Fetch dashboard data (single API call)
+const fetchDashboardData = async (orgId?: string | null) => {
+  loading.value = true
   try {
-    integration.isConnected = !integration.isConnected
-    // In a real app, you would call an API here
+    await dashboardStore.fetchDashboard(orgId)
+
+    // Map recent users
+    recentUsers.value = dashboardStore.recentUsers.map((u: any) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      status: u.status,
+      role: u.role,
+      updated_at: u.updated_at,
+    }))
+
+    // Map recent artefacts
+    recentArtefacts.value = dashboardStore.recentArtefacts.map((d: any) => ({
+      id: d.id,
+      title: d.title,
+      fileName: d.fileName,
+      fileSize: d.fileSize,
+      status: d.status,
+      updatedAt: d.updatedAt,
+    }))
+
+    // Map integrations overview into UI integrations list
+    if (dashboardStore.overview) {
+      const overview = dashboardStore.overview
+      integrations.value = [
+        {
+          id: 1,
+          name: 'Slack',
+          description: 'Team communication',
+          isConnected: overview.integrationStatus?.slack === 'connected',
+          path: '/admin/integrations/slack',
+        },
+        {
+          id: 2,
+          name: 'Microsoft Teams',
+          description: 'Video conferencing',
+          isConnected: overview.integrationStatus?.teams === 'connected',
+          path: '/admin/integrations/teams',
+        },
+        {
+          id: 3,
+          name: 'WhatsApp Business',
+          description: 'Customer messaging',
+          isConnected: overview.integrationStatus?.whatsapp === 'connected',
+          path: '/admin/integrations/whatsapp',
+        },
+      ]
+
+      // Populate stats
+      stats.value.totalUsers = overview.userCounts?.total || stats.value.totalUsers
+      stats.value.totalArtefacts =
+        overview.artefactsStats?.totalArtefacts || stats.value.totalArtefacts
+      stats.value.processedArtefacts =
+        overview.artefactsStats?.processedArtefacts || stats.value.processedArtefacts
+      stats.value.tokensUsed = overview.tokenUsage?.allTime?.tokens || stats.value.tokensUsed
+      // Map conversations count
+      stats.value.totalConversations =
+        overview.conversations?.total || stats.value.totalConversations
+    }
   } catch (error) {
-    console.error('Failed to update integration:', error)
+    console.error('Failed to fetch dashboard data:', error)
+    if (await handleAuthErrorShared(error)) return
+    const { showError } = useNotification()
+    showError('Failed to load dashboard data. Please try again.')
+  } finally {
+    loading.value = false
   }
 }
 
+import { useRoute } from 'vue-router'
+const route = useRoute()
+
+const getOrgQuery = () => {
+  return route.query?.org || route.query?.org_id
+    ? String(route.query?.org || route.query?.org_id)
+    : null
+}
+
+const navigateToUsers = () => {
+  const orgId = getOrgQuery()
+  navigateTo(orgId ? { path: '/admin/users', query: { org: orgId } } : '/admin/users')
+}
+
+const navigateToArtefacts = () => {
+  const orgId = getOrgQuery()
+  navigateTo(orgId ? { path: '/admin/artefacts', query: { org: orgId } } : '/admin/artefacts')
+}
+
+// Navigate to integration path while preserving org query for superadmin
+const navigateToIntegration = (path: string) => {
+  const orgId = getOrgQuery()
+  navigateTo(orgId ? { path, query: { org: orgId } } : path)
+}
+
+// Allow Add User for admin or superadmin regardless of WhatsApp connection
+const isAdminOrSuperAdmin = computed(() => authStore.isAdmin || authStore.isSuperAdmin)
+const disableAddUser = computed(() => !(isWhatsAppConnected.value || isAdminOrSuperAdmin.value))
+
 onMounted(async () => {
-  // Simulate loading
-  setTimeout(() => {
-    loading.value = false
-  }, 1000)
+  const orgId = getOrgQuery()
+  await fetchDashboardData(orgId)
 })
 </script>

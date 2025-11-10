@@ -130,13 +130,13 @@
                     <p class="text-lg text-gray-300 mb-2">
                       <span class="font-medium">Click to upload</span> or drag and drop
                     </p>
-                    <p class="text-sm text-gray-400 mb-4">PDF, Word, TXT, CSV, Markdown, Images</p>
+                    <p class="text-sm text-gray-400 mb-4">PDF, DOC, CSV, Markdown, TXT files</p>
                     <p class="text-xs text-gray-500">Maximum file size: 20MB</p>
                     <input
                       ref="fileInput"
                       type="file"
                       class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      accept=".pdf,.doc,.docx,.txt,.csv,.md,.png,.jpg,.jpeg"
+                      accept=".pdf,.doc,.docx,.txt,.csv,.md"
                       @change="handleFileSelect"
                       :disabled="isAnyOperationInProgress"
                     />
@@ -332,9 +332,7 @@
                       By signing in, you allow us to access your Google Drive and download selected
                       files to our server. Your files are not stored or shared beyond this process.
                     </p>
-                    <p class="mt-2">
-                      Supported file types: CSV, MS Word, PDF, Markdown, and Text files
-                    </p>
+                    <p class="mt-2">Supported file types: PDF, DOC, CSV, Markdown, TXT files</p>
                   </div>
                 </div>
               </div>
@@ -810,6 +808,17 @@ const formatFileSize = (bytes: number) => {
 }
 
 // UForm submission handler
+const route = useRoute()
+const authStore = useAuthStore()
+const authUser = computed(() => authStore.getAuthUser)
+const modalOrgId = computed(() => {
+  if (authUser.value?.role_id === 0) {
+    const q = route && route.query ? route.query.org || route.query.org_id : null
+    if (q && String(q).trim()) return String(q)
+  }
+  return authUser.value?.org_id || null
+})
+
 const onSubmit = async (event: FormSubmitEvent<Schema>) => {
   try {
     isUploading.value = true
@@ -822,7 +831,7 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
 
     // Check if file already exists
     const fileName = event.data.file.name.replace(/\s+/g, '_')
-    const existsResult = await artefactsStore.checkFileExists(fileName)
+    const existsResult = await artefactsStore.checkFileExists(fileName, modalOrgId.value)
 
     if (existsResult.success && existsResult.exists) {
       // Show replacement modal with existing file's category
@@ -836,7 +845,7 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
     }
 
     // Proceed with upload if file doesn't exist
-    await performUpload(formData)
+    await performUpload(formData, modalOrgId.value)
   } catch (error) {
     showError('Upload failed. Please try again.')
     isUploading.value = false
@@ -844,10 +853,10 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
 }
 
 // Perform the actual upload
-const performUpload = async (formData: FormData) => {
+const performUpload = async (formData: FormData, orgId?: string | null) => {
   try {
     // Call the store upload method
-    const result = await artefactsStore.uploadArtefact(formData)
+    const result = await artefactsStore.uploadArtefact(formData, orgId)
 
     if (!result.success) {
       showError(result.message || 'Upload failed. Please try again.')
@@ -949,32 +958,33 @@ const uploadFromGoogleDrive = async () => {
 
   try {
     // Check for existing files and show notification
-    const fileNames = selectedGoogleDriveFiles.value.map(file => file.name)
+    const fileNames = selectedGoogleDriveFiles.value.map((file) => file.name)
     const bulkCheckResult = await artefactsStore.checkFilesExistBulk(fileNames)
 
     const existingFiles: { name: string; category: string }[] = []
     if (bulkCheckResult.success) {
-      bulkCheckResult.results.forEach(result => {
+      bulkCheckResult.results.forEach((result) => {
         if (result.exists) {
           existingFiles.push({
             name: result.originalFileName,
-            category: result.fileInfo?.category || 'Unknown'
+            category: result.fileInfo?.category || 'Unknown',
           })
         }
       })
     }
 
     if (existingFiles.length > 0) {
-      const fileList = existingFiles.map(f => `"${f.name}" (currently in ${f.category})`).join(', ')
-      showWarning(
-        `The following files already exist and will be overwritten: ${fileList}`
-      )
+      const fileList = existingFiles
+        .map((f) => `"${f.name}" (currently in ${f.category})`)
+        .join(', ')
+      showWarning(`The following files already exist and will be overwritten: ${fileList}`)
     }
 
     // Call the store method to upload files
     const result = await artefactsStore.uploadGoogleDriveFiles(
       selectedGoogleDriveFiles.value,
       googleDriveState.category,
+      modalOrgId.value,
     )
 
     if (!result.success) {
@@ -1032,26 +1042,26 @@ const handleGoogleOAuthSignIn = async () => {
 
       try {
         // Check for existing files
-        const fileNames = selectedFiles.map(file => file.name)
+        const fileNames = selectedFiles.map((file) => file.name)
         const bulkCheckResult = await artefactsStore.checkFilesExistBulk(fileNames)
 
         const existingFiles: { name: string; category: string }[] = []
         if (bulkCheckResult.success) {
-          bulkCheckResult.results.forEach(result => {
+          bulkCheckResult.results.forEach((result) => {
             if (result.exists) {
               existingFiles.push({
                 name: result.originalFileName,
-                category: result.fileInfo?.category || 'Unknown'
+                category: result.fileInfo?.category || 'Unknown',
               })
             }
           })
         }
 
         if (existingFiles.length > 0) {
-          const fileList = existingFiles.map(f => `"${f.name}" (currently in ${f.category})`).join(', ')
-          showWarning(
-            `The following files already exist and will be overwritten: ${fileList}`,
-          )
+          const fileList = existingFiles
+            .map((f) => `"${f.name}" (currently in ${f.category})`)
+            .join(', ')
+          showWarning(`The following files already exist and will be overwritten: ${fileList}`)
         }
 
         // Convert GoogleOAuthFile to ArtefactGoogleDriveFile format for upload
@@ -1203,7 +1213,6 @@ const performComprehensiveCleanup = () => {
 
     // Clear store state
     artefactsStore.clearGoogleDriveFiles()
-
   } catch (error) {
     // Cleanup error handled silently
   }

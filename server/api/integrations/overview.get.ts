@@ -26,14 +26,20 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Get user's organization
-    const userOrg = await query('SELECT org_id FROM users WHERE user_id = $1', [userId])
-    if (!userOrg?.rows?.length) {
+    // Get user's organization and role
+    const userOrgRow = await query('SELECT org_id, role_id FROM users WHERE user_id = $1', [userId])
+    if (!userOrgRow?.rows?.length) {
       setResponseStatus(event, 404)
       throw new CustomError('User not found or organization not assigned', 404)
     }
 
-    const orgId = userOrg.rows[0].org_id
+    const tokenUserOrg = userOrgRow.rows[0].org_id
+    const tokenUserRole = userOrgRow.rows[0].role_id
+
+    // Allow superadmin to request specific org via query param 'org'/'org_id'
+    const q = getQuery(event) as Record<string, any>
+    const requestedOrg = q?.org || q?.org_id || null
+    const orgId = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
     // Get user counts by integration type
     const userCountsQuery = await query(
@@ -42,9 +48,9 @@ export default defineEventHandler(async (event) => {
         COUNT(*) FILTER (WHERE added_by = 'slack_auto_provision') as slack_users,
         COUNT(*) FILTER (WHERE added_by = 'teams_auto_provision') as teams_users,
         COUNT(*) as total_users
-      FROM users 
-      WHERE org_id = $1`,
-      [orgId]
+      FROM users
+      WHERE org_id = $1 AND role_id IS DISTINCT FROM '0'`,
+    [orgId]
     )
 
     // Get integration status
@@ -62,28 +68,32 @@ export default defineEventHandler(async (event) => {
       [orgId]
     )
 
-    // Get today's messages and token usage
-    const today = dayjs.utc().format('YYYY-MM-DD')
+    // Get today's messages and token usage using explicit UTC range to avoid timezone/date conversion issues
+    const startOfTodayUtc = dayjs().utc().startOf('day').toISOString()
+    const startOfTomorrowUtc = dayjs().utc().add(1, 'day').startOf('day').toISOString()
     const tokenUsageQuery = await query(
-      `SELECT 
-        COUNT(*) as messages_today,
-        COALESCE(SUM(total_tokens), 0) as total_tokens_today,
-        COALESCE(SUM(total_cost), 0) as total_cost_today
-      FROM token_cost_calculation 
-      WHERE org_id = $1 
-      AND DATE(created_at) = $2`,
-      [orgId, today]
+    `SELECT
+      COUNT(*) as messages_today,
+      COALESCE(SUM(total_tokens), 0) as total_tokens_today,
+      COALESCE(SUM(total_cost), 0) as total_cost_today
+    FROM token_cost_calculation
+    WHERE org_id = $1
+      AND created_at >= $2
+      AND created_at < $3
+      AND (question_text IS NULL OR question_text NOT ILIKE 'Document summarization:%')`,
+    [orgId, startOfTodayUtc, startOfTomorrowUtc]
     )
 
     // Get total token usage (all time)
     const totalTokenUsageQuery = await query(
-      `SELECT 
-        COUNT(*) as total_messages,
-        COALESCE(SUM(total_tokens), 0) as total_tokens_all_time,
-        COALESCE(SUM(total_cost), 0) as total_cost_all_time
-      FROM token_cost_calculation 
-      WHERE org_id = $1`,
-      [orgId]
+    `SELECT
+      COUNT(*) as total_messages,
+      COALESCE(SUM(total_tokens), 0) as total_tokens_all_time,
+      COALESCE(SUM(total_cost), 0) as total_cost_all_time
+    FROM token_cost_calculation
+    WHERE org_id = $1
+      AND (question_text IS NULL OR question_text NOT ILIKE 'Document summarization:%')`,
+    [orgId]
     )
 
     // Get integration details

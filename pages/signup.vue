@@ -219,6 +219,40 @@
           </div>
         </UFormGroup>
 
+        <!-- Confirm Password -->
+        <UFormGroup name="confirmPassword" label="Confirm Password" required>
+          <div class="relative">
+            <UInput
+              v-model="state.confirmPassword"
+              :type="showPassword ? 'text' : 'password'"
+              eager-validation
+              inputClass="custom-input pr-12"
+              placeholder="Re-enter your password"
+            />
+            <button
+              type="button"
+              class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-300 transition-colors"
+              @click="togglePasswordVisibility"
+            >
+              <UIcon
+                :name="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                class="h-5 w-5"
+              />
+            </button>
+          </div>
+          <!-- Hint: Show special character requirement below confirm password for clarity -->
+          <div class="mt-2 text-xs flex items-center">
+            <UIcon
+              :name="passwordsMatch ? 'i-heroicons-check-circle' : 'i-heroicons-x-circle'"
+              :class="passwordsMatch ? 'text-green-400' : 'text-red-400'"
+              class="w-4 h-4"
+            />
+            <span :class="passwordsMatch ? 'text-green-400 ml-2' : 'text-gray-400 ml-2'"
+              >Passwords match</span
+            >
+          </div>
+        </UFormGroup>
+
         <!-- Terms Agreement -->
         <div class="flex items-center">
           <input
@@ -271,21 +305,35 @@
       <div class="text-center">
         <NuxtLink to="/login" class="btn-outline w-full"> Sign In Instead </NuxtLink>
       </div>
+      <ConfirmPopup
+        :isOpen="showWelcomeModal"
+        title="Thank you for signing up!"
+        message="A welcome email has been sent to your email address. Please check your inbox."
+        type="success"
+        confirmText="Go to Sign in"
+        cancelText="Close"
+        @confirm="handleWelcomeConfirm"
+        @update:isOpen="(val) => (showWelcomeModal = val)"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+useHead({ title: 'Sign Up - provento.ai' })
 import { useAuthStore } from '~/stores/auth/index'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '#ui/types'
 
 definePageMeta({
   layout: 'minimal',
+  middleware: 'guest',
 })
 
 const authStore = useAuthStore()
 const { showNotification } = useNotification()
+import ConfirmPopup from '~/components/ui/ConfirmPopup.vue'
+const showWelcomeModal = ref(false)
 
 // Form reference
 const formRef = ref()
@@ -305,6 +353,14 @@ const passwordValidation = computed(() => {
     hasNumber: /\d/.test(password),
     hasSpecialChar: /[@$!%*?&]/.test(password),
   }
+})
+
+const passwordsMatch = computed(() => {
+  return (
+    state.password === state.confirmPassword &&
+    state.password.length > 0 &&
+    state.confirmPassword.length > 0
+  )
 })
 
 // Password strength calculation
@@ -346,19 +402,25 @@ const getStrengthText = (strength: number) => {
 }
 
 // Zod schema for form validation
-const schema = z.object({
-  name: z.string().min(1, 'Full name is required').max(255, 'Name too long'),
-  company: z.string().min(1, 'Company name is required').max(255, 'Company name too long'),
-  email: z.string().email('Invalid email address').max(255, 'Email too long'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
-    ),
-  // phone validation handled at component level
-})
+const schema = z
+  .object({
+    name: z.string().min(1, 'Full name is required').max(255, 'Name too long'),
+    company: z.string().min(1, 'Company name is required').max(255, 'Company name too long'),
+    email: z.string().email('Invalid email address').max(255, 'Email too long'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+        'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+      ),
+    confirmPassword: z.string().min(1, 'Please confirm your password'),
+    // phone validation handled at component level
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
 
 type Schema = z.output<typeof schema>
 
@@ -367,6 +429,7 @@ const state = reactive({
   company: '',
   email: '',
   password: '',
+  confirmPassword: '',
   phone: null as string | null,
 })
 
@@ -415,12 +478,16 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     // Show success notification
     showNotification('Account created successfully! Please sign in.', 'success')
 
+    // Show welcome modal with instructions to check email
+    showWelcomeModal.value = true
+
     // Reset form on success
     Object.assign(state, {
       name: '',
       company: '',
       email: '',
       password: '',
+      confirmPassword: '',
       phone: null,
     })
     agreeToTerms.value = false
@@ -430,13 +497,17 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       phoneRef.value.resetPhoneField()
     }
 
-    // Redirect to login page
-    await navigateTo('/login?message=Account created successfully! Please sign in.')
+    // Do not redirect immediately; wait for user to confirm the modal
+    // Modal confirm handler will navigate to login
   } catch (error: any) {
     // Show error notification
-    showNotification(error?.message || 'Failed to create account. Please try again.', 'error')
     console.error('Signup failed:', error?.message)
   }
+}
+
+function handleWelcomeConfirm() {
+  showWelcomeModal.value = false
+  navigateTo('/login')
 }
 </script>
 

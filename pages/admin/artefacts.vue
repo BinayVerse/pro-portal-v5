@@ -35,16 +35,18 @@
     />
 
     <!-- Upload Modal -->
-    <ArtefactUploadModal
-      v-model:is-open="showUploadModal"
-      :available-categories="availableCategories"
-      :categories-loading="categoriesLoading"
-      @close="showUploadModal = false"
-      @file-uploaded="handleFileUploaded"
-      @google-drive-uploaded="handleGoogleDriveUploaded"
-      @category-added="addCategory"
-      @category-deleted="deleteCategory"
-    />
+    <client-only>
+      <ArtefactUploadModal
+        v-model:is-open="showUploadModal"
+        :available-categories="availableCategories"
+        :categories-loading="categoriesLoading"
+        @close="showUploadModal = false"
+        @file-uploaded="handleFileUploaded"
+        @google-drive-uploaded="handleGoogleDriveUploaded"
+        @category-added="addCategory"
+        @category-deleted="deleteCategory"
+      />
+    </client-only>
 
     <!-- Summary Modal -->
     <ArtefactSummaryModal
@@ -120,7 +122,6 @@
 </template>
 
 <script setup lang="ts">
-import { formatDateTime } from '~/utils'
 import { onMounted, watch, nextTick } from 'vue'
 import { useNotification } from '~/composables/useNotification'
 
@@ -164,9 +165,18 @@ const isDeletingCategory = ref(false)
 const authStore = useAuthStore()
 const artefactsStore = useArtefactsStore()
 
-// Get orgId from auth user
+// Get orgId: for superadmin prefer route query/org param, otherwise use auth user's org
 const currentUser = computed(() => authStore.user || null)
-const orgId = computed(() => currentUser.value?.org_id || null)
+import { useRoute } from 'vue-router'
+const route = useRoute()
+const orgId = computed(() => {
+  // If caller is superadmin, prefer selected org from route query
+  if (currentUser.value?.role_id === 0) {
+    const q = route && route.query ? route.query.org || route.query.org_id : null
+    if (q && String(q).trim()) return String(q)
+  }
+  return currentUser.value?.org_id || null
+})
 
 // Fallback categories if API is not available
 const fallbackCategories = [
@@ -278,12 +288,13 @@ const confirmDeleteArtefact = async () => {
     const result = await artefactsStore.deleteArtefact(
       artefactToDelete.value.id,
       artefactToDelete.value.name,
+      orgId.value,
     )
 
     if (result.success) {
       showSuccess(result.message)
       // Refresh the artefacts list
-      await artefactsStore.fetchArtefacts()
+      await artefactsStore.fetchArtefacts(orgId.value)
     } else {
       showError(result.message)
     }
@@ -311,12 +322,12 @@ const confirmReprocessArtefact = async () => {
   const { showError, showSuccess } = useNotification()
 
   try {
-    const result = await artefactsStore.reprocessArtefact(artefactToReprocess.value.id)
+    const result = await artefactsStore.reprocessArtefact(artefactToReprocess.value.id, orgId.value)
 
     if (result.success) {
       showSuccess(result.message)
       // Refresh the artefacts list to show updated status
-      await artefactsStore.fetchArtefacts()
+      await artefactsStore.fetchArtefacts(orgId.value)
     } else {
       showError(result.message)
     }
@@ -379,20 +390,20 @@ const confirmSummarizeArtefact = async () => {
   try {
     showInfo('Document summarization started! This may take a few moments...')
 
-    const result = await artefactsStore.summarizeArtefact(artefactToSummarize.value.id)
+    const result = await artefactsStore.summarizeArtefact(artefactToSummarize.value.id, orgId.value)
 
     if (result.success) {
       showSuccess(result.message)
 
       // Update document status locally for immediate UI feedback
-      const docIndex = artefacts.value.findIndex(a => a.id === artefactToSummarize.value?.id)
+      const docIndex = artefacts.value.findIndex((a) => a.id === artefactToSummarize.value?.id)
       if (docIndex !== -1) {
         artefacts.value[docIndex].summarized = 'Yes'
         artefacts.value[docIndex].summary = 'Summary available'
       }
 
       // Refresh the artefacts list to show updated summarization status
-      await artefactsStore.fetchArtefacts()
+      await artefactsStore.fetchArtefacts(orgId.value)
     } else {
       showError(result.message)
     }
@@ -430,7 +441,7 @@ const downloadArtefact = async (artefact: any) => {
     showInfo('Preparing download...')
 
     // Use the existing viewArtefact method to get the file URL
-    const result = await artefactsStore.viewArtefact(artefact.id)
+    const result = await artefactsStore.viewArtefact(artefact.id, orgId.value)
 
     if (result.success && result.data.fileUrl) {
       // Create a temporary link to trigger download
@@ -454,13 +465,34 @@ const downloadArtefact = async (artefact: any) => {
 
 // Upload handlers
 const handleFileUploaded = async (artefact: any) => {
-  // Refresh the artefacts list to get updated data and stats
-  await artefactsStore.fetchArtefacts()
+  // Stop any existing auto-processing/polling and start a fresh cycle
+  try {
+    // Ensure any existing polling is cancelled
+    artefactsStore.stopAutoProcessing()
+
+    // Start fresh polling so fetchArtefacts can detect newly processed documents during the fetch
+    artefactsStore.startAutoProcessing()
+
+    // Immediately refresh the artefacts list to reflect the newly uploaded file
+    await artefactsStore.fetchArtefacts(orgId.value)
+  } catch (e) {
+    // Silent: UI already shows upload success/failure in the modal
+  }
 }
 
 const handleGoogleDriveUploaded = async (newArtefacts: any[]) => {
-  // Refresh the artefacts list to get updated data and stats
-  await artefactsStore.fetchArtefacts()
+  try {
+    // Cancel any existing polling
+    artefactsStore.stopAutoProcessing()
+
+    // Start fresh polling so fetchArtefacts can detect newly processed documents during the fetch
+    artefactsStore.startAutoProcessing()
+
+    // Refresh artefacts list
+    await artefactsStore.fetchArtefacts(orgId.value)
+  } catch (e) {
+    // Silent
+  }
 }
 
 // Category management methods
@@ -473,7 +505,7 @@ const addCategory = async (category: string) => {
     try {
       await artefactsStore.createCategory(trimmedCategory, orgId.value)
       // Refresh artefacts list to update stats if needed
-      await artefactsStore.fetchArtefacts()
+      await artefactsStore.fetchArtefacts(orgId.value)
     } catch (error) {
       // Show error message to user
       const { showError } = useNotification()
@@ -506,7 +538,7 @@ const confirmDeleteCategory = async () => {
         await artefactsStore.deleteCategory(categoryData.id, orgId.value)
 
         // Refresh artefacts list to update stats and category assignments
-        await artefactsStore.fetchArtefacts()
+        await artefactsStore.fetchArtefacts(orgId.value)
       }
     } else {
       // Fallback to local management if no orgId
@@ -548,16 +580,10 @@ const initializeCategories = async () => {
     await artefactsStore.fetchCategories(orgId.value)
   } catch (error: any) {
     // Handle specific error types
-    if (error?.statusCode === 401 || error?.response?.status === 401) {
+    if (await handleAuthError(error)) {
       const { showError } = useNotification()
-      showError('Session expired. Please log in again.')
-
-      // Clear invalid auth and redirect
-      if (process.client) {
-        localStorage.removeItem('authToken')
-        localStorage.removeItem('authUser')
-      }
-      await navigateTo('/login')
+      showError('Session expired. Please sign in again.')
+      return
     } else {
       const { showError } = useNotification()
       showError('Failed to load categories. Please refresh the page.')
@@ -579,8 +605,8 @@ const initializePage = async () => {
       // Ensure token is available before fetching data
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
-        // Fetch both categories and artefacts
-        await Promise.all([initializeCategories(), artefactsStore.fetchArtefacts()])
+        // Fetch both categories and artefacts (pass orgId for superadmin if available)
+        await Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
       }
     }
   } catch (error) {
@@ -595,7 +621,7 @@ watch(
     if (newOrgId && authStore.isLoggedIn) {
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
-        Promise.all([initializeCategories(), artefactsStore.fetchArtefacts()])
+        Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
       }
     }
   },
@@ -609,7 +635,7 @@ watch(
     if (isAuth && orgId.value) {
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
-        Promise.all([initializeCategories(), artefactsStore.fetchArtefacts()])
+        Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
       }
     }
   },
@@ -620,7 +646,7 @@ watch(
   () => artefactsStore.getProcessingStatus().allComplete,
   (allComplete) => {
     // Silent monitoring of complete processing (processed + summarized)
-  }
+  },
 )
 
 // Watch for changes in artefacts data to ensure UI stays updated
@@ -629,18 +655,55 @@ watch(
   (newArtefacts, oldArtefacts) => {
     // Silent monitoring of artefacts changes for UI updates
   },
-  { deep: true }
+  { deep: true },
 )
 
 // Initialize everything on mount
 onMounted(async () => {
   await initializePage()
 
-  // Automatically start background processing if there are unprocessed or unsummarized documents
+  // Automatically start background processing if there are unprocessed documents
   await nextTick()
   const processingStatus = artefactsStore.getProcessingStatus()
 
-  if (processingStatus.unprocessedCount > 0 || processingStatus.pendingCount > 0) {
+  // Additionally: on initial landing, immediately trigger summarization for any already-processed but unsummarized documents
+  if (process.client) {
+    const pending = artefactsStore.pendingSummarizations
+    if (pending && pending.length > 0) {
+      // Show a single notification listing files being summarized
+      try {
+        const { showInfo } = useNotification()
+        const names = pending
+          .map((d: any) => d.name)
+          .slice(0, 10)
+          .join(', ')
+        showInfo(`Auto-summarizing ${pending.length} document(s): ${names}`, {
+          title: 'Auto Summarization Started',
+          duration: 6000,
+        })
+      } catch (e) {}
+
+      // Mark and kick off summarizations in background (prevent automatic retries by marking attempted)
+      for (const doc of pending) {
+        if (!artefactsStore.isDocumentBeingSummarized(doc.id)) {
+          try {
+            artefactsStore.summarizingDocs.add(doc.id)
+            // mark attempted so background polling won't keep retrying failed ones
+            artefactsStore.attemptedSummarizations.add(doc.id)
+            // Fire-and-forget background summarization
+            void artefactsStore.processSingleSummarization(doc.id)
+            // small stagger
+            await new Promise((r) => setTimeout(r, 250))
+          } catch (e) {
+            // ignore per-doc errors
+          }
+        }
+      }
+    }
+  }
+
+  // If there are unprocessed documents, start background polling
+  if (processingStatus.unprocessedCount > 0) {
     artefactsStore.startAutoProcessing()
   }
 })
@@ -651,6 +714,6 @@ onUnmounted(() => {
 })
 
 useHead({
-  title: 'Artefact Management - Admin Dashboard',
+  title: 'Artefact Management - Admin Dashboard - provento.ai',
 })
 </script>

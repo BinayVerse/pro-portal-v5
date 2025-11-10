@@ -2,6 +2,9 @@
 import { defineStore } from 'pinia'
 import type { UserProfileState, UserProfile } from './types'
 import { useNotification } from '~/composables/useNotification'
+import { useAuthStore } from '~/stores/auth/index'
+import { handleError, handleSuccess, extractErrors } from '../../utils/apiHandler'
+import { handleAuthError as handleAuthErrorShared } from '~/composables/useAuthError'
 
 export const useProfileStore = defineStore('userStore', {
   state: (): UserProfileState => ({
@@ -36,25 +39,6 @@ export const useProfileStore = defineStore('userStore', {
   },
 
   actions: {
-    handleError(error: any, defaultMessage: string, silent: boolean = false): string {
-      const { showError } = useNotification()
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.response?._data?.message ||
-        error?.data?.message ||
-        error?.message ||
-        defaultMessage
-      if (!silent) {
-        showError(errorMessage)
-      }
-      return errorMessage
-    },
-
-    handleSuccess(message: string): void {
-      const { showSuccess } = useNotification()
-      this.profileMessage = null
-      showSuccess(message)
-    },
 
     async handleApiError(err: any) {
       const normalized = {
@@ -68,19 +52,17 @@ export const useProfileStore = defineStore('userStore', {
       }
 
       // Auto-logout on 401
-      if (normalized.statusCode === 401) {
-        localStorage.removeItem('authUser')
-        localStorage.removeItem('authToken')
+    if (normalized.statusCode === 401) {
+        // Use shared handler to clear auth and redirect
+        await handleAuthErrorShared({ statusCode: 401, response: { status: 401 }, message: normalized.message })
 
         // Clear all toasts using the clear function from useNotification
         const { clear, showInfo } = useNotification()
         clear()
         showInfo('You have been logged out due to session timeout.')
 
-        // Navigate to login after delay
-        setTimeout(() => {
-          navigateTo('/login')
-        }, 2000)
+        // Ensure a short delay for UX before navigation (shared handler already triggers navigate)
+        setTimeout(() => {}, 500)
       }
 
       return normalized
@@ -89,7 +71,20 @@ export const useProfileStore = defineStore('userStore', {
     async fetchUserProfile() {
       try {
         this.loading = true
-        const token = localStorage.getItem('authToken')
+        let token: string | null = null
+        if (process.client) {
+          try {
+            token = localStorage.getItem('authToken')
+          } catch (e) {
+            token = null
+          }
+        } else {
+          const cookie = useCookie('auth-token')
+          token = cookie?.value || null
+        }
+
+        const headers: Record<string, string> = {}
+        if (token) headers.Authorization = `Bearer ${token}`
 
         const data = await $fetch<{
           status: string
@@ -97,9 +92,7 @@ export const useProfileStore = defineStore('userStore', {
           data: UserProfile
         }>('/api/auth/profile', {
           method: 'GET',
-          headers: {
-            Authorization: token ? `Bearer ${token}` : '',
-          },
+          headers,
         })
 
         this.userProfile = data.data
@@ -119,7 +112,18 @@ export const useProfileStore = defineStore('userStore', {
 
     async updateProfile(profile: any) {
       try {
-        const token = localStorage.getItem('authToken')
+        // prefer localStorage token on client, cookie on server
+        let token: string | null = null
+        if (process.client) {
+          try {
+            token = localStorage.getItem('authToken')
+          } catch (e) {
+            token = null
+          }
+        } else {
+          const cookie = useCookie('auth-token')
+          token = cookie?.value || null
+        }
 
         const data = await $fetch<{
           status: string
@@ -133,17 +137,51 @@ export const useProfileStore = defineStore('userStore', {
           },
         })
 
+        // If backend created a new org and returned a fresh auth token, persist it everywhere
         if (data?.authToken) {
-          localStorage.setItem('authToken', data.authToken)
+          try {
+            if (process.client) localStorage.setItem('authToken', data.authToken)
+          } catch (e) {
+            // ignore storage errors
+          }
+
+          try {
+            const tokenCookie = useCookie('auth-token', {
+              secure: true,
+              sameSite: 'lax',
+              maxAge: 60 * 60 * 24 * 7,
+            })
+            tokenCookie.value = data.authToken
+          } catch (e) {
+            // ignore cookie set errors
+          }
+
+          // Update auth store token so client-side API calls use the new token
+          try {
+            const authStore = useAuthStore()
+            authStore.setAuthUser(authStore.user, data.authToken)
+          } catch (e) {}
         }
 
-        this.handleSuccess(data?.message || 'Profile updated successfully.')
+        handleSuccess(data?.message || 'Profile updated successfully.')
         await new Promise((resolve) => setTimeout(resolve, 1000))
         await this.fetchUserProfile()
+
+        // Update auth store user object so downstream pages (that read from authStore.user)
+        // pick up the new org_id immediately.
+        try {
+          const authStore = useAuthStore()
+          const newToken = data?.authToken || token || (authStore.token ?? null)
+          if (this.userProfile) {
+            authStore.setAuthUser(this.userProfile as any, newToken)
+          }
+        } catch (e) {
+          // ignore
+        }
       } catch (error: any) {
         console.error('Error updating profile:', error)
         const normalizedError = await this.handleApiError(error)
-        this.profileMessage = this.handleError(normalizedError, 'Error updating profile')
+        this.profileMessage = handleError(normalizedError, 'Error updating profile')
         throw new Error(normalizedError.message)
       }
     },

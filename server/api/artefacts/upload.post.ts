@@ -1,4 +1,4 @@
-import { defineEventHandler, setResponseStatus } from 'h3'
+import { defineEventHandler, setResponseStatus, getHeaders } from 'h3'
 import formidable from 'formidable'
 import { CustomError } from '../../utils/custom.error'
 import { query } from '../../utils/db'
@@ -18,202 +18,228 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('AWS S3 bucket name is not configured', 500)
     }
 
-  const token = event.node.req.headers['authorization']?.split(' ')[1]
-  if (!token) {
-    throw new CustomError('Unauthorized: No token provided', 401)
-  }
+    const token = event.node.req.headers['authorization']?.split(' ')[1]
+    if (!token) {
+      throw new CustomError('Unauthorized: No token provided', 401)
+    }
 
-  let userId
-  try {
-    const decodedToken = jwt.verify(token, config.jwtToken as string)
-    userId = (decodedToken as { user_id: any }).user_id
-  } catch (error) {
-    throw new CustomError('Unauthorized: Invalid token', 401)
-  }
+    let userId
+    try {
+      const decodedToken = jwt.verify(token, config.jwtToken as string)
+      userId = (decodedToken as { user_id: any }).user_id
+    } catch (error) {
+      throw new CustomError('Unauthorized: Invalid token', 401)
+    }
 
-  const userQuery = `
-    SELECT u.org_id, o.org_name
+    // Determine caller org and role; allow superadmin override via query param or form field
+    const decodedUserQuery = `
+    SELECT u.org_id, u.role_id, o.org_name
     FROM users u
     INNER JOIN organizations o ON u.org_id = o.org_id
     WHERE u.user_id = $1;
   `
-  const userResult = await query(userQuery, [userId])
+    const userResult = await query(decodedUserQuery, [userId])
 
-  if (userResult.rows.length === 0) {
-    throw new CustomError('User or organization not found', 404)
-  }
+    if (userResult.rows.length === 0) {
+      throw new CustomError('User or organization not found', 404)
+    }
 
-  const { org_name, org_id } = userResult.rows[0]
-  const companyName = org_name.toLowerCase().replace(/ /g, '_')
-  const prefix = `${folderName}/${companyName}/files/`
+    const tokenUserOrg = userResult.rows[0].org_id
+    const tokenUserRole = userResult.rows[0].role_id
 
-  const s3Client = new S3Client({
-    region: config.awsRegion,
-    credentials: {
-      accessKeyId: config.awsAccessKeyId,
-      secretAccessKey: config.awsSecretAccessKey,
-    },
-  })
+    // For multipart form, requested org can be in query or form fields; we'll derive later after parsing form
+    // We'll keep org_name/org_id variables populated after parsing form
+    let org_name = userResult.rows[0].org_name
+    let org_id = tokenUserOrg
+    const prefixBase = `${folderName}`
 
-  try {
-    const form = formidable({
-      multiples: false,
-      maxFileSize: 20 * 1024 * 1024 // 20MB limit to match frontend
-    })
-
-    const { fields, files } = await new Promise<{ fields: any; files: any }>((resolve, reject) => {
+    // Parse form early to extract any org override field
+    const form = formidable({ multiples: false, maxFileSize: 20 * 1024 * 1024 })
+    const parsed = await new Promise<{ fields: any; files: any }>((resolve, reject) => {
       form.parse(event.node.req, (err, fields, files) => {
         if (err) reject(err)
         resolve({ fields, files })
       })
     })
+    const fields = parsed.fields
+    const files = parsed.files
 
-    if (!files.file) {
-      throw new CustomError('No file uploaded', 400)
+    const q = getQuery(event) as Record<string, any>
+    const headers = getHeaders(event)
+    const headerOrg = headers['x-org-id'] || headers['x-orgid'] || headers['x_org_id'] || null
+    const requestedOrg = headerOrg || q?.org || q?.org_id || fields?.org_id || null
+
+    if (tokenUserRole === 0 && requestedOrg) {
+      // fetch org_name for requestedOrg
+      const orgRow = await query('SELECT org_name FROM organizations WHERE org_id = $1 LIMIT 1', [requestedOrg])
+      if (!orgRow?.rows?.length) throw new CustomError('Requested organization not found', 404)
+      org_name = orgRow.rows[0].org_name
+      org_id = String(requestedOrg)
     }
 
-    const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file
-    if (!uploadedFile?.originalFilename) {
-      throw new CustomError('Invalid file uploaded', 400)
-    }
+    const companyName = org_name.toLowerCase().replace(/ /g, '_')
+    const prefix = `${prefixBase}/${companyName}/files/`
 
-    // Get form fields
-    const category = String(fields.category || '')
-    const description = String(fields.description || '')
+    // Reassign form fields/files for rest of logic
+    // (we parsed above, so use parsed values below)
 
-    if (!category) {
-      throw new CustomError('Category is required', 400)
-    }
+    const s3Client = new S3Client({
+      region: config.awsRegion,
+      credentials: {
+        accessKeyId: config.awsAccessKeyId,
+        secretAccessKey: config.awsSecretAccessKey,
+      },
+    })
 
-    // Validate file size (20MB limit)
-    const maxSize = 20 * 1024 * 1024
-    if (uploadedFile.size > maxSize) {
-      throw new CustomError(`The file "${uploadedFile.originalFilename}" exceeds 20MB size limit.`, 400)
-    }
-
-    const filePath = uploadedFile.filepath
-    let fileName = uploadedFile.originalFilename.replace(/\s+/g, '_')
-
-    let fileBuffer
     try {
-      fileBuffer = fs.readFileSync(filePath)
-    } catch (err) {
-      throw new CustomError('Failed to read uploaded file', 500)
-    }
+      // 'fields' and 'files' are already parsed above
 
-    const fileMimeType = uploadedFile.mimetype || mime.lookup(fileName) || 'application/octet-stream'
-    const destinationKey = `${prefix}${fileName}`
-
-    // Check if file already exists
-    const existingFileQuery = await query(
-      `SELECT id FROM organization_documents WHERE org_id = $1 AND name = $2`,
-      [org_id, fileName]
-    )
-    const existingFile = existingFileQuery.rows.length > 0 ? existingFileQuery.rows[0] : null
-
-    // Upload to S3
-    await s3Client.send(new PutObjectCommand({
-      Bucket: bucketName,
-      Key: destinationKey,
-      Body: fileBuffer,
-      ContentType: fileMimeType,
-    }))
-
-    const publicUrl = `https://${bucketName}.s3.${config.awsRegion}.amazonaws.com/${destinationKey}`
-
-    // Find category ID
-    let categoryId = null
-    if (category && category !== 'Uncategorized') {
-      const categoryQuery = await query(
-        `SELECT id FROM document_category WHERE name = $1 AND org_id = $2`,
-        [category, org_id]
-      )
-      if (categoryQuery.rows.length > 0) {
-        categoryId = categoryQuery.rows[0].id
-      } else {
-        // Create category if it doesn't exist
-        const newCategoryResult = await query(
-          `INSERT INTO document_category (name, org_id, added_by) VALUES ($1, $2, $3) RETURNING id`,
-          [category, org_id, userId]
-        )
-        categoryId = newCategoryResult.rows[0].id
+      if (!files.file) {
+        throw new CustomError('No file uploaded', 400)
       }
-    }
 
-    let documentId: number
-    if (existingFile) {
-      // Update existing file
-      const updateResult = await query(
-        `UPDATE organization_documents
-        SET document_link = $1, status = $2, summary = $3, is_summarized = $4, updated_at = NOW(), file_category = $5, doc_type = 'document', content_type = $6, file_size = $7, description = $8, added_by = $9
+      const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file
+      if (!uploadedFile?.originalFilename) {
+        throw new CustomError('Invalid file uploaded', 400)
+      }
+
+      // Get form fields
+      const category = String(fields.category || '')
+      const description = String(fields.description || '')
+
+      if (!category) {
+        throw new CustomError('Category is required', 400)
+      }
+
+      // Validate file size (20MB limit)
+      const maxSize = 20 * 1024 * 1024
+      if (uploadedFile.size > maxSize) {
+        throw new CustomError(`The file "${uploadedFile.originalFilename}" exceeds 20MB size limit.`, 400)
+      }
+
+      const filePath = uploadedFile.filepath
+      let fileName = uploadedFile.originalFilename.replace(/\s+/g, '_')
+
+      let fileBuffer
+      try {
+        fileBuffer = fs.readFileSync(filePath)
+      } catch (err) {
+        throw new CustomError('Failed to read uploaded file', 500)
+      }
+
+      const fileMimeType = uploadedFile.mimetype || mime.lookup(fileName) || 'application/octet-stream'
+      const destinationKey = `${prefix}${fileName}`
+
+      // Check if file already exists
+      const existingFileQuery = await query(
+        `SELECT id FROM organization_documents WHERE org_id = $1 AND name = $2`,
+        [org_id, fileName]
+      )
+      const existingFile = existingFileQuery.rows.length > 0 ? existingFileQuery.rows[0] : null
+
+      // Upload to S3
+      await s3Client.send(new PutObjectCommand({
+        Bucket: bucketName,
+        Key: destinationKey,
+        Body: fileBuffer,
+        ContentType: fileMimeType,
+      }))
+
+      const publicUrl = `https://${bucketName}.s3.${config.awsRegion}.amazonaws.com/${destinationKey}`
+
+      // Find category ID
+      let categoryId = null
+      if (category && category !== 'Uncategorized') {
+        const categoryQuery = await query(
+          `SELECT id FROM document_category WHERE name = $1 AND org_id = $2`,
+          [category, org_id]
+        )
+        if (categoryQuery.rows.length > 0) {
+          categoryId = categoryQuery.rows[0].id
+        } else {
+          // Create category if it doesn't exist
+          const newCategoryResult = await query(
+            `INSERT INTO document_category (name, org_id, added_by) VALUES ($1, $2, $3) RETURNING id`,
+            [category, org_id, userId]
+          )
+          categoryId = newCategoryResult.rows[0].id
+        }
+      }
+
+      let documentId: number
+      if (existingFile) {
+        // Update existing file
+        const updateResult = await query(
+          `UPDATE organization_documents
+        SET document_link = $1, status = $2, summary = $3, is_summarized = $4, updated_at = NOW(), file_category = $5, doc_type = 'document', content_type = $6, file_size = $7, description = $8, updated_by = $9
         WHERE id = $10
         RETURNING id`,
-        [publicUrl, 'processing', null, false, categoryId, fileMimeType, parseInt(uploadedFile.size.toString(), 10), description || null, userId, existingFile.id]
-      )
-      documentId = updateResult.rows[0].id
-    } else {
-      // Insert new file
-      const insertFileResult = await query(
-        `INSERT INTO organization_documents (org_id, doc_type, document_link, status, file_category, name, content_type, file_size, summary, is_summarized, description, added_by)
+          [publicUrl, 'processing', null, false, categoryId, fileMimeType, parseInt(uploadedFile.size.toString(), 10), description || null, userId, existingFile.id]
+        )
+        documentId = updateResult.rows[0].id
+      } else {
+        // Insert new file
+        const insertFileResult = await query(
+          `INSERT INTO organization_documents (org_id, doc_type, document_link, status, file_category, name, content_type, file_size, summary, is_summarized, description, added_by)
         VALUES ($1, 'document', $2, 'processing', $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id`,
-        [
-          org_id,
-          publicUrl,
-          categoryId,
-          fileName,
-          fileMimeType,
-          parseInt(uploadedFile.size.toString(), 10),
-          null,
-          false,
-          description || null,
-          userId,
-        ]
-      )
-      documentId = insertFileResult.rows[0].id
-    }
+          [
+            org_id,
+            publicUrl,
+            categoryId,
+            fileName,
+            fileMimeType,
+            parseInt(uploadedFile.size.toString(), 10),
+            null,
+            false,
+            description || null,
+            userId,
+          ]
+        )
+        documentId = insertFileResult.rows[0].id
+      }
 
-    // Process the document
-    await processDocument(bucketName, folderName, org_name, org_id, userId, [
-      { id: String(documentId), name: fileName, type: 'document', link: publicUrl },
-    ], token)
+      // Process the document
+      await processDocument(bucketName, folderName, org_name, org_id, userId, [
+        { id: String(documentId), name: fileName, type: 'document', link: publicUrl },
+      ], token)
 
-    setResponseStatus(event, 201)
-    return {
-      statusCode: 201,
-      status: 'success',
-      message: existingFile ? 'Artefact updated successfully' : 'Artefact uploaded successfully',
-      data: {
-        id: documentId,
-        name: fileName,
-        description: description || 'No description provided',
-        category: category,
-        type: getFileType(fileName),
-        size: formatFileSize(uploadedFile.size),
-        status: 'processing',
-        uploadedBy: 'Current User',
-        lastUpdated: new Date().toISOString(),
-        artefact: fileName,
-        publicUrl,
-        contentType: fileMimeType,
-      },
-    }
-  } catch (error: any) {
-    if (error instanceof CustomError) {
-      setResponseStatus(event, error.statusCode)
+      setResponseStatus(event, 201)
       return {
-        statusCode: error.statusCode,
+        statusCode: 201,
+        status: 'success',
+        message: existingFile ? 'Artefact updated successfully' : 'Artefact uploaded successfully',
+        data: {
+          id: documentId,
+          name: fileName,
+          description: description || '-',
+          category: category,
+          type: getFileType(fileName),
+          size: formatFileSize(uploadedFile.size),
+          status: 'processing',
+          uploadedBy: 'Current User',
+          lastUpdated: new Date().toISOString(),
+          artefact: fileName,
+          publicUrl,
+          contentType: fileMimeType,
+        },
+      }
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        setResponseStatus(event, error.statusCode)
+        return {
+          statusCode: error.statusCode,
+          status: 'error',
+          message: error.message,
+        }
+      }
+      setResponseStatus(event, 500)
+      return {
+        statusCode: 500,
         status: 'error',
-        message: error.message,
+        message: error.message || 'Failed to process request',
       }
     }
-    setResponseStatus(event, 500)
-    return {
-      statusCode: 500,
-      status: 'error',
-      message: error.message || 'Failed to process request',
-    }
-  }
   } catch (outerError: any) {
     setResponseStatus(event, 500)
     return {

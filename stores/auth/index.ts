@@ -1,4 +1,6 @@
 import type { AuthUser, ApiResponse } from "./types";
+import { handleError, handleSuccess, extractErrors } from '../../utils/apiHandler'
+import { handleAuthError as handleAuthErrorShared, clearAuth } from '~/composables/useAuthError'
 
 export const useAuthStore = defineStore("authStore", {
   state: () => ({
@@ -13,6 +15,10 @@ export const useAuthStore = defineStore("authStore", {
     isLoggedIn: (state) => !!state.user && !!state.token,
     isAuthenticated: (state) => !!state.user && !!state.token,
     isAdmin: (state) => state.user?.role_id === 1,
+    isSuperAdmin: (state) => state.user?.role_id === 0,
+    getAuthUser(state) {
+      return state.user || null
+    },
   },
 
   actions: {
@@ -23,6 +29,14 @@ export const useAuthStore = defineStore("authStore", {
 
     setError(error: string | null) {
       this.error = error;
+    },
+
+    async handleAuthError(err: any): Promise<boolean> {
+      return await handleAuthErrorShared(err)
+    },
+
+    handleError(error: any, fallbackMessage: string, silent: boolean = false): string {
+      return handleError(error, fallbackMessage, silent)
     },
 
 
@@ -66,21 +80,10 @@ export const useAuthStore = defineStore("authStore", {
         this.setError(errorMessage);
         throw new Error(errorMessage);
       } catch (error: any) {
-        // Handle fetch errors (network, HTTP status codes, etc.)
-        if (error.data?.message) {
-          // Structured error from server
-          this.setError(error.data.message);
-          throw new Error(error.data.message);
-        } else if (error.message) {
-          // Other errors
-          this.setError(error.message);
-          throw new Error(error.message);
-        } else {
-          // Unknown error
-          const fallbackMessage = "An unexpected error occurred";
-          this.setError(fallbackMessage);
-          throw new Error(fallbackMessage);
-        }
+        // Use central handler to extract message and show notification
+        const msg = handleError(error, 'An unexpected error occurred')
+        this.setError(msg)
+        throw new Error(msg)
       }
     },
 
@@ -104,6 +107,32 @@ export const useAuthStore = defineStore("authStore", {
             } catch (e) {
               localStorage.removeItem("authUser");
               localStorage.removeItem("authToken");
+            }
+          } else {
+            // If localStorage doesn't have auth but a cookie exists (SSR set), try reading cookie on client
+            const tokenCookie = useCookie('auth-token');
+            if (tokenCookie?.value) {
+              token = tokenCookie.value;
+              try {
+                const response = await $fetch('/api/auth/profile', {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                if (response?.status === 'success') {
+                  user = response.data;
+                  // persist to localStorage for subsequent client loads
+                  try {
+                    localStorage.setItem('authToken', token);
+                    localStorage.setItem('authUser', JSON.stringify(user));
+                  } catch (e) {
+                    // ignore localStorage errors
+                  }
+                } else {
+                  // invalid token in cookie
+                  tokenCookie.value = null;
+                }
+              } catch (err) {
+                tokenCookie.value = null;
+              }
             }
           }
         } else {
@@ -247,7 +276,7 @@ export const useAuthStore = defineStore("authStore", {
         return {
           status: "success",
           message: response.message || "Sign-in successful!",
-          redirect: response.redirect || "/profile",
+          redirect: response.redirect || "/admin/profile",
         };
       } finally {
         this.setLoading(false);
@@ -272,7 +301,29 @@ export const useAuthStore = defineStore("authStore", {
 
       try {
         const response = await this.apiCall("/api/auth/update-password", formData);
+        await this.clearAuth();
         return response;
+      } finally {
+        this.setLoading(false);
+      }
+    },
+
+    async changePassword(formData: Record<string, any>) {
+      this.setLoading(true);
+      this.setError(null);
+      try {
+        const token = this.token || useCookie('auth-token')?.value
+        const response = await $fetch('/api/auth/change-password', {
+          method: 'POST',
+          body: formData,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        return response
+      } catch (error) {
+        // Handle authentication errors first
+        if (!await this.handleAuthError(error)) {
+          this.error = handleError(error, 'Failed to change password');
+        }
       } finally {
         this.setLoading(false);
       }
@@ -312,10 +363,18 @@ export const useAuthStore = defineStore("authStore", {
 
     async handlePostLoginRedirect() {
       if (!process.client) return;
-      
+
       const route = useRoute();
-      const redirectTo = (route.query.redirect as string) || '/admin/dashboard';
-      await navigateTo(redirectTo);
+      const queryRedirect = (route.query.redirect as string) || '';
+
+      // Super admin goes to superadmin dashboard regardless of query redirect
+      if (this.user?.role_id === 0) {
+        await navigateTo('/admin/superadmin');
+        return;
+      }
+
+      const fallback = '/admin/dashboard';
+      await navigateTo(queryRedirect || fallback);
     },
   },
 });

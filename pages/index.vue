@@ -23,7 +23,7 @@
     <section class="py-20 px-4 sm:px-6 lg:px-8 bg-dark-950/50">
       <div class="max-w-7xl mx-auto">
         <div class="text-center mb-16">
-          <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">Why Choose Provento.ai?</h2>
+          <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">Why Choose provento.ai?</h2>
           <p class="text-xl text-gray-300 max-w-2xl mx-auto">
             Powerful features designed to revolutionize how you interact with your artefacts
           </p>
@@ -95,8 +95,7 @@
           Ready to Transform Your Artefact Workflow?
         </h2>
         <p class="text-xl text-gray-300 mb-8">
-          Join thousands of businesses already using Provento.ai to unlock the power of their
-          artefacts.
+          Start your journey with provento.ai and see how it helps businesses uncover insights
         </p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <NuxtLink to="/book-meeting" class="btn-primary text-lg px-8 py-4">
@@ -110,5 +109,6 @@
 </template>
 
 <script setup lang="ts">
+useHead({ title: 'Home - provento.ai' })
 // Using default layout automatically
 </script>

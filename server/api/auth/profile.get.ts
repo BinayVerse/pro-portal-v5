@@ -5,7 +5,24 @@ import jwt from 'jsonwebtoken';
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
-  const token = event.node.req.headers['authorization']?.split(' ')[1];
+  // Try Authorization header first, then fallback to cookie 'auth-token'
+  let token = event.node.req.headers['authorization']?.split(' ')[1];
+  if (!token) {
+    // parse cookie header
+    const cookieHeader = String(event.node.req.headers['cookie'] || '')
+    if (cookieHeader) {
+      for (const part of cookieHeader.split(';')) {
+        const [k, ...v] = part.split('=')
+        if (!k) continue
+        const key = k.trim()
+        const val = decodeURIComponent((v || []).join('=').trim())
+        if (key === 'auth-token' || key === 'authToken') {
+          token = val
+          break
+        }
+      }
+    }
+  }
 
   if (!token) {
     throw new CustomError('Unauthorized: No token provided', 401);
@@ -15,7 +32,8 @@ export default defineEventHandler(async (event) => {
   try {
     const decodedToken = jwt.verify(token, config.jwtToken as string);
     userId = (decodedToken as { user_id: string }).user_id;
-  } catch {
+  } catch (err) {
+    console.error('Token verification error:', err)
     throw new CustomError('Unauthorized: Invalid token', 401);
   }
 
@@ -24,13 +42,14 @@ export default defineEventHandler(async (event) => {
   }
 
   const userQuery = `
-    SELECT 
-      u.user_id, 
-      u.name, 
-      u.email, 
-      u.contact_number, 
-      u.primary_contact, 
+    SELECT
+      u.user_id,
+      u.name,
+      u.email,
+      u.contact_number,
+      u.primary_contact,
       u.org_id,
+      u.role_id,
       COALESCE(o.org_name, '') AS company
     FROM users u
     LEFT JOIN organizations o ON u.org_id = o.org_id

@@ -8,7 +8,7 @@
             <span class="text-primary-400">AI-Powered Artefact Intelligence</span>
           </h1>
           <p class="text-xl text-gray-300 max-w-3xl mx-auto">
-            Discover how Provento.ai transforms artefact workflows across different industries,
+            Discover how provento.ai transforms artefact workflows across different industries,
             helping organizations streamline artefact workflow, enhance productivity, and make
             data-driven decisions faster than ever before.
           </p>
@@ -115,7 +115,7 @@
             Ready to Transform Your Industry Workflow?
           </h2>
           <p class="text-xl text-gray-300 mb-8">
-            Join industry leaders who are already using Provento.ai to revolutionize their artefact
+            Join industry leaders who are already using provento.ai to revolutionize their artefact
             processes.
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center">
@@ -133,6 +133,7 @@
 </template>
 
 <script setup lang="ts">
+useHead({ title: 'Solutions - provento.ai' })
 // Using default layout
 
 const selectedFilter = ref('all')
