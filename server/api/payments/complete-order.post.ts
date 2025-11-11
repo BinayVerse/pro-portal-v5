@@ -1,6 +1,5 @@
-import { defineEventHandler, readBody } from 'h3'
+import { defineEventHandler, readBody, createError } from 'h3'
 import { query } from '~/server/utils/db'
-import { readBody, createError } from 'h3'
 import jwt from 'jsonwebtoken'
 
 export default defineEventHandler(async (event) => {

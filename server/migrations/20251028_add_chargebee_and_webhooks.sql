@@ -5,19 +5,6 @@ ADD COLUMN IF NOT EXISTS chargebee_customer_id text;
 ALTER TABLE IF EXISTS public.organizations
 ADD COLUMN IF NOT EXISTS chargebee_subscription_id text;
 
--- Create webhook_events table
-CREATE TABLE IF NOT EXISTS public.webhook_events (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  event_id text,
-  event_type text,
-  payload jsonb,
-  received_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-  processed boolean NOT NULL DEFAULT false,
-  processed_at timestamp without time zone,
-  CONSTRAINT webhook_events_pkey PRIMARY KEY (id)
-);
-CREATE UNIQUE INDEX IF NOT EXISTS webhook_events_event_id_idx ON public.webhook_events (event_id);
-
 -- Create chargebee_orders to track hosted page sessions
 CREATE TABLE IF NOT EXISTS public.chargebee_orders (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

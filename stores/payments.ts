@@ -4,17 +4,98 @@ export const usePaymentsStore = defineStore('payments', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
+  // Billing details state
+  const billingDetails = reactive({
+    orgId: null as string | null,
+    firstName: '',
+    lastName: '',
+    orgName: '',
+    country: '',
+    countryCode: '',
+    zip: '',
+    city: '',
+    region: '',
+    addressLine1: '',
+    addressLine2: '',
+    email: '',
+    phone: '',
+    isCardUpdated: false,
+    cardHolderName: '',
+    cardNo: '',
+    expDate: '',
+    cvv: '',
+    cardType: '',
+    gstNumber: '',
+    taxId: '',
+    isValidCardDetails: false,
+    isValidAddress: false,
+    couponCode: '',
+    isCreditCardIsPresent: false,
+    isComplereOrderRunning: false,
+    paidAmount: 1,
+    couponDurationType: '',
+    gwToken: '',
+  })
+
+  /**
+   * ✅ Merge updates into billingDetails reactively
+   */
+  const setBillingDetails = (details: Partial<typeof billingDetails>) => {
+    Object.entries(details).forEach(([key, value]) => {
+      if (key in billingDetails)
+        billingDetails[key as keyof typeof billingDetails] = value as never
+    })
+  }
+
+  /**
+   * 🧹 Reset billing details to initial defaults
+   */
+  const resetBillingDetails = () => {
+    Object.keys(billingDetails).forEach((key) => {
+      billingDetails[key as keyof typeof billingDetails] = '' as never
+    })
+    billingDetails.paidAmount = 1
+  }
+
+  /**
+   * 🔐 Helper to get Authorization header
+   */
+  const getAuthHeaders = () => {
+    let token: string | null = null
+
+    if (process.client) {
+      token = localStorage.getItem('authToken')
+    }
+
+    if (!token) {
+      const authCookie = useCookie('authToken')
+      token = authCookie.value || null
+    }
+
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    }
+  }
+
+  /**
+   * 💳 Get Braintree client token
+   */
   const getClientToken = async () => {
     isLoading.value = true
     error.value = null
     try {
-      const res = await fetch('/api/payments/braintree/client-token')
+      const res = await fetch('/api/payments/braintree/client-token', {
+        headers: getAuthHeaders(),
+      })
       const text = await res.text()
       const data = text ? JSON.parse(text) : null
+
       if (!res.ok || !data?.success || !data.clientToken) {
         const msg = data?.error || 'Failed to fetch client token'
         throw new Error(msg)
       }
+
       return { success: true, clientToken: data.clientToken }
     } catch (err: any) {
       const msg = handleError(err, 'Failed to fetch client token')
@@ -25,21 +106,53 @@ export const usePaymentsStore = defineStore('payments', () => {
     }
   }
 
-  const checkout = async (payload: { nonce: string; amount: number; plan_id?: string }) => {
+  /**
+   * 💳 Generate Braintree client token (3DS)
+   */
+  const generateClientToken = async (code: string) => {
+    isLoading.value = true
+    error.value = null
+    try {
+      const url = `/api/user/3ds/client.token?currencyCode=${encodeURIComponent(code || '')}`
+      const res = await fetch(url, { headers: getAuthHeaders() })
+      const text = await res.text()
+      const data = text ? JSON.parse(text) : null
+
+      if (!res.ok || !data?.clientToken) {
+        const msg = data?.error || 'Failed to fetch client token'
+        throw new Error(msg)
+      }
+
+      return { success: true, clientToken: data.clientToken }
+    } catch (err: any) {
+      const msg = handleError(err, 'Failed to generate client token')
+      error.value = msg
+      return { success: false, error: msg }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * 🧾 Checkout (Braintree + Chargebee flow)
+   */
+  const checkout = async (payload: any) => {
     isLoading.value = true
     error.value = null
     try {
       const res = await fetch('/api/payments/braintree/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       })
       const text = await res.text()
       const data = text ? JSON.parse(text) : null
+
       if (!res.ok) {
         const msg = data?.error || 'Checkout failed'
         throw new Error(msg)
       }
+
       return { success: true, data }
     } catch (err: any) {
       const msg = handleError(err, 'Checkout failed')
@@ -50,21 +163,26 @@ export const usePaymentsStore = defineStore('payments', () => {
     }
   }
 
+  /**
+   * ✅ Complete order after successful payment
+   */
   const completeOrder = async (body: any) => {
     isLoading.value = true
     error.value = null
     try {
       const res = await fetch('/api/payments/complete-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(body),
       })
       const text = await res.text()
       const data = text ? JSON.parse(text) : null
+
       if (!res.ok) {
         const msg = data?.error || 'Complete order failed'
         throw new Error(msg)
       }
+
       return { success: true, data }
     } catch (err: any) {
       const msg = handleError(err, 'Complete order failed')
@@ -78,7 +196,11 @@ export const usePaymentsStore = defineStore('payments', () => {
   return {
     isLoading: readonly(isLoading),
     error: readonly(error),
+    billingDetails,
+    setBillingDetails,
+    resetBillingDetails,
     getClientToken,
+    generateClientToken,
     checkout,
     completeOrder,
   }

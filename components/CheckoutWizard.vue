@@ -10,7 +10,14 @@
       <div class="border rounded p-4 bg-dark-900">
         <h3 class="text-white font-semibold text-lg">
           {{ selected?.name || selected?.title || 'No plan selected' }}
-          <span v-if="(selected?.period || selected?._raw?.interval || selected?.interval)" class="text-sm text-gray-400 ml-2">- {{ formatPeriod(selected?.period || selected?._raw?.interval || selected?.interval) }}</span>
+          <span
+            v-if="selected?.period || selected?._raw?.interval || selected?.interval"
+            class="text-sm text-gray-400 ml-2"
+            >-
+            {{
+              formatPeriod(selected?.period || selected?._raw?.interval || selected?.interval)
+            }}</span
+          >
         </h3>
         <p class="text-gray-400 mt-1">
           {{ selected?._raw?.description || selected?.description || '' }}
@@ -71,7 +78,16 @@
       </div>
       <div class="mt-4">
         <p class="text-gray-300">
-          Selected Plan: <span class="text-white font-medium">{{ selected?.name }}<span v-if="(selected?.period || selected?._raw?.interval || selected?.interval)"> - {{ formatPeriod(selected?.period || selected?._raw?.interval || selected?.interval) }}</span></span>
+          Selected Plan:
+          <span class="text-white font-medium"
+            >{{ selected?.name
+            }}<span v-if="selected?.period || selected?._raw?.interval || selected?.interval">
+              -
+              {{
+                formatPeriod(selected?.period || selected?._raw?.interval || selected?.interval)
+              }}</span
+            ></span
+          >
         </p>
         <p class="text-gray-300">
           Price:
@@ -137,7 +153,11 @@
             :plan-id="cbPlanId"
             @error="onDropinError"
             @ready="onDropinReady"
-            @completed="(res) => { console.debug('Braintree payment completed', res) }"
+            @completed="
+              (res) => {
+                console.log('Braintree payment completed', res)
+              }
+            "
           />
         </div>
         <div v-else class="text-gray-400">Initializing payment...</div>
@@ -151,7 +171,7 @@
       <div class="flex items-center">
         <button
           v-if="step < 4"
-          :class="['btn-primary', { 'btn-disabled': !canProceed } ]"
+          :class="['btn-primary', { 'btn-disabled': !canProceed }]"
           :disabled="!canProceed"
           @click="nextStep"
           :title="!canProceed ? 'Please fill address line 1, city and country to proceed.' : ''"
@@ -174,14 +194,14 @@
         >
           Pay
         </button>
-        <button
+        <!-- <button
           v-else-if="step >= 4"
           class="btn-primary ml-4"
           :disabled="checkoutLoading || !priceId"
           @click="focusDropin"
         >
           Open Payment
-        </button>
+        </button> -->
       </div>
     </div>
 
@@ -193,27 +213,57 @@
         <div class="mt-4 space-y-4">
           <div class="p-4 bg-dark-800 border border-dark-700 rounded">
             <div class="text-sm text-gray-400">Plan Details:</div>
-            <div class="text-white font-semibold">{{ selected?.name }} - {{ formatPeriod(selected?.period || selected?._raw?.interval || selected?.interval) }}</div>
-            <div class="text-white text-2xl font-bold">{{ fmtPrice(selected?.price || selected?.price_amount, selected?.currency || selected?.price_currency) }}</div>
+            <div class="text-white font-semibold">
+              {{ selected?.name }} -
+              {{ formatPeriod(selected?.period || selected?._raw?.interval || selected?.interval) }}
+            </div>
+            <div class="text-white text-2xl font-bold">
+              {{
+                fmtPrice(
+                  selected?.price || selected?.price_amount,
+                  selected?.currency || selected?.price_currency,
+                )
+              }}
+            </div>
           </div>
           <div class="p-4 bg-dark-800 border border-dark-700 rounded">
             <div class="text-sm text-gray-400">Address Details:</div>
-            <div class="text-white">{{ billing.address.line1 }} {{ billing.address.line2 }}</div>
-            <div class="text-white">{{ billing.address.city }} {{ billing.address.zip }}</div>
+            <div class="text-white">
+              {{ billing.address.line1
+              }}{{ billing.address.line2 ? ', ' + billing.address.line2 : '' }}
+            </div>
+            <div class="text-white">
+              {{ billing.address.city }}{{ billing.address.zip ? ', ' + billing.address.zip : '' }}
+            </div>
             <div class="text-white">{{ billing.address.country }}</div>
           </div>
           <div class="p-4 bg-dark-800 border border-dark-700 rounded">
             <div class="text-sm text-gray-400">Card Details:</div>
-            <div class="text-white" v-if="paymentPayload">Name on the card: {{ paymentPayload?.details?.cardholderName || billing.name }}</div>
-            <div class="text-white" v-if="paymentPayload">Card: ************{{ paymentPayload?.details?.lastFour || (paymentPayload?.description || '').split('ending in ').pop() }}</div>
-            <div class="text-white">Expiry: {{ paymentPayload?.details?.expirationMonth || '' }}/{{ paymentPayload?.details?.expirationYear || '' }}</div>
+            <div class="text-white" v-if="paymentPayload">
+              Name on the card: {{ paymentPayload?.details?.cardholderName || billing.name }}
+            </div>
+            <div class="text-white" v-if="paymentPayload">
+              Card: ************{{
+                paymentPayload?.details?.lastFour ||
+                (paymentPayload?.description || '').split('ending in ').pop()
+              }}
+            </div>
+            <div class="text-white">
+              Expiry: {{ paymentPayload?.details?.expirationMonth || '' }}/{{
+                paymentPayload?.details?.expirationYear || ''
+              }}
+            </div>
           </div>
         </div>
         <div class="mt-6 flex justify-end gap-3">
-          <button class="btn-outline" :disabled="checkoutLoading" @click="showSummary = false">Cancel</button>
+          <button class="btn-outline" :disabled="checkoutLoading" @click="showSummary = false">
+            Cancel
+          </button>
           <button class="btn-primary" :disabled="checkoutLoading" @click="confirmPayment">
             <template v-if="checkoutLoading">
-              <span class="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin inline-block mr-2"></span>
+              <span
+                class="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin inline-block mr-2"
+              ></span>
               Processing...
             </template>
             <template v-else>Complete order</template>
@@ -261,7 +311,10 @@ const emit = defineEmits(['change-plan', 'order-success'])
 const auth = useAuth()
 const authStore = useAuthStore()
 const pricing = usePricingStore()
+const profileStore = useProfileStore()
 const config = useRuntimeConfig()
+
+const allDetails = computed(() => payments.billingDetails)
 const siteKey = config.public?.chargebeePublishableKey
 
 const step = ref(1)
@@ -287,9 +340,14 @@ const showMessage = ref(false)
 const messageTitle = ref('')
 const messageText = ref('')
 const messageDetails = ref<string | null>(null)
-const messageType = ref<'info'|'success'|'error'|'warning'>('info')
+const messageType = ref<'info' | 'success' | 'error' | 'warning'>('info')
 
-function showAlert(title: string, text: string, details: string | null = null, type: 'info'|'success'|'error'|'warning' = 'info') {
+function showAlert(
+  title: string,
+  text: string,
+  details: string | null = null,
+  type: 'info' | 'success' | 'error' | 'warning' = 'info',
+) {
   messageTitle.value = title
   messageText.value = text
   messageDetails.value = details
@@ -308,13 +366,22 @@ const messageIcon = computed(() => {
 const cbPlanId = computed(() => {
   if (!selected.value) return null
   const raw = selected.value._raw || selected.value.raw || selected.value
-  return raw?.chargebee_plan_id || raw?.price_id || raw?.priceId || selected.value?.chargebee_plan_id || selected.value?.price_id || selected.value?.priceId || selected.value?.id || null
+  return (
+    raw?.chargebee_plan_id ||
+    raw?.price_id ||
+    raw?.priceId ||
+    selected.value?.chargebee_plan_id ||
+    selected.value?.price_id ||
+    selected.value?.priceId ||
+    selected.value?.id ||
+    null
+  )
 })
 
 const plans = computed(() => pricing.plans)
 
 function formatPeriod(p: any) {
-  const s = (p && String(p) || '').toString().toLowerCase()
+  const s = ((p && String(p)) || '').toString().toLowerCase()
   if (!s) return ''
   if (s === 'year' || s === 'yearly') return 'Yearly'
   if (s === 'month' || s === 'monthly') return 'Monthly'
@@ -324,16 +391,49 @@ function formatPeriod(p: any) {
 onMounted(async () => {
   // Prefill billing from auth profile if available
   await auth.checkAuth()
-  billing.value.name = authStore.user?.name || auth.user?.name || ''
-  billing.value.email = authStore.user?.email || auth.user?.email || ''
-  billing.value.phone = authStore.user?.contact_number || auth.user?.contact_number || ''
+  billing.value.name = authStore.user?.name || ''
+  billing.value.email = authStore.user?.email || ''
+  billing.value.phone = authStore.user?.contact_number || ''
 
   // If a selectedPlan prop is provided, pre-select it (do NOT auto-advance; show summary on step 1)
   if (props.selectedPlan) {
     selected.value = props.selectedPlan
     // keep step at 1 so user sees the selected plan summary before proceeding
   }
+
+  payments.setBillingDetails({
+    orgId: authStore.user?.org_id || null,
+    firstName: billing.value.name.split(' ')[0] || '',
+    lastName: billing.value.name.split(' ')[1] || '',
+    orgName: profileStore.userProfile?.company || '',
+    email: billing.value.email,
+    phone: billing.value.phone,
+    gstNumber: billing.value.taxId || null,
+    addressLine1: billing.value.address.line1,
+    addressLine2: billing.value.address.line2,
+    city: billing.value.address.city,
+    region: billing.value.address.state,
+    country: billing.value.address.country,
+    zip: billing.value.address.zip,
+    paidAmount: selected.value?.price || selected.value?.price_amount || 0,
+  })
 })
+
+watch(
+  () => billing.value.address,
+  (val) => {
+    if (!val) return
+    payments.setBillingDetails({
+      addressLine1: val.line1 || '',
+      addressLine2: val.line2 || '',
+      city: val.city,
+      region: val.state,
+      zip: val.zip,
+      country: val.country,
+    })
+  },
+  { deep: true },
+)
 
 async function createHostedPage() {
   // Ensure we have a selected plan. Try prop or pricing store as fallback.
@@ -357,15 +457,17 @@ async function createHostedPage() {
     const raw = selected.value?._raw || selected.value.raw || selected.value
     const candidate =
       raw?.chargebee_plan_id || raw?.price_id || raw?.priceId || raw?.id || selected.value?.id
-    console.debug('createHostedPage selected raw:', raw, 'candidate price id:', candidate)
+    console.log('createHostedPage selected raw:', raw, 'candidate price id:', candidate)
     if (!candidate) throw new Error('No price id available for selected plan')
     priceId.value = String(candidate)
     // determine amount from selected plan price if available
-    const amt = Number((selected.value && (selected.value.price || selected.value.price_amount)) || 0)
+    const amt = Number(
+      (selected.value && (selected.value.price || selected.value.price_amount)) || 0,
+    )
     braintreeAmount.value = isFinite(amt) && amt > 0 ? amt : null
 
     // prefer cbPlanId for logging
-    console.debug('createHostedPage resolved cbPlanId:', cbPlanId.value)
+    console.log('createHostedPage resolved cbPlanId:', cbPlanId.value)
 
     // fetch client token for Braintree via payments store
     try {
@@ -403,11 +505,12 @@ function selectPlan(p: any) {
 
 function onDropinError(err: any) {
   console.warn('Chargebee dropin error', err)
-  lastError.value = err?.message || (err && err.error && err.error.message) || 'Payment initialization failed'
+  lastError.value =
+    err?.message || (err && err.error && err.error.message) || 'Payment initialization failed'
 }
 
 function onDropinReady() {
-  console.debug('Chargebee drop-in ready')
+  console.log('Chargebee drop-in ready')
 }
 
 function emitChangePlan() {
@@ -450,7 +553,7 @@ async function onPay() {
   try {
     verifying.value = true
     const payload = await braintreeRef.value.verifyPayment()
-    console.debug('verification payload', payload)
+    console.log('verification payload', payload)
     paymentPayload.value = payload
     verified.value = true
   } catch (e: any) {
@@ -472,33 +575,105 @@ function openSummary() {
 }
 
 async function confirmPayment() {
-  if (!braintreeRef.value || typeof braintreeRef.value.submitPayment !== 'function') {
+  if (!braintreeRef.value || typeof braintreeRef.value.verifyPayment !== 'function') {
     lastError.value = 'Payment component not ready'
     return
   }
   try {
+    const {
+      firstName,
+      lastName,
+      country,
+      countryCode,
+      region,
+      city,
+      zip,
+      addressLine1,
+      addressLine2,
+      phone,
+      gstNumber,
+      paidAmount,
+      gwToken,
+    } = allDetails.value
     // keep modal open and show loading state
     checkoutLoading.value = true
-    const res = await braintreeRef.value.submitPayment()
-    console.debug('Braintree payment completed', res)
-    // call complete-order API to persist order
-    try {
-      const body = {
-        transaction: res?.data || res,
-        plan_id: cbPlanId.value,
-        billing: billing.value,
-        org_id: props.orgId || authStore.user?.org_id || auth.user?.org_id || null,
-      }
-      const resp = await payments.completeOrder(body)
-      console.debug('complete-order response', resp)
-    } catch (e) {
-      console.warn('complete-order failed', e)
+
+    console.log('Submitting payment with details:', allDetails.value)
+
+    const payload: any = {
+      firstName: firstName || '',
+      lastName: lastName || '',
+      country: country || '',
+      countryCode: country || '',
+      region: region || '',
+      city: city || '',
+      zipcode: zip || '',
+      addressLine1: addressLine1 || '',
+      addressLine2: addressLine2 || '',
+      phoneNumber: phone || '',
+      amount: paidAmount,
+      email: billing.value.email || '',
+      subscriptionTypeId: cbPlanId.value || '',
+      planType:
+        (selected.value &&
+          (selected.value.period || selected.value.interval || selected.value._raw?.interval)) ===
+          'year' ||
+        (selected.value &&
+          (selected.value.period || selected.value.interval || selected.value._raw?.interval)) ===
+          'yearly'
+          ? 'yearly'
+          : 'monthly',
+      currencyCode: selected.value?.currency || selected.value?.price_currency || 'USD',
+      gstNumber: gstNumber || '',
+      couponCode: null,
+      paidAmount: undefined,
+      couponDurationType: null,
+      gwToken: gwToken,
     }
-    // only close modal after success
-    showSummary.value = false
-    // emit event so parent modals can adjust visibility
-    emit('order-success', { title: 'Payment complete', message: 'Subscription should appear in Chargebee shortly.' })
-    showAlert('Payment complete', 'Subscription should appear in Chargebee shortly.', null, 'success')
+
+    // Call checkout API to perform transaction and Chargebee sync
+    try {
+      const checkoutResp = await payments.checkout(payload)
+      if (!checkoutResp || !checkoutResp.success)
+        throw new Error(checkoutResp?.error || 'Checkout failed')
+
+      const txnResult = checkoutResp.data
+      console.log('Checkout API response', txnResult)
+
+      // call complete-order API to persist order
+      // try {
+      //   const body = {
+      //     transaction: txnResult,
+      //     plan_id: cbPlanId.value,
+      //     billing: billing.value,
+      //     org_id: props.orgId || authStore.user?.org_id || null,
+      //   }
+      //   const resp = await payments.completeOrder(body)
+      //   console.log('complete-order response', resp)
+      // } catch (e) {
+      //   console.warn('complete-order failed', e)
+      // }
+
+      // only close modal after success
+      showSummary.value = false
+      // emit event so parent modals can adjust visibility
+      emit('order-success', {
+        title: 'Payment complete',
+        message: 'Subscription should appear in Chargebee shortly.',
+      })
+      showAlert(
+        'Payment complete',
+        'Subscription should appear in Chargebee shortly.',
+        null,
+        'success',
+      )
+    } catch (e: any) {
+      console.warn('Checkout failed', e)
+      lastError.value = e?.message || String(e)
+      throw e
+    } finally {
+      checkoutLoading.value = false
+    }
   } catch (e: any) {
     console.warn('submitPayment error', e)
     lastError.value = e?.message || String(e)
@@ -535,21 +710,6 @@ function fmtPrice(v: any, currency = 'USD') {
   const n = Number(v)
   if (!isFinite(n) || n === 0) return 'Contact Sales'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n)
-}
-
-async function confirmCheckout() {
-  if (!selected.value) return
-  checkoutLoading.value = true
-  try {
-    // Switch to native Drop-in flow instead of hosted page
-    const ok = await createHostedPage()
-    if (!ok) throw new Error('Failed to initialize native payment flow')
-    // advance to payment (createHostedPage handles setting step)
-  } catch (err: any) {
-    showAlert('Checkout failed', err?.message || 'Checkout failed', null, 'error')
-  } finally {
-    checkoutLoading.value = false
-  }
 }
 </script>
 

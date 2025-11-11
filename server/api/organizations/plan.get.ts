@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
     if (!orgId) throw new CustomError('Organization not found', 404)
 
     const sql = `
-      SELECT o.org_id, o.org_name, o.plan_id, o.plan_start_date, p.id as plan_id, p.title, p.price_amount, p.price_currency, p.duration, p.metadata
+      SELECT o.org_id, o.org_name, o.plan_id, o.plan_start_date, p.id as plan_id, p.title, p.price_amount, p.price_currency, p.duration, p.users, p.limit_requests, p.storage_limit_gb, p.support_level, p.artefacts, p.metadata
       FROM organizations o
       LEFT JOIN public.plans p ON o.plan_id = p.id
       WHERE o.org_id = $1
@@ -63,18 +63,45 @@ export default defineEventHandler(async (event) => {
       return { success: true, data: null }
     }
 
+    const metadata = row.metadata || {}
+
+    // Normalize features: can be stored as JSON/text or array
+    let features: string[] = []
+    try {
+      if (Array.isArray(row.features)) features = row.features
+      else if (typeof row.features === 'string') features = JSON.parse(row.features)
+    } catch (e) {
+      try {
+        const parsed = JSON.parse(String(row.features))
+        if (Array.isArray(parsed)) features = parsed
+      } catch { }
+    }
+    if ((!features || features.length === 0) && metadata && metadata.features) {
+      if (Array.isArray(metadata.features)) features = metadata.features
+      else if (typeof metadata.features === 'string') features = String(metadata.features).split(/\r?\n|[,;]+/).map((s) => s.trim()).filter(Boolean)
+    }
+
+    const interval = (String(row.duration || '').toLowerCase().includes('year') ? 'year' : 'month')
+
+    const planObj = row.plan_id ? {
+      id: row.plan_id,
+      title: row.title,
+      price_amount: row.price_amount,
+      price_currency: row.price_currency,
+      duration: row.duration,
+      metadata: metadata,
+      artefacts: row?.artefacts || null,
+      limit_requests: row?.limit_requests || null,
+      storage_limit_gb: row?.storage_limit_gb || null,
+      users: row?.users || null,
+      features: features,
+      interval,
+    } : null
+
     const out = {
       org_id: row.org_id,
       org_name: row.org_name,
-      plan: row.plan_id ? {
-          id: row.plan_id,
-          title: row.title,
-          price_amount: row.price_amount,
-          price_currency: row.price_currency,
-          duration: row.duration,
-          metadata: row.metadata,
-        }
-        : null,
+      plan: planObj,
       plan_start_date: row.plan_start_date || null,
     }
 

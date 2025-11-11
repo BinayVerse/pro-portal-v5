@@ -15,3 +15,17 @@ export function formatExpiryDate(month: number | string): string {
   if (Number.isNaN(m)) return ''
   return String(m).padStart(2, '0')
 }
+
+export function getEnv() {
+  const config = useRuntimeConfig()
+  const domain = config.public.appUrl
+  if (domain.includes('localhost'))
+    return 'dev'
+  if (domain.includes('stage'))
+    return 'stage'
+  return 'prod'
+}
+
+export function isProd() {
+  return getEnv() === 'prod'
+}

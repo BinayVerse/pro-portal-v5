@@ -1,147 +1,142 @@
-import { defineEventHandler, readBody } from 'h3' // uses chargebee-typescript wrapper
-import { createSubscription } from '~/server/utlis/chargebee'
+import { defineEventHandler, readBody, setResponseStatus } from 'h3' // uses chargebee-typescript wrapper
+import { createChargebeeCustomer, createSubscription } from '~/server/utlis/chargebee'
+import { z } from 'zod'
+
+const CheckoutValidation = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().optional().nullable().or(z.literal('')),
+  country: z.string().min(1),
+  countryCode: z.string().min(2).max(4),
+  region: z.string().min(1),
+  city: z.string().min(1),
+  zipcode: z.string().min(1),
+  addressLine1: z.string().min(1),
+  addressLine2: z.string().min(1),
+  phoneNumber: z.string().min(1),
+  amount: z.number().min(1),
+  email: z.string().email(),
+  subscriptionTypeId: z.string().min(1),
+  planType: z.enum(['monthly', 'yearly']),
+  currencyCode: z.enum(['INR', 'EUR', 'USD']),
+  gstNumber: z.string().optional().nullable().or(z.literal('')),
+  couponCode: z.string().optional().nullable().or(z.literal('')),
+  paidAmount: z.number().min(1).optional(),
+  couponDurationType: z.string().optional().nullable().or(z.literal('')),
+  gwToken: z.string().min(1),
+})
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
 
-  // 🧩 Braintree credentials
-  const merchantId = config.braintreeMerchantId || process.env.BRAINTREE_MERCHANT_ID
-  const publicKey = config.braintreePublicKey || process.env.BRAINTREE_PUBLIC_KEY
-  const privateKey = config.braintreePrivateKey || process.env.BRAINTREE_PRIVATE_KEY
-  const envName = config.braintreeEnvironment || process.env.BRAINTREE_ENVIRONMENT || 'sandbox'
+  const merchantId = config.braintreeMerchantId
+  const publicKey = config.braintreePublicKey
+  const privateKey = config.braintreePrivateKey
+  const envName = config.braintreeEnvironment || 'sandbox'
 
   if (!merchantId || !publicKey || !privateKey) {
     return { success: false, error: 'Braintree not configured on server (missing keys)' }
   }
 
   const body = await readBody(event)
-  const { nonce, amount, plan_id, name, email, phone } = body || {}
 
-  if (!nonce) return { success: false, error: 'Missing payment nonce' }
-  if (!amount) return { success: false, error: 'Missing amount' }
+  // Normalize incoming payload: convert numeric-like strings to numbers and strip explicit nulls for optional numeric fields
+  const params: any = { ...body }
+  if (params.amount != null) params.amount = Number(params.amount)
+  if (Object.prototype.hasOwnProperty.call(params, 'paidAmount')) {
+    if (params.paidAmount == null) delete params.paidAmount
+    else params.paidAmount = Number(params.paidAmount)
+  }
+
+  // Remove other empty string fields set to null that would fail strict zod checks
+  for (const k of Object.keys(params)) {
+    if (params[k] === '') params[k] = undefined
+  }
+
+  // const parsed = CheckoutValidation.safeParse(params)
+  // if (!parsed.success) {
+  //   const msg = parsed.error.errors
+  //     .map((e) => `${(e.path && e.path.length ? e.path.join('.') : 'value')}: ${e.message}`)
+  //     .join('; ')
+  //   throw new CustomError(`Invalid input: ${msg}`, 400)
+  // }
+
+  const orderDetails = params
+
+  console.log('Processing Braintree checkout with data:', orderDetails)
 
   try {
-    // ✅ Setup Braintree
-    const braintree = await import('braintree')
-    const env =
-      envName === 'production' ? braintree.Environment.Production : braintree.Environment.Sandbox
-
-    const gateway = new braintree.BraintreeGateway({
-      environment: env,
-      merchantId,
-      publicKey,
-      privateKey,
-    })
-
-    const saleRequest = {
-      amount: String(amount),
-      paymentMethodNonce: nonce,
-      options: { submitForSettlement: true, storeInVaultOnSuccess: true },
-      customer: {
-        firstName: (name || '').split(' ')[0] || null,
-        lastName: (name || '').split(' ').slice(1).join(' ') || null,
-        email: email || null,
-      },
-    }
-
-    // 💳 Create Braintree Transaction
-    const result = await gateway.transaction.sale(saleRequest)
-    if (!result?.success) {
-      console.warn('Braintree transaction failed', result)
-      return { success: false, error: result?.message || 'Transaction failed', data: result }
-    }
-
-    // console.log('Braintree transaction succeeded:', result.transaction)
-
-    // ⚡ After successful Braintree payment — sync to Chargebee
     try {
       const site = config.chargebeeSite
       const apiKey = config.chargebeeApiKey
 
       if (!site || !apiKey) {
         console.warn('Chargebee configuration missing — skipping Chargebee sync')
-        return { success: true, data: result }
       }
 
       console.log(`Chargebee integration active for site: ${site}`)
 
-      // ✅ Step 1: Create Customer in Chargebee (via API v2)
-      const customerResp = await fetch(`https://${site}.chargebee.com/api/v2/customers`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          email: email || '',
-          first_name: name?.split(' ')[0] || '',
-          last_name: name?.split(' ').slice(1).join(' ') || '',
-          phone: phone || '',
-        }).toString(),
-      })
+      // ✅ Step 1: Create Customer in Chargebee
+      const { customerId, status, error: errorMessage, statusCode: charStatusCode } = await createChargebeeCustomer(orderDetails)
 
-      const customerData = await customerResp.json()
-      const cbCustomerId =
-        customerData?.customer?.id || customerData?.id || null
-
-      if (!customerResp.ok || !cbCustomerId) {
-        console.warn('Chargebee customer creation failed:', customerData)
-        return { success: true, data: result } // still success for payment
+      if (status === 'Error') {
+        console.warn('Error while trying to create customer details:', JSON.stringify(errorMessage, null, 2))
+        throw new CustomError(`Error while trying to create customer details: ${errorMessage}`, charStatusCode)
       }
 
-      console.log('✅ Chargebee customer created:', cbCustomerId)
+      orderDetails.customerId = customerId
+      if (status === 'Success') {
+        //  ✅ update customer with GST on DB
+        const { error } = await updateOrganizationCustomer(event, customerId, orderDetails.gstNumber)
+        if (error)
+          throw new CustomError(`Error while trying to update customer details: ${error}`, 400)
+        console.log('✅ Chargebee customer created:', customerId)
+      }
+      else { throw new CustomError(`Error while trying to create customer on chargbee: ${errorMessage.message}`, 404) }
 
       // ✅ Step 2: Create Subscription via chargebee-typescript
-      if (plan_id && cbCustomerId) {
-        // Expect plan_id to be the Chargebee price id (text). Use it directly.
-        const cbPlanId = plan_id ? String(plan_id) : null
+      const cbPlanId = orderDetails.subscriptionTypeId ? String(orderDetails.subscriptionTypeId) : null
+      if (cbPlanId) {
+        const subscriptionObj: any = {
+          itemPriceId: cbPlanId,
+          amount: Math.round(Number(orderDetails.amount) * 100), // in cents
+          gwToken: params.gwToken,
+        }
+        if (orderDetails.couponCode) subscriptionObj.couponCode = orderDetails.couponCode
+        if (orderDetails.paidAmount) subscriptionObj.paidAmount = orderDetails.paidAmount
+        if (orderDetails.currencyCode) subscriptionObj.currencyCode = orderDetails.currencyCode
+        if (orderDetails.planType) subscriptionObj.planType = orderDetails.planType
 
-        if (cbPlanId) {
-          // Build subscription object matching server/utlis/chargebee.createSubscription(subscription, customerId)
-          // Extract vaulted payment method token from Braintree transaction (storeInVaultOnSuccess=true)
+        console.log(`Creating Chargebee subscription for customer ${orderDetails.customerId} with payload ${JSON.stringify(subscriptionObj)}`)
 
-          const vaultedToken =
-            result?.transaction?.creditCard?.token ||
-            result?.transaction?.paymentMethodToken ||
-            null
+        // insert billing details in DB
+        const { error: errorInsertBilling } = await insertBillingAddress(event, orderDetails)
+        if (errorInsertBilling) {
+          throw new CustomError(`Error while trying to insert billing address: ${errorInsertBilling}`, 400)
+        }
 
-          const subscriptionObj: any = {
-            itemPriceId: cbPlanId,
-            amount: Math.round(Number(amount) * 100), // in cents
-          }
-
-          // Always pass the original Braintree nonce so Chargebee can create a temporary payment source
-          if (nonce) {
-            subscriptionObj.gwToken = nonce
-            console.log(`💳 Using Braintree nonce for Chargebee gwToken: ${nonce}`)
-          }
-
-          if (vaultedToken) {
-            subscriptionObj.vaultToken = vaultedToken
-            console.log(`✅ Using vaulted token for Chargebee: ${vaultedToken}`)
-          } else {
-            console.warn('⚠️ No vaulted token found — continuing with gwToken only')
-          }
-
-          console.log(`Creating Chargebee subscription for customer ${cbCustomerId} with item ${cbPlanId} and vaultedToken:${vaultedToken ? 'present' + vaultedToken : 'missing'} gwToken:${nonce ? 'present' : 'missing'}`)
-          console.log(`Creating Chargebee subscription for customer ${cbCustomerId} with payload ${JSON.stringify(subscriptionObj)}`)
-
-          const cbResp = await createSubscription(subscriptionObj, cbCustomerId)
-
+        try {
+          const cbResp = await createSubscription(subscriptionObj, orderDetails.customerId)
           if (cbResp && cbResp.status === 'Success') {
             console.log('✅ Chargebee subscription created successfully:', cbResp.subscription)
+            // Update Subscription details in DB
+            const { error: errorUpdateSubscription } = await updateOrganizationSubscription(event, orderDetails.subscriptionTypeId, cbResp.subscription.id, orderDetails)
+            if (errorUpdateSubscription) {
+              throw new CustomError(`Error while trying to update subscription details: ${errorUpdateSubscription}`, 400)
+            }
           } else {
             console.warn('⚠️ Chargebee subscription failed:', cbResp)
           }
-        } else {
-          console.warn('Missing Chargebee plan ID, skipping subscription creation')
+        } catch (e) {
+          console.warn('Chargebee subscription creation errored:', e)
         }
+      } else {
+        console.warn('Missing Chargebee plan ID, skipping subscription creation')
       }
     } catch (err) {
       console.warn('Chargebee post-payment integration failed:', err)
     }
 
-    return { success: true, data: result }
+    return { success: true, data: orderDetails }
   } catch (err: any) {
     console.error('Braintree checkout error:', err)
     return { success: false, error: err?.message || 'Payment processing failed' }

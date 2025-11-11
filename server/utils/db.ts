@@ -75,7 +75,7 @@ async function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function query(text: string, params: any, opts?: { retries?: number; backoffMs?: number }) {
+export async function query(text: string, params: any[] = [], opts?: { retries?: number; backoffMs?: number }) {
   // Use pool.query for simpler lifecycle; keep retries/backoff for transient errors
   const retries = Math.max(0, opts?.retries ?? 3);
   const backoffMs = Math.max(0, opts?.backoffMs ?? 250);

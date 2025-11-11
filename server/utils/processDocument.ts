@@ -19,6 +19,7 @@ export async function processDocument(
         bucketName,
         folderName,
         orgName,
+        industry: "HR",
         orgId,
         userId,
         documents,

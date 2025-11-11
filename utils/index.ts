@@ -104,3 +104,11 @@ export function formatTime(date: Date | string | number): string {
 
   return dateObj.toLocaleTimeString('en-US', options);
 }
+
+export function getCvvMask(cardType?: string) {
+  const normalizedCardType = cardType?.toLowerCase()
+
+  if (normalizedCardType === 'american express')
+    return '****' // Amex cards have 4-digit CVV
+  return '***' // Default for Visa, Mastercard, and other cards
+}
