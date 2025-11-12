@@ -109,7 +109,7 @@ export default defineEventHandler(async (event) => {
         console.log(`Creating Chargebee subscription for customer ${orderDetails.customerId} with payload ${JSON.stringify(subscriptionObj)}`)
 
         // insert billing details in DB
-        const { error: errorInsertBilling } = await insertBillingAddress(event, orderDetails)
+        const { error: errorInsertBilling } = await upsertBillingAddress(event, orderDetails)
         if (errorInsertBilling) {
           throw new CustomError(`Error while trying to insert billing address: ${errorInsertBilling}`, 400)
         }

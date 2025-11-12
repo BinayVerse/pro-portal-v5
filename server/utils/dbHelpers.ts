@@ -45,7 +45,7 @@ export async function updateOrganizationCustomer(
 /**
  * ✅ Insert billing address
  */
-export async function insertBillingAddress(
+export async function upsertBillingAddress(
     event: H3Event,
     billing: any
 ): Promise<{ success: boolean; id?: string; error?: string }> {

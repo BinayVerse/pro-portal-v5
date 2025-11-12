@@ -9,7 +9,6 @@
 
         <div class="space-y-6">
           <div class="bg-dark-800 rounded-lg border border-dark-700 p-6">
-            <h2 class="text-lg font-semibold text-white mb-2">My Plan</h2>
             <div v-if="loading" class="text-gray-400">Loading...</div>
             <div v-else>
               <div v-if="currentPlan && currentPlan.plan">
@@ -36,7 +35,14 @@
                 </div>
 
                 <div class="mt-2">
-                  <p :class="['text-xs', (planDaysLeft !== null && planDaysLeft > 7) ? 'text-green-500' : 'text-red-500']">{{ planEndsInText }}</p>
+                  <p
+                    :class="[
+                      'text-xs',
+                      planDaysLeft !== null && planDaysLeft > 7 ? 'text-green-500' : 'text-red-500',
+                    ]"
+                  >
+                    {{ planEndsInText }}
+                  </p>
                 </div>
               </div>
               <div v-else class="text-gray-400">No active plan found for this organization.</div>
@@ -68,6 +74,7 @@ import { useOrganizationStore } from '~/stores/organization/index'
 import PlansModal from '~/components/PlansModal.vue'
 import dayjs from 'dayjs'
 import { formatDateTime } from '~/utils'
+import { deriveFeatures } from '~/utils/pricingHelpers'
 
 const modalOpen = ref(false)
 function openModal() {
@@ -144,8 +151,6 @@ const planEndsInText = computed(() => {
   if (daysLeft <= 0) return 'Plan has ended'
   return `Current plan will end in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`
 })
-
-import { deriveFeatures } from '~/utils/pricingHelpers'
 
 onMounted(async () => {
   // fetch org plan via store
