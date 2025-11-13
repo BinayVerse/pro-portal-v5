@@ -1,9 +1,10 @@
+import bcrypt from 'bcrypt';
 import { defineEventHandler, readBody, setResponseStatus } from 'h3';
+
 import { CustomError } from '../../utils/custom.error';
 import { getPasswordRegex, SignupValidation } from '../../utils/validations';
-import { query } from '../../utils/db';
-import bcrypt from 'bcrypt';
 import { isPersonalEmail, personalEmailDomains } from '../../utils/auth-utils';
+import { query } from '../../utils/db';
 import { sendWelcomeMail, sendOrganizationOnboardedMail } from '../helper';
 
 const isValidPhoneNumber = (wpNumber: string): boolean => {
@@ -64,16 +65,39 @@ export default defineEventHandler(async (event) => {
     const hashedPassword = await bcrypt.hash(params.password, 10);
     const roleId = isCompanyExists ? '1' : '2';
     const appLink = `${config.public.appUrl}/login`;
+    let processFulfillmentData = null;
+
+    if (params.registrationToken) {
+      processFulfillmentData = await processFulfillment(params.registrationToken)
+    }
 
     if (isCompanyExists) {
       const newOrg = await query(
-        'INSERT INTO organizations (org_name) VALUES ($1) RETURNING org_id',
-        [params.companyName]
+        'INSERT INTO organizations (org_name, source) VALUES ($1, $2) RETURNING org_id',
+        [params.companyName, params.registrationToken ? 'aws' : 'website']
       );
       orgId = newOrg.rows[0].org_id;
     } else {
       throw new CustomError('Company is already registered, please contact admin', 409);
     }
+
+    if (processFulfillmentData?.data?.customerId) {
+      const res = await query(
+        `
+          UPDATE public.aws_marketplace_subscriptions
+          SET org_id = $1, active = TRUE,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE customer_id = $2
+          RETURNING id;
+        `,
+        [orgId, processFulfillmentData?.data?.customerId]
+      )
+
+      if (res.rowCount < 0) {
+        console.warn(`⚠️ No AWS subscription found for customer_id ${processFulfillmentData?.data?.customerId}`)
+      }
+    }
+
 
     const user = await query(
       'INSERT INTO users (email, password, name, org_id, contact_number, role_id, primary_contact) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
@@ -121,7 +145,7 @@ export default defineEventHandler(async (event) => {
       data: user.rows[0],
     };
   } catch (error: unknown) {
-    console.error('Signup error:', error);
+    console.error('Signup error:', JSON.stringify(error, null, 2));
 
     if (error instanceof CustomError) {
       setResponseStatus(event, error.statusCode);

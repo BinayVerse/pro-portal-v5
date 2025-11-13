@@ -1,252 +1,281 @@
 <template>
   <teleport to="body">
     <div ref="container" class="fixed right-6 bottom-6 pointer-events-auto" style="z-index: 999999">
-    <div v-if="!open" class="flex flex-col items-end space-y-3 relative">
-      <!-- bubble above the button, appears with animation -->
-      <transition name="bubble" appear>
-        <div
-          v-if="showHint"
-          class="hidden sm:block bg-dark-800 text-gray-100 px-4 py-2 rounded-full border border-primary-600 shadow-lg max-w-xs relative"
-          key="hint"
-        >
-          <button
-            @click.stop="hideHint"
-            aria-label="Dismiss hint"
-            class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-dark-900 border border-dark-700 flex items-center justify-center text-gray-300 hover:bg-dark-800"
+      <div v-if="!open" class="flex flex-col items-end space-y-3 relative">
+        <!-- bubble above the button, appears with animation -->
+        <transition name="bubble" appear>
+          <div
+            v-if="showHint"
+            class="hidden sm:block bg-dark-800 text-gray-100 px-4 py-2 rounded-full border border-primary-600 shadow-lg max-w-xs relative"
+            key="hint"
           >
-            <UIcon name="heroicons:x-mark" class="w-3 h-3" />
-          </button>
-          <div class="flex items-center space-x-3">
-            <div class="flex -space-x-2">
-              <div class="w-7 h-7 rounded-full bg-primary-400 ring-2 ring-dark-900"></div>
-            </div>
-            <div class="text-sm">
-              {{
-                hasArtefacts
-                  ? 'Start chatting with your artefacts'
-                  : 'Upload your artefacts to get started with smart conversations.'
-              }}
+            <button
+              @click.stop="hideHint"
+              aria-label="Dismiss hint"
+              class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-dark-900 border border-dark-700 flex items-center justify-center text-gray-300 hover:bg-dark-800"
+            >
+              <UIcon name="heroicons:x-mark" class="w-3 h-3" />
+            </button>
+            <div class="flex items-center space-x-3">
+              <div class="flex -space-x-2">
+                <div class="w-7 h-7 rounded-full bg-primary-400 ring-2 ring-dark-900"></div>
+              </div>
+              <div class="text-sm">
+                {{
+                  hasArtefacts
+                    ? 'Start chatting with your artefacts'
+                    : 'Upload your artefacts to get started with smart conversations.'
+                }}
+              </div>
             </div>
           </div>
-        </div>
-      </transition>
+        </transition>
 
-      <button
-        @click.stop="open = true"
-        aria-label="Open chat"
-        :disabled="!hasArtefacts"
-        :title="!hasArtefacts ? 'Upload artefacts to enable chat' : 'Open chat'"
-        :class="[
-          'w-14 h-14 rounded-full shadow-lg flex items-center justify-center',
-          !hasArtefacts
-            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-            : 'bg-primary-600 text-white',
-        ]"
-      >
-        <UIcon name="heroicons:chat-bubble-left-ellipsis" class="w-6 h-6" />
-      </button>
-    </div>
-
-    <div
-      v-else
-      class="w-96 h-[520px] bg-dark-900 border border-dark-700 rounded-xl shadow-xl flex flex-col"
-    >
-      <div class="flex items-center justify-between px-4 py-3 border-b border-dark-700">
-        <div class="flex items-center space-x-3">
-          <UIcon name="heroicons:chat-bubble-left-ellipsis" class="w-5 h-5 text-white" />
-          <div class="text-white font-medium">provento.ai</div>
-        </div>
-
-        <div class="flex items-center space-x-2">
-          <button
-            @click="onToggleHistory"
-            :aria-pressed="showHistory"
-            class="flex items-center gap-2 px-3 py-1 rounded-md bg-dark-800 hover:bg-dark-700 text-sm text-gray-200 border border-transparent focus:outline-none"
-            :title="historyLabel"
-          >
-            <UIcon :name="historyIcon" class="w-4 h-4 text-primary-400" />
-            <span class="hidden sm:inline">{{ historyLabel }}</span>
-          </button>
-
-          <button
-            v-if="!showHistory"
-            @click="clearConversation"
-            class="flex items-center justify-center w-9 h-9 rounded-md text-gray-300 hover:bg-dark-800 border border-dark-700"
-            title="Clear conversation"
-            aria-label="Clear conversation"
-          >
-            <UIcon name="heroicons:trash" class="w-4 h-4" />
-          </button>
-
-          <button
-            @click="close"
-            aria-label="Close chat"
-            class="w-8 h-8 rounded-md text-gray-300 hover:text-white flex items-center justify-center"
-          >
-            <UIcon name="heroicons:x-mark" class="w-4 h-4" />
-          </button>
-        </div>
+        <button
+          @click.stop="open = true"
+          aria-label="Open chat"
+          :disabled="!hasArtefacts"
+          :title="!hasArtefacts ? 'Upload artefacts to enable chat' : 'Open chat'"
+          :class="[
+            'w-14 h-14 rounded-full shadow-lg flex items-center justify-center',
+            !hasArtefacts
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : 'bg-primary-600 text-white',
+          ]"
+        >
+          <UIcon name="heroicons:chat-bubble-left-ellipsis" class="w-6 h-6" />
+        </button>
       </div>
 
-      <div class="flex-1 bg-black flex flex-col min-h-0">
-        <div v-if="showHistory" class="flex-1 p-4 flex flex-col min-h-0">
-          <div class="flex items-center justify-between mb-3">
-            <div class="text-sm text-gray-300 font-semibold">Recent Conversations</div>
-            <div class="text-xs text-gray-400">{{ (conversations || []).length }} items</div>
+      <div
+        v-else
+        class="w-96 h-[520px] bg-dark-900 border border-dark-700 rounded-xl shadow-xl flex flex-col"
+      >
+        <div class="flex items-center justify-between px-4 py-3 border-b border-dark-700">
+          <div class="flex items-center space-x-3">
+            <UIcon name="heroicons:chat-bubble-left-ellipsis" class="w-5 h-5 text-white" />
+            <div class="text-white font-medium">provento.ai</div>
           </div>
 
-          <div v-if="historyLoading" class="text-gray-400">Loading...</div>
+          <div class="flex items-center space-x-2">
+            <button
+              @click="onToggleHistory"
+              :aria-pressed="showHistory"
+              class="flex items-center gap-2 px-3 py-1 rounded-md bg-dark-800 hover:bg-dark-700 text-sm text-gray-200 border border-transparent focus:outline-none"
+              :title="historyLabel"
+            >
+              <UIcon :name="historyIcon" class="w-4 h-4 text-primary-400" />
+              <span class="hidden sm:inline">{{ historyLabel }}</span>
+            </button>
 
-          <div v-else class="flex-1 overflow-auto min-h-0">
-            <div v-if="conversations.length === 0" class="text-gray-500">
-              No conversations found
-            </div>
+            <button
+              v-if="!showHistory"
+              @click="clearConversation"
+              class="flex items-center justify-center w-9 h-9 rounded-md text-gray-300 hover:bg-dark-800 border border-dark-700"
+              title="Clear conversation"
+              aria-label="Clear conversation"
+            >
+              <UIcon name="heroicons:trash" class="w-4 h-4" />
+            </button>
 
-            <div class="space-y-3 pr-2">
-              <div
-                v-for="(c, i) in conversations"
-                :key="c.chat_id || i"
-                @click="openConversation(c.chat_id)"
-                role="button"
-                tabindex="0"
-                @keyup.enter="openConversation(c.chat_id)"
-                class="relative bg-dark-800 rounded-md p-3 hover:bg-dark-700 transition-colors cursor-pointer"
-              >
-                <div class="flex items-start space-x-3">
-                  <div
-                    class="flex-shrink-0 w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center text-white font-bold"
-                  >
-                    <UIcon name="heroicons:document-text" class="w-4 h-4" />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="text-sm text-gray-200 font-medium truncate" :title="c.header">
-                      {{ c.header }}
-                    </div>
-                    <div
-                      class="mt-2 text-sm text-gray-400"
-                      :title="c.body"
-                      style="
-                        display: -webkit-box;
-                        -webkit-line-clamp: 3;
-                        line-clamp: 3;
-                        -webkit-box-orient: vertical;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                      "
-                    >
-                      {{ c.body }}
-                    </div>
-                    <div class="mt-2 text-xs text-gray-400 text-right">
-                      {{ c.last_at_formatted || c.last_at }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <button
+              @click="close"
+              aria-label="Close chat"
+              class="w-8 h-8 rounded-md text-gray-300 hover:text-white flex items-center justify-center"
+            >
+              <UIcon name="heroicons:x-mark" class="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        <div v-else ref="scrollArea" class="flex-1 overflow-auto p-4 space-y-4 bg-black min-h-0">
-          <div v-if="messages.length === 0 && !loading" class="w-full text-center text-gray-400">
-            Feel free to ask anything about the artefacts you’ve uploaded.
-          </div>
-          <div v-for="(m, idx) in messages" :key="idx" class="max-w-full">
-            <div v-if="m.from === 'user'" class="text-right">
-              <div class="inline-block bg-primary-600 text-white px-3 py-2 rounded-lg">
-                {{ m.content }}
-              </div>
+        <div class="flex-1 bg-black flex flex-col min-h-0">
+          <div v-if="showHistory" class="flex-1 p-4 flex flex-col min-h-0">
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-sm text-gray-300 font-semibold">Recent Conversations</div>
+              <div class="text-xs text-gray-400">{{ (conversations || []).length }} items</div>
             </div>
 
-            <div v-else class="text-left">
-              <div class="inline-block bg-dark-800 text-gray-200 px-3 py-2 rounded-lg max-w-full">
-                <!-- Agent / Category List -->
-                <div v-if="m.meta && m.meta.type === 'agent_list'">
-                  <div class="font-medium mb-2">Which AI Agent would you like to start with?</div>
-                  <div class="flex flex-wrap gap-2">
-                    <button
-                      v-for="cat in m.meta.categories"
-                      :key="cat.id"
-                      @click="onSelectCategory(cat, m)"
-                      :disabled="m.meta.disabled"
-                      :class="[
-                        'px-3 py-1 text-sm rounded-md border flex items-center',
-                        m.meta.disabled
-                          ? 'bg-dark-900 text-gray-500 border-dark-700 cursor-not-allowed'
-                          : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
-                        cat && (cat.selected === true || cat.selected === 'true')
-                          ? 'ring-2 ring-primary-500 bg-primary-700 text-white'
-                          : '',
-                      ]"
+            <div v-if="historyLoading" class="text-gray-400">Loading...</div>
+
+            <div v-else class="flex-1 overflow-auto min-h-0">
+              <div v-if="conversations.length === 0" class="text-gray-500">
+                No conversations found
+              </div>
+
+              <div class="space-y-3 pr-2">
+                <div
+                  v-for="(c, i) in conversations"
+                  :key="c.chat_id || i"
+                  @click="openConversation(c.chat_id)"
+                  role="button"
+                  tabindex="0"
+                  @keyup.enter="openConversation(c.chat_id)"
+                  class="relative bg-dark-800 rounded-md p-3 hover:bg-dark-700 transition-colors cursor-pointer"
+                >
+                  <div class="flex items-start space-x-3">
+                    <div
+                      class="flex-shrink-0 w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center text-white font-bold"
                     >
-                      <span class="block w-full truncate max-w-[180px] sm:max-w-[260px]">{{
-                        decodeHtml(cat.name)
-                      }}</span>
-                    </button>
-                    <button
-                      v-if="m.meta.hasMore"
-                      @click="onShowMoreAgents(m)"
-                      :disabled="m.meta.moreDisabled"
-                      :class="[
-                        'px-3 py-1 text-sm rounded-md border',
-                        m.meta.moreDisabled
-                          ? 'bg-dark-900 text-gray-500 cursor-not-allowed'
-                          : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
-                      ]"
-                    >
-                      More
-                    </button>
+                      <UIcon name="heroicons:document-text" class="w-4 h-4" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="text-sm text-gray-200 font-medium truncate" :title="c.header">
+                        {{ c.header }}
+                      </div>
+                      <div
+                        class="mt-2 text-sm text-gray-400"
+                        :title="c.body"
+                        style="
+                          display: -webkit-box;
+                          -webkit-line-clamp: 3;
+                          line-clamp: 3;
+                          -webkit-box-orient: vertical;
+                          overflow: hidden;
+                          text-overflow: ellipsis;
+                        "
+                      >
+                        {{ c.body }}
+                      </div>
+                      <div class="mt-2 text-xs text-gray-400 text-right">
+                        {{ c.last_at_formatted || c.last_at }}
+                      </div>
+                    </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
 
-                <!-- Document List -->
-                <div v-else-if="m.meta && m.meta.type === 'document_list'">
-                  <div class="font-medium mb-2">
-                    {{ 'Ask a question or tap here to explore the knowledge base.' }}
-                  </div>
-                  <div class="flex flex-col gap-2">
-                    <div v-if="m.meta.noDocuments" class="text-sm text-gray-400">
-                      No knowledge base found for this AI agent.
-                    </div>
+          <div v-else ref="scrollArea" class="flex-1 overflow-auto p-4 space-y-4 bg-black min-h-0">
+            <div v-if="messages.length === 0 && !loading" class="w-full text-center text-gray-400">
+              Feel free to ask anything about the artefacts you’ve uploaded.
+            </div>
+            <div v-for="(m, idx) in messages" :key="idx" class="max-w-full">
+              <div v-if="m.from === 'user'" class="text-right">
+                <div class="inline-block bg-primary-600 text-white px-3 py-2 rounded-lg">
+                  {{ m.content }}
+                </div>
+              </div>
 
-                    <button
-                      v-for="doc in m.meta.documents"
-                      :key="doc.id"
-                      @click="onSelectDocument(doc)"
-                      :disabled="m.meta.disabled"
-                      :class="[
-                        'text-left px-3 py-2 rounded-md border flex flex-col items-start',
-                        m.meta.disabled
-                          ? 'bg-dark-900 text-gray-500 border-dark-700 cursor-not-allowed'
-                          : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
-                        doc && (doc.selected === true || doc.selected === 'true')
-                          ? 'ring-2 ring-primary-500 bg-primary-700 text-white'
-                          : '',
-                      ]"
-                    >
-                      <div
-                        class="font-medium text-sm w-full truncate max-w-[240px] sm:max-w-[360px]"
+              <div v-else class="text-left">
+                <div class="inline-block bg-dark-800 text-gray-200 px-3 py-2 rounded-lg max-w-full">
+                  <!-- Agent / Category List -->
+                  <div v-if="m.meta && m.meta.type === 'agent_list'">
+                    <div class="font-medium mb-2">Which AI Agent would you like to start with?</div>
+                    <div class="flex flex-wrap gap-2">
+                      <button
+                        v-for="cat in m.meta.categories"
+                        :key="cat.id"
+                        @click="onSelectCategory(cat, m)"
+                        :disabled="m.meta.disabled"
+                        :class="[
+                          'px-3 py-1 text-sm rounded-md border flex items-center',
+                          m.meta.disabled
+                            ? 'bg-dark-900 text-gray-500 border-dark-700 cursor-not-allowed'
+                            : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
+                          cat && (cat.selected === true || cat.selected === 'true')
+                            ? 'ring-2 ring-primary-500 bg-primary-700 text-white'
+                            : '',
+                        ]"
                       >
-                        {{ decodeHtml(doc.name) }}
+                        <span class="block w-full truncate max-w-[180px] sm:max-w-[260px]">{{
+                          decodeHtml(cat.name)
+                        }}</span>
+                      </button>
+                      <button
+                        v-if="m.meta.hasMore"
+                        @click="onShowMoreAgents(m)"
+                        :disabled="m.meta.moreDisabled"
+                        :class="[
+                          'px-3 py-1 text-sm rounded-md border',
+                          m.meta.moreDisabled
+                            ? 'bg-dark-900 text-gray-500 cursor-not-allowed'
+                            : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
+                        ]"
+                      >
+                        More
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Document List -->
+                  <div v-else-if="m.meta && m.meta.type === 'document_list'">
+                    <div class="font-medium mb-2">
+                      {{ getDocumentListPrompt(m) }}
+                    </div>
+                    <!-- Commented document listing as per category -->
+                    <!-- <div class="flex flex-col gap-2">
+                      <div v-if="m.meta.noDocuments" class="text-sm text-gray-400">
+                        No knowledge base found for this AI agent.
                       </div>
-                    </button>
 
-                    <button
-                      v-if="m.meta.hasMore"
-                      @click="onShowMoreDocuments(m)"
-                      :disabled="m.meta.moreDisabled"
-                      :class="[
-                        'px-3 py-1 text-sm rounded-md border',
-                        m.meta.moreDisabled
-                          ? 'bg-dark-900 text-gray-500 cursor-not-allowed'
-                          : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
-                      ]"
-                    >
-                      More
-                    </button>
+                      <button
+                        v-for="doc in m.meta.documents"
+                        :key="doc.id"
+                        @click="onSelectDocument(doc)"
+                        :disabled="m.meta.disabled"
+                        :class="[
+                          'text-left px-3 py-2 rounded-md border flex flex-col items-start',
+                          m.meta.disabled
+                            ? 'bg-dark-900 text-gray-500 border-dark-700 cursor-not-allowed'
+                            : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
+                          doc && (doc.selected === true || doc.selected === 'true')
+                            ? 'ring-2 ring-primary-500 bg-primary-700 text-white'
+                            : '',
+                        ]"
+                      >
+                        <div
+                          class="font-medium text-sm w-full truncate max-w-[240px] sm:max-w-[360px]"
+                        >
+                          {{ decodeHtml(doc.name) }}
+                        </div>
+                      </button>
 
-                    <!-- Actions like Back / Start Over (only on last message) -->
+                      <button
+                        v-if="m.meta.hasMore"
+                        @click="onShowMoreDocuments(m)"
+                        :disabled="m.meta.moreDisabled"
+                        :class="[
+                          'px-3 py-1 text-sm rounded-md border',
+                          m.meta.moreDisabled
+                            ? 'bg-dark-900 text-gray-500 cursor-not-allowed'
+                            : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
+                        ]"
+                      >
+                        More
+                      </button>
+
+                      <div
+                        v-if="
+                          m.meta.actions && m.meta.actions.length && idx === messages.length - 1
+                        "
+                        class="flex gap-2 mt-2"
+                      >
+                        <button
+                          v-for="a in m.meta.actions"
+                          :key="a.id"
+                          @click.prevent="onActionClick(a.id)"
+                          class="px-3 py-1 bg-dark-700 hover:bg-dark-600 text-sm rounded-md border border-dark-600"
+                        >
+                          {{ a.label }}
+                        </button>
+                      </div>
+                    </div> -->
+                  </div>
+
+                  <!-- Document summary or default bot message -->
+                  <div v-else>
+                    <div v-html="m.contentHtml || formatResponseToHtml(m.content)"></div>
+
+                    <!-- Actions for summaries (only on last message) -->
                     <div
-                      v-if="m.meta.actions && m.meta.actions.length && idx === messages.length - 1"
+                      v-if="
+                        m.meta &&
+                        m.meta.type === 'document_summary' &&
+                        m.meta.actions &&
+                        m.meta.actions.length &&
+                        idx === messages.length - 1
+                      "
                       class="flex gap-2 mt-2"
                     >
                       <button
@@ -258,82 +287,58 @@
                         {{ a.label }}
                       </button>
                     </div>
-                  </div>
-                </div>
 
-                <!-- Document summary or default bot message -->
-                <div v-else>
-                  <div v-html="m.contentHtml || formatResponseToHtml(m.content)"></div>
-
-                  <!-- Actions for summaries (only on last message) -->
-                  <div
-                    v-if="
-                      m.meta &&
-                      m.meta.type === 'document_summary' &&
-                      m.meta.actions &&
-                      m.meta.actions.length &&
-                      idx === messages.length - 1
-                    "
-                    class="flex gap-2 mt-2"
-                  >
-                    <button
-                      v-for="a in m.meta.actions"
-                      :key="a.id"
-                      @click.prevent="onActionClick(a.id)"
-                      class="px-3 py-1 bg-dark-700 hover:bg-dark-600 text-sm rounded-md border border-dark-600"
-                    >
-                      {{ a.label }}
-                    </button>
-                  </div>
-
-                  <div v-if="m.links && m.links.length" class="mt-2 text-sm">
-                    <div v-for="(l, i) in m.links" :key="i">
-                      <a :href="l.url" target="_blank" class="text-primary-400 underline">{{
-                        l.text || l.url
-                      }}</a>
+                    <div v-if="m.links && m.links.length" class="mt-2 text-sm">
+                      <div v-for="(l, i) in m.links" :key="i">
+                        <a :href="l.url" target="_blank" class="text-primary-400 underline">{{
+                          l.text || l.url
+                        }}</a>
+                      </div>
                     </div>
-                  </div>
-                  <div v-if="m.citations && m.citations.length" class="mt-2 text-xs text-gray-400">
-                    <div class="font-semibold text-gray-300">Document Source:</div>
-                    <div v-for="(c, i) in m.citations" :key="i">{{ c }}</div>
+                    <div
+                      v-if="m.citations && m.citations.length"
+                      class="mt-2 text-xs text-gray-400"
+                    >
+                      <div class="font-semibold text-gray-300">Document Source:</div>
+                      <div v-for="(c, i) in m.citations" :key="i">{{ c }}</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div v-if="loading" class="text-left text-sm text-gray-400">
-            provento.ai is thinking...
+            <div v-if="loading" class="text-left text-sm text-gray-400">
+              provento.ai is thinking...
+            </div>
           </div>
         </div>
+
+        <form
+          v-if="!showHistory"
+          @submit.prevent="sendMessageLocal"
+          class="px-3 py-3 border-t border-dark-700 bg-dark-900"
+        >
+          <div class="flex items-center space-x-2">
+            <input
+              v-model="input"
+              @input="onUserTyping"
+              placeholder="Ask me anything..."
+              class="flex-1 bg-dark-800 text-gray-200 px-3 py-2 rounded-md outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <button
+              :disabled="!canSend || loading"
+              type="submit"
+              :class="[
+                'btn-primary px-3 py-2',
+                !canSend || loading ? 'opacity-50 cursor-not-allowed' : '',
+              ]"
+            >
+              {{ loading ? 'Processing...' : 'Send' }}
+            </button>
+          </div>
+        </form>
       </div>
-
-      <form
-        v-if="!showHistory"
-        @submit.prevent="sendMessageLocal"
-        class="px-3 py-3 border-t border-dark-700 bg-dark-900"
-      >
-        <div class="flex items-center space-x-2">
-          <input
-            v-model="input"
-            @input="onUserTyping"
-            placeholder="Ask me anything..."
-            class="flex-1 bg-dark-800 text-gray-200 px-3 py-2 rounded-md outline-none focus:ring-2 focus:ring-primary-500"
-          />
-          <button
-            :disabled="!canSend || loading"
-            type="submit"
-            :class="[
-              'btn-primary px-3 py-2',
-              !canSend || loading ? 'opacity-50 cursor-not-allowed' : '',
-            ]"
-          >
-            {{ loading ? 'Processing...' : 'Send' }}
-          </button>
-        </div>
-      </form>
     </div>
-  </div>
   </teleport>
 </template>
 
@@ -397,6 +402,41 @@ const historyIcon = computed(() =>
 
 function hideHint() {
   showHint.value = false
+}
+
+function getDocumentListPrompt(message: any) {
+  try {
+    if (!message || !message.meta)
+      return 'The provento assistant is now active. Please submit your inquiry.'
+    const meta = message.meta
+    // priority: explicit categoryName from meta
+    if (meta.categoryName)
+      return `The ${meta.categoryName} assistant is now active. Please submit your inquiry..`
+    // next: selectedCategoryId on meta
+    if (meta.selectedCategoryId) {
+      const matched = (meta.categories || []).find(
+        (c: any) =>
+          String(c.id) === String(meta.selectedCategoryId) ||
+          c.selected === true ||
+          c.selected === 'true',
+      )
+      if (matched && matched.name)
+        return `The ${decodeHtml(matched.name)} assistant is now active. Please submit your inquiry.`
+    }
+    // next: look for a single selected category in categories
+    if (Array.isArray(meta.categories)) {
+      const sel = meta.categories.find(
+        (c: any) =>
+          c &&
+          (c.selected === true || c.selected === 'true' || String(c.selected) === String(c.id)),
+      )
+      if (sel && sel.name)
+        return `The ${decodeHtml(sel.name)} assistant is now active. Please submit your inquiry.`
+    }
+    return 'The provento assistant is now active. Please submit your inquiry.'
+  } catch (e) {
+    return 'The provento assistant is now active. Please submit your inquiry.'
+  }
 }
 
 const messages = computed(() => (chat.messages as any) || [])

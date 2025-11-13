@@ -324,6 +324,8 @@ useHead({ title: 'Sign Up - provento.ai' })
 import { useAuthStore } from '~/stores/auth/index'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '#ui/types'
+import ConfirmPopup from '~/components/ui/ConfirmPopup.vue'
+import { useRoute } from 'vue-router'
 
 definePageMeta({
   layout: 'minimal',
@@ -332,8 +334,33 @@ definePageMeta({
 
 const authStore = useAuthStore()
 const { showNotification } = useNotification()
-import ConfirmPopup from '~/components/ui/ConfirmPopup.vue'
 const showWelcomeModal = ref(false)
+
+// Capture marketplace token from query string to send as registrationToken
+const route = useRoute()
+const registrationToken = ref<string | null>(null)
+
+// initialize from query on mount and watch for changes
+onMounted(() => {
+  try {
+    const token = (route.query['x-amzn-marketplace-token'] ||
+      route.query['x_amzn_marketplace_token']) as string | undefined
+    if (token) registrationToken.value = String(token)
+  } catch (e) {
+    registrationToken.value = null
+  }
+})
+
+// react to query changes (in case token appears after navigation)
+watch(
+  () => route.query,
+  (q) => {
+    const token = (q['x-amzn-marketplace-token'] || q['x_amzn_marketplace_token']) as
+      | string
+      | undefined
+    registrationToken.value = token ? String(token) : null
+  },
+)
 
 // Form reference
 const formRef = ref()
@@ -464,13 +491,16 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     const phoneNumberWithCountryCode = phoneData?.number || state.phone || ''
 
     // Prepare signup data
-    const signupData = {
+    const signupData: Record<string, any> = {
       name: event.data.name.trim(),
       email: event.data.email.trim().toLowerCase(),
       password: event.data.password,
       wpNumber: phoneNumberWithCountryCode,
       companyName: event.data.company.trim(),
     }
+
+    // Attach registrationToken if present (from AWS marketplace flow)
+    if (registrationToken.value) signupData.registrationToken = registrationToken.value
 
     // Call auth store signup method
     await authStore.signup(signupData)
