@@ -1,7 +1,8 @@
-import { defineEventHandler } from 'h3'
-import { query } from '../../utils/db'
-import { CustomError } from '../../utils/custom.error'
 import jwt from 'jsonwebtoken'
+import { defineEventHandler } from 'h3'
+
+import { CustomError } from '../../utils/custom.error'
+import { query } from '../../utils/db'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()

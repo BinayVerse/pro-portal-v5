@@ -115,30 +115,55 @@ export default defineEventHandler(async (event) => {
         }
 
         try {
-          const cbResp = await createSubscription(subscriptionObj, orderDetails.customerId)
-          if (cbResp && cbResp.status === 'Success') {
-            console.log('✅ Chargebee subscription created successfully:', cbResp.subscription)
+          const { subscription: chargebeeSubscription, error: errorMessage, status: subStatus, statusCode: subStatusCode } = await createSubscription(subscriptionObj, orderDetails.customerId)
+
+          if (subStatus === 'Error') {
+            console.warn('Error while trying to create subscription details:', JSON.stringify(errorMessage, null, 2))
+            throw new CustomError(`Error while trying to create subscription details: ${errorMessage}`, subStatusCode)
+          }
+
+          if (chargebeeSubscription && chargebeeSubscription.subscription) {
+            console.log('✅ Chargebee subscription created successfully:', chargebeeSubscription)
             // Update Subscription details in DB
-            const { error: errorUpdateSubscription } = await updateOrganizationSubscription(event, orderDetails.subscriptionTypeId, cbResp.subscription.id, orderDetails)
+            const { error: errorUpdateSubscription } = await updateOrganizationSubscription(event, orderDetails.subscriptionTypeId, chargebeeSubscription.subscription.id, orderDetails)
             if (errorUpdateSubscription) {
               throw new CustomError(`Error while trying to update subscription details: ${errorUpdateSubscription}`, 400)
             }
           } else {
-            console.warn('⚠️ Chargebee subscription failed:', cbResp)
+            console.warn('⚠️ Chargebee subscription failed:', chargebeeSubscription)
+            throw new CustomError('Chargebee subscription failed', 500)
           }
         } catch (e) {
           console.warn('Chargebee subscription creation errored:', e)
+          throw new CustomError('Chargebee subscription creation errored', 500)
         }
       } else {
         console.warn('Missing Chargebee plan ID, skipping subscription creation')
+        throw new CustomError('Missing Chargebee plan ID, skipping subscription creation', 500)
       }
     } catch (err) {
-      console.warn('Chargebee post-payment integration failed:', err)
+      console.warn('Error while trying to create subscription:', err)
+      throw new CustomError('Error while trying to create subscription!', 500)
     }
 
-    return { success: true, data: orderDetails }
+    setResponseStatus(event, 201)
+    return {
+      statusCode: 201,
+      status: 'success',
+      message: 'Payment processing completed successfully',
+      data: orderDetails,
+    }
   } catch (err: any) {
     console.error('Braintree checkout error:', err)
-    return { success: false, error: err?.message || 'Payment processing failed' }
+    if (err instanceof CustomError) {
+      setResponseStatus(event, err.statusCode)
+      return {
+        statusCode: err.statusCode,
+        status: 'error',
+        message: err.message,
+      }
+    }
+    setResponseStatus(event, 500)
+    throw new CustomError(err?.message || 'Payment processing failed', 500)
   }
 })

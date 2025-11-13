@@ -140,24 +140,32 @@ export const usePaymentsStore = defineStore('payments', () => {
     isLoading.value = true
     error.value = null
     try {
-      const res = await fetch('/api/payments/braintree/checkout', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(payload),
-      })
-      const text = await res.text()
-      const data = text ? JSON.parse(text) : null
+      const response = await $fetch<{ status?: boolean; message?: string; errors?: any[]; data?: any }>(
+        '/api/payments/braintree/checkout',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          headers: getAuthHeaders(),
+        }
+      )
 
-      if (!res.ok) {
-        const msg = data?.error || 'Checkout failed'
-        throw new Error(msg)
+      if (response?.status === false) {
+        const message = response.message || 'Error while processing payment'
+        handleError({ response: { _data: { message } } }, message)
+        return { success: false, message, errors: response.errors || [] }
       }
 
-      return { success: true, data }
+      handleSuccess('Subscription created successfully!')
+
+      return { success: true, data: response.data }
     } catch (err: any) {
-      const msg = handleError(err, 'Checkout failed')
-      error.value = msg
-      return { success: false, error: msg }
+      const message = handleError(err, 'Error while processing payment')
+      return {
+        success: false,
+        message,
+        errors:
+          extractErrors(err),
+      }
     } finally {
       isLoading.value = false
     }

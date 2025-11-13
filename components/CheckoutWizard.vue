@@ -341,6 +341,7 @@ const messageTitle = ref('')
 const messageText = ref('')
 const messageDetails = ref<string | null>(null)
 const messageType = ref<'info' | 'success' | 'error' | 'warning'>('info')
+const orgStore = useOrganizationStore()
 
 function showAlert(
   title: string,
@@ -517,6 +518,10 @@ function emitChangePlan() {
   emit('change-plan')
 }
 
+async function planAPICall() {
+  await orgStore.fetchOrgPlan() // placeholder for any plan selection API calls if needed
+}
+
 function prevStep() {
   if (step.value > 1) step.value--
 }
@@ -613,6 +618,7 @@ async function confirmPayment() {
       phoneNumber: phone || '',
       amount: paidAmount,
       email: billing.value.email || '',
+      orgName: profileStore.userProfile?.company || '',
       subscriptionTypeId: cbPlanId.value || '',
       planType:
         (selected.value &&
@@ -634,25 +640,11 @@ async function confirmPayment() {
     // Call checkout API to perform transaction and Chargebee sync
     try {
       const checkoutResp = await payments.checkout(payload)
+
       if (!checkoutResp || !checkoutResp.success)
-        throw new Error(checkoutResp?.error || 'Checkout failed')
+        throw new Error(checkoutResp?.message || 'Checkout failed')
 
-      const txnResult = checkoutResp.data
-      console.log('Checkout API response', txnResult)
-
-      // call complete-order API to persist order
-      // try {
-      //   const body = {
-      //     transaction: txnResult,
-      //     plan_id: cbPlanId.value,
-      //     billing: billing.value,
-      //     org_id: props.orgId || authStore.user?.org_id || null,
-      //   }
-      //   const resp = await payments.completeOrder(body)
-      //   console.log('complete-order response', resp)
-      // } catch (e) {
-      //   console.warn('complete-order failed', e)
-      // }
+      await orgStore.fetchOrgPlan()
 
       // only close modal after success
       showSummary.value = false
