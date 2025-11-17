@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
     if (!orgId) throw new CustomError('Organization not found', 404)
 
     const sql = `
-      SELECT o.org_id, o.org_name, o.plan_id, o.plan_start_date, p.id as plan_id, p.title, p.price_amount, p.price_currency, p.duration, p.users, p.limit_requests, p.storage_limit_gb, p.support_level, p.artefacts, p.metadata
+      SELECT o.org_id, o.org_name, o.plan_id, o.plan_start_date AT TIME ZONE 'UTC' as plan_start_date, p.id as plan_id, p.title, p.price_amount, p.price_currency, p.duration, p.users, p.limit_requests, p.storage_limit_gb, p.support_level, p.artefacts, p.metadata
       FROM organizations o
       LEFT JOIN public.plans p ON o.plan_id = p.id
       WHERE o.org_id = $1

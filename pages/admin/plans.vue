@@ -73,8 +73,13 @@ import { useAuth } from '~/composables/useAuth'
 import { useOrganizationStore } from '~/stores/organization/index'
 import PlansModal from '~/components/PlansModal.vue'
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
 import { formatDateTime } from '~/utils'
 import { deriveFeatures } from '~/utils/pricingHelpers'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 const modalOpen = ref(false)
 function openModal() {
@@ -83,12 +88,19 @@ function openModal() {
 
 const route = useRoute()
 const auth = useAuth()
+const userTimeZone = ref('UTC')
 
-// Ensure admin-only access
+// Ensure admin-only access and detect timezone
 onMounted(async () => {
+  // Detect user's actual timezone FIRST
+  userTimeZone.value = dayjs.tz.guess()
+
   // initialize/check auth
   await auth.checkAuth()
   if (!auth.requireAdmin()) return
+
+  // fetch org plan via store after timezone is set
+  await orgStore.fetchOrgPlan(orgId)
 })
 
 const orgIdFromQuery = (route.query?.org || route.query?.org_id) as string | undefined
@@ -104,7 +116,7 @@ const formattedPlanStart = computed(() => {
   try {
     const val = currentPlan.value?.plan_start_date
     if (!val) return '-'
-    return formatDateTime(val, undefined, 'DD/MM/YYYY hh:mm A')
+    return formatDateTime(val, userTimeZone.value, 'DD/MM/YYYY hh:mm A')
   } catch (e) {
     return String(currentPlan.value?.plan_start_date || '-')
   }
@@ -150,10 +162,5 @@ const planEndsInText = computed(() => {
   if (daysLeft === null) return ''
   if (daysLeft <= 0) return 'Plan has ended'
   return `Current plan will end in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`
-})
-
-onMounted(async () => {
-  // fetch org plan via store
-  await orgStore.fetchOrgPlan(orgId)
 })
 </script>

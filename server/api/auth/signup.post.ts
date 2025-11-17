@@ -82,6 +82,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (processFulfillmentData?.data?.customerId) {
+      const customerId = processFulfillmentData.data.customerId;
       const res = await query(
         `
           UPDATE public.aws_marketplace_subscriptions
@@ -90,12 +91,57 @@ export default defineEventHandler(async (event) => {
           WHERE customer_id = $2
           RETURNING id;
         `,
-        [orgId, processFulfillmentData?.data?.customerId]
+        [orgId, customerId]
       )
 
       if (res.rowCount < 0) {
-        console.warn(`⚠️ No AWS subscription found for customer_id ${processFulfillmentData?.data?.customerId}`)
+        console.warn(`⚠️ No AWS subscription found for customer_id ${customerId}`)
       }
+
+      // Process entitlement
+      // const entitlement = await query(
+      //   `SELECT * FROM aws_marketplace_entitlements WHERE customer_id = $1`,
+      //   [customerId]
+      // );
+
+      // if (!entitlement?.rows?.length) {
+      //   throw new CustomError('Entitlement record not found for this customer', 404);
+      // }
+
+      // const entitlementRow = entitlement.rows[0];
+      // let dimension = entitlementRow.dimension;
+      // const planName = dimension.replace(/Tier$/i, '');
+
+      // const plan = await query(
+      //   `
+      //     SELECT id, title, duration
+      //     FROM plans
+      //     WHERE LOWER(title) = LOWER($1) AND duration = 'Monthly' AND active = TRUE
+      //     LIMIT 1;
+      //   `,
+      //   [planName]
+      // );
+
+
+      // if (!plan?.rows?.length) {
+      //   throw new CustomError(`Plan "${planName}" (Monthly) not found in plans table`, 404);
+      // }
+
+      // const selectedPlanId = plan.rows[0].id;
+
+      // if (selectedPlanId) {
+      //   await query(
+      //     `
+      //       UPDATE public.organizations
+      //       SET plan_id = $1,
+      //           plan_start_date = $2, 
+      //           updated_at = CURRENT_TIMESTAMP
+      //       WHERE org_id = $3;
+      //     `,
+      //     [selectedPlanId, entitlementRow.created_at, orgId]
+      //   );
+      // }
+
     }
 
 

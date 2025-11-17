@@ -314,7 +314,12 @@
 
               <!-- For non-superadmin users show org/company name -->
               <template v-else>
-                <span class="engraved-org text-xl">{{ selectedOrgDisplay }}</span>
+                <span class="engraved-org text-xl">{{ selectedOrgDisplay }} </span>
+                <span
+                  v-if="profileStore.userProfile?.plan_name"
+                  class="org-role-tag inline-block"
+                  >{{ profileStore.userProfile?.plan_name }}</span
+                >
               </template>
             </div>
 
