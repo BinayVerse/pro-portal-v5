@@ -101,10 +101,12 @@ export default defineEventHandler(async (event) => {
             const plan = planRes.rows[0];
 
             if (plan && plan.id) {
+              console.log(`nothing to update, plan already set`);
               if (user.plan_id && user.plan_id === plan.id) {
                 finalPlanId = plan.id;
                 finalPlanName = mappedPlanTitle;
               } else {
+                console.log(`plan mismatch, updating plan to ${mappedPlanTitle}`);
                 await query(
                   `
                     UPDATE organizations
@@ -114,6 +116,27 @@ export default defineEventHandler(async (event) => {
                     WHERE org_id = $3
                   `,
                   [plan.id, entitlement.updated_at, user.org_id]
+                );
+
+                await query(
+                  `
+                    INSERT INTO subscription_details (org_id, plan_id, status, metadata)
+                    VALUES ($1, $2, $3, $4)
+                  `,
+                  [
+                    user.org_id,
+                    plan.id,
+                    'active',
+                    JSON.stringify({
+                      orgId: user.org_id,
+                      orgName: user.company,
+                      planId: plan.id,
+                      planName: mappedPlanTitle,
+                      planType: "monthly",
+                      source: "aws",
+                      syncedAt: new Date().toISOString()
+                    })
+                  ]
                 );
 
                 const updatedPlanRes = await query(

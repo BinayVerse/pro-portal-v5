@@ -311,8 +311,9 @@ const emit = defineEmits(['change-plan', 'order-success'])
 const auth = useAuth()
 const authStore = useAuthStore()
 const pricing = usePricingStore()
-const profileStore = useProfileStore()
 const config = useRuntimeConfig()
+const orgStore = useOrganizationStore()
+const profileStore = useProfileStore()
 
 const allDetails = computed(() => payments.billingDetails)
 const siteKey = config.public?.chargebeePublishableKey
@@ -341,7 +342,6 @@ const messageTitle = ref('')
 const messageText = ref('')
 const messageDetails = ref<string | null>(null)
 const messageType = ref<'info' | 'success' | 'error' | 'warning'>('info')
-const orgStore = useOrganizationStore()
 
 function showAlert(
   title: string,
@@ -645,6 +645,7 @@ async function confirmPayment() {
         throw new Error(checkoutResp?.message || 'Checkout failed')
 
       await orgStore.fetchOrgPlan()
+      await profileStore.fetchUserProfile()
 
       // only close modal after success
       showSummary.value = false
