@@ -1,43 +1,59 @@
 // server/api/aws-marketplace.ts
 import { H3Event } from 'h3'
+import { query } from '~/server/utils/db'
 
 export default defineEventHandler(async (event: H3Event) => {
-    // Get query params (GET or after redirect)
-    const query = getQuery(event) || {}
+    const queryParams = getQuery(event) || {}
 
-    // Read body — supports JSON and urlencoded form data
     let body: any = {}
     try {
         body = await readBody(event)
-    } catch (err) {
-        // readBody may throw if empty or unparseable — ignore
+    } catch {
         body = {}
     }
 
-    // Try various token keys AWS might send
     const token =
         body?.['x-amzn-marketplace-token'] ||
         body?.['x_amzn_marketplace_token'] ||
-        body?.['x_amzn_marketplace-token'] ||
-        query?.['x-amzn-marketplace-token'] ||
-        query?.['x_amzn_marketplace_token'] ||
-        query?.['x_amzn_marketplace-token'] ||
+        body?.['x_amzn-marketplace-token'] ||
+        queryParams?.['x-amzn-marketplace-token'] ||
+        queryParams?.['x_amzn_marketplace_token'] ||
+        queryParams?.['x_amzn-marketplace-token'] ||
         null
 
-    // Log for debugging (server logs)
-    // console.log('[aws-marketplace] method=', event.node.req.method, 'query=', query, 'body=', body)
-    // console.log('[aws-marketplace] extracted token=', token)
-
-    // If token present, redirect to /signup with token in query
+    // If token was received
     if (token) {
-        // Important: encode token for safety
         const encoded = encodeURIComponent(String(token))
-        // Use 302 redirect to bring user to signup page with token
+        const decodedToken = decodeURIComponent(encoded)
+
+        const fulfillmentRes = await processFulfillment(decodedToken)
+        const customerId = fulfillmentRes?.data?.customerId || null
+
+        if (customerId) {
+            // Query subscription table to check org status
+            const subscriptionQuery = `
+                SELECT org_id, active
+                FROM public.aws_marketplace_subscriptions
+                WHERE customer_id = $1
+                LIMIT 1
+            `
+            const subscriptionRes = await query(subscriptionQuery, [customerId])
+            const subscription = subscriptionRes?.rows?.[0]
+
+            if (subscription?.org_id && subscription?.active === true) {
+                return sendRedirect(event, `/login`, 302)
+            }
+
+            // Else → redirect to signup with encoded token
+            return sendRedirect(event, `/signup?x-amzn-marketplace-token=${encoded}`, 302)
+        }
+
+        // If no customer ID was returned → treat as new signup
         return sendRedirect(event, `/signup?x-amzn-marketplace-token=${encoded}`, 302)
     }
 
-    // If no token, return a JSON response so AWS (or caller) gets a 200-ish response
+    // Fallback no-token response
     return {
-        message: 'No marketplace token found',
+        message: "No marketplace token found"
     }
 })
