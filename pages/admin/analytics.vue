@@ -1,6 +1,9 @@
 <template>
   <AdminLayout>
     <div class="space-y-6">
+      <!-- Plan Upgrade Alerts -->
+      <PlanUpgradeAlert :threshold-percentage="80" :auto-refresh-interval="60000" />
+
       <!-- Header with Date Range -->
       <div class="flex justify-between items-center">
         <div>
@@ -30,8 +33,14 @@
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-400 text-sm font-medium">Total Queries</p>
-              <p class="text-3xl font-bold text-white mt-2">
-                {{ loadingStates.metrics ? '...' : totalQueriesCount.toLocaleString() }}
+              <p :class="`text-3xl font-bold mt-2 ${queriesTextColor}`">
+                {{
+                  loadingStates.metrics
+                    ? '...'
+                    : planDetails?.limit_requests
+                      ? `${totalQueriesCount.toLocaleString()} / ${planDetails.limit_requests.toLocaleString()}`
+                      : totalQueriesCount.toLocaleString()
+                }}
               </p>
             </div>
             <div v-if="loadingStates.metrics" class="w-12 h-12 flex items-center justify-center">
@@ -39,9 +48,9 @@
             </div>
             <div
               v-else
-              class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center"
+              :class="`w-12 h-12 ${queriesUsageColor} rounded-lg flex items-center justify-center`"
             >
-              <UIcon name="heroicons:chart-bar" class="w-6 h-6 text-blue-400" />
+              <UIcon name="heroicons:chart-bar" :class="`w-6 h-6 ${queriesIconColor}`" />
             </div>
           </div>
         </div>
@@ -52,15 +61,17 @@
             <div>
               <p class="text-gray-400 text-sm font-medium">Total Users</p>
               <p
-                class="text-3xl font-bold text-white mt-2 cursor-pointer"
+                :class="`text-3xl font-bold mt-2 cursor-pointer ${usersTextColor}`"
                 @click="showOrganizationUsers"
               >
                 {{
                   loadingStates.metrics
                     ? '...'
-                    : (
-                        (analyticsStore.organizationDetails as any)?.total_users || 0
-                      ).toLocaleString()
+                    : planDetails?.users
+                      ? `${(
+                          (analyticsStore.organizationDetails as any)?.total_users || 0
+                        ).toLocaleString()} / ${planDetails.users.toLocaleString()}`
+                      : ((analyticsStore.organizationDetails as any)?.total_users || 0).toLocaleString()
                 }}
               </p>
             </div>
@@ -69,9 +80,9 @@
             </div>
             <div
               v-else
-              class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center"
+              :class="`w-12 h-12 ${usersUsageColor} rounded-lg flex items-center justify-center`"
             >
-              <UIcon name="heroicons:users" class="w-6 h-6 text-green-400" />
+              <UIcon name="heroicons:users" :class="`w-6 h-6 ${usersIconColor}`" />
             </div>
           </div>
         </div>
@@ -82,15 +93,17 @@
             <div>
               <p class="text-gray-400 text-sm font-medium">Artefacts Created</p>
               <p
-                class="text-3xl font-bold text-white mt-2 cursor-pointer"
+                :class="`text-3xl font-bold mt-2 cursor-pointer ${artefactsTextColor}`"
                 @click="showOrganizationDocuments"
               >
                 {{
                   loadingStates.metrics
                     ? '...'
-                    : (
-                        (analyticsStore.organizationDetails as any)?.docs_uploaded || 0
-                      ).toLocaleString()
+                    : planDetails?.artefacts
+                      ? `${(
+                          (analyticsStore.organizationDetails as any)?.docs_uploaded || 0
+                        ).toLocaleString()} / ${planDetails.artefacts.toLocaleString()}`
+                      : ((analyticsStore.organizationDetails as any)?.docs_uploaded || 0).toLocaleString()
                 }}
               </p>
             </div>
@@ -99,9 +112,9 @@
             </div>
             <div
               v-else
-              class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center"
+              :class="`w-12 h-12 ${artefactsUsageColor} rounded-lg flex items-center justify-center`"
             >
-              <UIcon name="heroicons:document-text" class="w-6 h-6 text-purple-400" />
+              <UIcon name="heroicons:document-text" :class="`w-6 h-6 ${artefactsIconColor}`" />
             </div>
           </div>
         </div>
@@ -112,10 +125,18 @@
             <div>
               <p class="text-gray-400 text-sm font-medium">Token Usage</p>
               <p
-                class="text-3xl font-bold text-white mt-2 cursor-pointer"
+                :class="`text-3xl font-bold mt-2 cursor-pointer ${tokensTextColor}`"
                 @click="showOrganizationTokenUsage"
               >
-                {{ loadingStates.metrics ? '...' : formatCompactNumber(totalTokens) }}
+                {{
+                  loadingStates.metrics
+                    ? '...'
+                    : planDetails?.metadata?.total_tokens
+                      ? `${formatCompactNumber(totalTokens)} / ${formatCompactNumber(
+                          planDetails.metadata.total_tokens
+                        )}`
+                      : formatCompactNumber(totalTokens)
+                }}
               </p>
             </div>
             <div v-if="loadingStates.metrics" class="w-12 h-12 flex items-center justify-center">
@@ -123,9 +144,9 @@
             </div>
             <div
               v-else
-              class="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center"
+              :class="`w-12 h-12 ${tokensUsageColor} rounded-lg flex items-center justify-center`"
             >
-              <UIcon name="heroicons:bolt" class="w-6 h-6 text-orange-400" />
+              <UIcon name="heroicons:bolt" :class="`w-6 h-6 ${tokensIconColor}`" />
             </div>
           </div>
         </div>
@@ -427,6 +448,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useNotification } from '@/composables/useNotification'
 import { useAnalyticsStore } from '@/stores/analytics'
 import { useAuthStore } from '@/stores/auth'
+import { useProfileStore } from '@/stores/profile'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
@@ -444,6 +466,7 @@ import { getColorsForLabels, orderLabels } from '@/utils/chartColors'
 const { showNotification } = useNotification()
 const analyticsStore = useAnalyticsStore()
 const authStore = useAuthStore()
+const profileStore = useProfileStore()
 const authUser = computed(() => authStore.getAuthUser)
 import { useRoute } from 'vue-router'
 const route = useRoute()
@@ -454,6 +477,102 @@ const organizationId = computed(() => {
   if (authUser.value?.role_id === 0 && qOrg) return String(qOrg)
   return authUser.value?.org_id
 })
+
+// Get plan details from profile
+const planDetails = computed(() => {
+  return profileStore.getUserProfile?.plan_details || null
+})
+
+// Computed properties for metric colors
+const queriesUsageColor = computed(() => {
+  return getUsageColorClass(totalQueriesCount.value, planDetails.value?.limit_requests)
+})
+
+const queriesIconColor = computed(() => {
+  return getUsageIconColorClass(totalQueriesCount.value, planDetails.value?.limit_requests)
+})
+
+const queriesTextColor = computed(() => {
+  return getUsageTextColorClass(totalQueriesCount.value, planDetails.value?.limit_requests)
+})
+
+const usersUsageColor = computed(() => {
+  const currentUsers = (analyticsStore.organizationDetails as any)?.total_users || 0
+  return getUsageColorClass(currentUsers, planDetails.value?.users)
+})
+
+const usersIconColor = computed(() => {
+  const currentUsers = (analyticsStore.organizationDetails as any)?.total_users || 0
+  return getUsageIconColorClass(currentUsers, planDetails.value?.users)
+})
+
+const usersTextColor = computed(() => {
+  const currentUsers = (analyticsStore.organizationDetails as any)?.total_users || 0
+  return getUsageTextColorClass(currentUsers, planDetails.value?.users)
+})
+
+const artefactsUsageColor = computed(() => {
+  const currentArtefacts = (analyticsStore.organizationDetails as any)?.docs_uploaded || 0
+  return getUsageColorClass(currentArtefacts, planDetails.value?.artefacts)
+})
+
+const artefactsIconColor = computed(() => {
+  const currentArtefacts = (analyticsStore.organizationDetails as any)?.docs_uploaded || 0
+  return getUsageIconColorClass(currentArtefacts, planDetails.value?.artefacts)
+})
+
+const artefactsTextColor = computed(() => {
+  const currentArtefacts = (analyticsStore.organizationDetails as any)?.docs_uploaded || 0
+  return getUsageTextColorClass(currentArtefacts, planDetails.value?.artefacts)
+})
+
+const tokensUsageColor = computed(() => {
+  return getUsageColorClass(totalTokens.value, planDetails.value?.metadata?.total_tokens as number | undefined)
+})
+
+const tokensIconColor = computed(() => {
+  return getUsageIconColorClass(totalTokens.value, planDetails.value?.metadata?.total_tokens as number | undefined)
+})
+
+const tokensTextColor = computed(() => {
+  return getUsageTextColorClass(totalTokens.value, planDetails.value?.metadata?.total_tokens as number | undefined)
+})
+
+// Format number in compact form (e.g., 1000 -> 1K)
+const formatCompactNumber = (value: number) => {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`
+  }
+  return value.toLocaleString()
+}
+
+// Helper function to calculate usage percentage and determine color
+const getUsageColorClass = (current: number, limit: number | undefined) => {
+  if (!limit) return 'bg-green-500/20'
+  const percentage = (current / limit) * 100
+  if (percentage >= 100) return 'bg-red-500/20'
+  if (percentage >= 80) return 'bg-orange-500/20'
+  return 'bg-green-500/20'
+}
+
+const getUsageIconColorClass = (current: number, limit: number | undefined) => {
+  if (!limit) return 'text-green-400'
+  const percentage = (current / limit) * 100
+  if (percentage >= 100) return 'text-red-400'
+  if (percentage >= 80) return 'text-orange-400'
+  return 'text-green-400'
+}
+
+const getUsageTextColorClass = (current: number, limit: number | undefined) => {
+  if (!limit) return 'text-white'
+  const percentage = (current / limit) * 100
+  if (percentage >= 100) return 'text-red-400'
+  if (percentage >= 80) return 'text-orange-400'
+  return 'text-white'
+}
 
 const loading = ref(true)
 const selectedTimeRange = ref('7')
@@ -942,11 +1061,23 @@ const exportReport = () => {
   }
 }
 
+// Fetch user profile to get plan details
+const fetchUserProfile = async () => {
+  try {
+    await profileStore.fetchUserProfile()
+  } catch (error) {
+    console.error('Error fetching user profile:', error)
+  }
+}
+
 // Watch for time range changes
 watch(selectedTimeRange, fetchData)
 
 // Lifecycle
-onMounted(fetchData)
+onMounted(async () => {
+  await fetchUserProfile()
+  await fetchData()
+})
 </script>
 
 <style scoped>

@@ -101,8 +101,8 @@ export default defineEventHandler(async (event) => {
             const plan = planRes.rows[0];
 
             if (plan && plan.id) {
-              console.log(`nothing to update, plan already set`);
               if (user.plan_id && user.plan_id === plan.id) {
+                // console.log(`nothing to update, plan already set`);
                 finalPlanId = plan.id;
                 finalPlanName = mappedPlanTitle;
               } else {
@@ -172,6 +172,41 @@ export default defineEventHandler(async (event) => {
     }
 
     /** -----------------------------------
+     * GET FULL PLAN DETAILS
+     * ----------------------------------- **/
+    let planDetails = null;
+
+    if (finalPlanId) {
+      const planDetailsRes = await query(
+        `
+          SELECT 
+            id,
+            title,
+            price_currency,
+            price_amount,
+            duration,
+            users,
+            limit_requests,
+            add_ons_unlimited_requests,
+            add_ons_price,
+            features,
+            trial_period_days,
+            storage_limit_gb,
+            support_level,
+            artefacts,
+            metadata
+          FROM plans 
+          WHERE id = $1 LIMIT 1
+        `,
+        [finalPlanId]
+      );
+
+      if (planDetailsRes.rows.length) {
+        planDetails = planDetailsRes.rows[0];
+      }
+    }
+
+    /** -----------------------------------
      * FINAL RESPONSE
      * ----------------------------------- **/
     return {
@@ -182,6 +217,7 @@ export default defineEventHandler(async (event) => {
         ...user,
         plan_id: finalPlanId,
         plan_name: finalPlanName,
+        plan_details: planDetails,
         isCompanyRegistered: !!user.org_id,
       },
     };

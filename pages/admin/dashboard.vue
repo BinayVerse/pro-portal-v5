@@ -1,6 +1,9 @@
 <!-- pages/admin/dashboard.vue -->
 <template>
   <div class="space-y-6">
+    <!-- Plan Upgrade Alerts -->
+    <PlanUpgradeAlert :threshold-percentage="80" :auto-refresh-interval="60000" />
+
     <!-- Header -->
     <div>
       <h1 class="text-2xl font-bold text-white mb-2">Dashboard Overview</h1>

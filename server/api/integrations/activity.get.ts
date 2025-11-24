@@ -196,12 +196,20 @@ export default defineEventHandler(async (event) => {
     merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
     const finalList = merged.slice(0, 5)
 
+    // Get total request count for usage tracking
+    const requestCountQuery = await query(
+      `SELECT COUNT(*) as total_requests FROM token_cost_calculation WHERE org_id = $1 AND (question_text IS NULL OR question_text NOT ILIKE 'Document summarization:%')`,
+      [orgId]
+    )
+    const totalRequests = parseInt(requestCountQuery.rows[0]?.total_requests || 0)
+
     setResponseStatus(event, 200)
     return {
       statusCode: 200,
       status: 'success',
       data: {
         activities: finalList,
+        request_count: totalRequests,
       },
       message: 'Recent activity fetched successfully'
     }

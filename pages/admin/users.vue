@@ -1,5 +1,8 @@
 <template>
   <div class="space-y-6">
+    <!-- Plan Upgrade Alerts -->
+    <PlanUpgradeAlert :threshold-percentage="80" :auto-refresh-interval="60000" />
+
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>

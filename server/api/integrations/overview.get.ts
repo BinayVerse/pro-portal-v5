@@ -140,6 +140,21 @@ export default defineEventHandler(async (event) => {
 
     const integrationDetails = integrationDetailsQuery.rows[0] || {}
 
+    // Get artefacts count
+    const artefactsQuery = await query(
+      `SELECT COUNT(*) as total_artefacts FROM artefacts WHERE org_id = $1`,
+      [orgId]
+    )
+    const artefactsCount = parseInt(artefactsQuery.rows[0]?.total_artefacts || 0)
+
+    // Get total storage used (in GB)
+    const storageQuery = await query(
+      `SELECT COALESCE(SUM(file_size_bytes), 0) as total_bytes FROM artefacts WHERE org_id = $1`,
+      [orgId]
+    )
+    const totalBytes = parseInt(storageQuery.rows[0]?.total_bytes || 0)
+    const storageUsedGb = totalBytes / (1024 * 1024 * 1024)
+
     // Format response data
     const overview = {
       userCounts: {
@@ -178,7 +193,11 @@ export default defineEventHandler(async (event) => {
           status: integrationDetails.teams_status || 'inactive',
           serviceUrl: integrationDetails.teams_service_url || null
         }
-      }
+      },
+      users_count: parseInt(userCounts.total_users),
+      request_count: parseInt(totalTokenUsage.total_messages),
+      storage_used_gb: Math.round(storageUsedGb * 100) / 100,
+      artefacts_count: artefactsCount
     }
 
     setResponseStatus(event, 200)

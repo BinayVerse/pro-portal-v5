@@ -4,7 +4,7 @@ import { handleError, handleSuccess } from '../../utils/apiHandler'
 
 export const useOrganizationStore = defineStore('organizationStore', () => {
   const currentPlan = ref<any | null>(null)
-  const loading = ref(false)
+  const loading = ref(true)
   const error = ref<string | null>(null)
 
   async function fetchOrgPlan(orgId?: string) {

@@ -144,13 +144,22 @@ export default defineEventHandler(async (event) => {
         GROUP BY d.document_source, d.reference_count
     `;
 
+    const totalQueriesQuery = `
+        SELECT COUNT(*)::int AS total
+        FROM token_cost_calculation
+        WHERE org_id = $1
+        AND question_text IS NOT NULL
+        AND question_text NOT ILIKE 'document summarization:%'
+    `;
+
     try {
         const dbStart = Date.now();
-        const [{ rows: orgRows }, { rows: questionRows }, { rows: topDocumentsRows }] =
+        const [{ rows: orgRows }, { rows: questionRows }, { rows: topDocumentsRows }, { rows: totalQueriesRows }] =
             await Promise.all([
                 query(orgQuery, [org_id]),
                 query(allQuestionsQuery, params),
                 query(topDocumentsQuery, params),
+                query(totalQueriesQuery, [org_id]),
             ]);
         const dbElapsed = Date.now() - dbStart;
         // if (process.dev) console.log(`DB queries completed in ${dbElapsed}ms`);
@@ -160,6 +169,11 @@ export default defineEventHandler(async (event) => {
         const rawQuestions = questionRows.map((q: { question_text: string }) =>
             (q.question_text || '').toString().trim()
         );
+
+        const totalQueries =
+            totalQueriesRows && totalQueriesRows[0]
+                ? Number(totalQueriesRows[0].total || 0)
+                : 0;
 
         // Prepare questions: keep original question text (so representative remains as stored in DB),
         // but filter out entries that cleanText would consider empty (emoji-only etc) and truncate long texts.
@@ -379,6 +393,7 @@ export default defineEventHandler(async (event) => {
             org_name: organizationDetails.org_name,
             docs_uploaded: organizationDetails.docs_uploaded,
             total_users: organizationDetails.total_users,
+            total_queries: totalQueries,
             total_tokens: organizationDetails.total_tokens,
             plan_start_date: organizationDetails.plan_start_date,
             plan: organizationDetails.plan_id

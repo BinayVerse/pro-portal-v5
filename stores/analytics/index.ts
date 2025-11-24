@@ -129,6 +129,11 @@ export const useAnalyticsStore = defineStore('analyticsStore', {
         );
 
         this.organizationDetails = response.data || null;
+
+        // Extract total_queries from the organization details
+        if (response.data?.total_queries !== undefined) {
+          this.totalQueriesCount = Number(response.data.total_queries) || 0;
+        }
       } catch (error) {
         if (await handleAuthErrorShared(error)) return;
         this.handleError(error, 'Failed to fetch organization details');
