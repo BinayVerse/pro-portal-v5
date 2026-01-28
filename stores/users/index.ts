@@ -19,6 +19,10 @@ export const useUsersStore = defineStore('usersStore', {
     roles: [],
     userLoading: false,
     userError: null,
+    departments: [] as any[],
+    departmentsLoading: false,
+    departmentsError: null as string | null,
+    userDepartments: {} as Record<string, string[]>,
   }),
 
   getters: {
@@ -28,6 +32,10 @@ export const useUsersStore = defineStore('usersStore', {
     getUsers: (state) => state.users,
     isUserLoading: (state) => state.userLoading,
     getUserError: (state): string | null => state.userError,
+    getDepartments: (state) => state.departments,
+    isDepartmentsLoading: (state) => state.departmentsLoading,
+    getDepartmentsError: (state): string | null => state.departmentsError,
+    getUserDepartments: (state) => state.userDepartments,
   },
 
   actions: {
@@ -326,6 +334,85 @@ export const useUsersStore = defineStore('usersStore', {
       } finally {
         this.userLoading = false
       }
+    },
+
+    // Department fetching actions
+    async fetchDepartments(orgId?: string | null) {
+      this.departmentsLoading = true
+      this.departmentsError = null
+      try {
+        const token = process.client ? localStorage.getItem('authToken') : null
+        if (!token) {
+          this.departmentsError = 'No auth token available'
+          return
+        }
+
+        const url = orgId
+          ? `/api/organizations/departments?org_id=${encodeURIComponent(String(orgId))}`
+          : '/api/organizations/departments'
+
+        const result = await $fetch<{ data: any[] }>(url, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        this.departments = result?.data || []
+      } catch (err: any) {
+        console.error('Failed to load departments:', err)
+        if (!this.handleAuthError(err)) {
+          this.departmentsError = handleError(err, 'Failed to load departments')
+        }
+        this.departments = []
+      } finally {
+        this.departmentsLoading = false
+      }
+    },
+
+    async fetchUserDepartments(userId: string) {
+      try {
+        const token = process.client ? localStorage.getItem('authToken') : null
+        if (!token) {
+          console.warn('No auth token available for loading user departments')
+          return []
+        }
+
+        const result = await $fetch<{ departments: string[] }>(
+          `/api/users/${userId}/departments`,
+          {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        )
+
+        // Store the raw department IDs (not names) for form binding
+        const deptIds = result?.departments || []
+        this.userDepartments[userId] = deptIds
+        return deptIds
+      } catch (err: any) {
+        console.error(`Failed to load departments for user ${userId}:`, err)
+        this.userDepartments[userId] = []
+        return []
+      }
+    },
+
+    async fetchAllUserDepartments(userIds: string[]) {
+      // Fetch departments for multiple users in parallel
+      await Promise.allSettled(
+        userIds.map(userId => this.fetchUserDepartments(userId))
+      )
+    },
+
+    // Helper to get department names from IDs for display
+    getDepartmentNames(deptIds: string[]): string[] {
+      return deptIds
+        .map((deptId: string) => {
+          const dept = this.departments.find((d: any) => d.dept_id === deptId)
+          return dept?.name || ''
+        })
+        .filter(Boolean)
     },
   },
 })

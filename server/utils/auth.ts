@@ -21,7 +21,7 @@ export function getCurrentUserId(event: H3Event): any {
 }
 
 
-export function getOrgFromToken(event: H3Event): { orgId: string; userId?: string } {
+export function getOrgFromToken(event: H3Event): { orgId: string; userId?: string, email?: string; role?: number; name?: string } {
   const config = useRuntimeConfig()
   const token = event.node.req.headers['authorization']?.split(' ')[1]
 
@@ -33,12 +33,15 @@ export function getOrgFromToken(event: H3Event): { orgId: string; userId?: strin
     const decoded: any = jwt.verify(token, config.jwtToken as string)
     const orgId = decoded?.org_id
     const userId = decoded?.user_id
+    const email = decoded?.email
+    const role = decoded?.role_id
+    const name = decoded?.name
 
     if (!orgId) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid token: org_id missing' })
     }
 
-    return { orgId, userId }
+    return { orgId, userId, email, role, name }
   } catch (err) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized: Invalid token' })
   }

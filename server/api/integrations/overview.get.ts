@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
         COUNT(*) as total_users
       FROM users
       WHERE org_id = $1 AND role_id IS DISTINCT FROM '0'`,
-    [orgId]
+      [orgId]
     )
 
     // Get integration status
@@ -72,7 +72,7 @@ export default defineEventHandler(async (event) => {
     const startOfTodayUtc = dayjs().utc().startOf('day').toISOString()
     const startOfTomorrowUtc = dayjs().utc().add(1, 'day').startOf('day').toISOString()
     const tokenUsageQuery = await query(
-    `SELECT
+      `SELECT
       COUNT(*) as messages_today,
       COALESCE(SUM(total_tokens), 0) as total_tokens_today,
       COALESCE(SUM(total_cost), 0) as total_cost_today
@@ -81,19 +81,19 @@ export default defineEventHandler(async (event) => {
       AND created_at >= $2
       AND created_at < $3
       AND (question_text IS NULL OR question_text NOT ILIKE 'Document summarization:%')`,
-    [orgId, startOfTodayUtc, startOfTomorrowUtc]
+      [orgId, startOfTodayUtc, startOfTomorrowUtc]
     )
 
     // Get total token usage (all time)
     const totalTokenUsageQuery = await query(
-    `SELECT
+      `SELECT
       COUNT(*) as total_messages,
       COALESCE(SUM(total_tokens), 0) as total_tokens_all_time,
       COALESCE(SUM(total_cost), 0) as total_cost_all_time
     FROM token_cost_calculation
     WHERE org_id = $1
       AND (question_text IS NULL OR question_text NOT ILIKE 'Document summarization:%')`,
-    [orgId]
+      [orgId]
     )
 
     // Get integration details
@@ -140,21 +140,6 @@ export default defineEventHandler(async (event) => {
 
     const integrationDetails = integrationDetailsQuery.rows[0] || {}
 
-    // Get artefacts count
-    const artefactsQuery = await query(
-      `SELECT COUNT(*) as total_artefacts FROM artefacts WHERE org_id = $1`,
-      [orgId]
-    )
-    const artefactsCount = parseInt(artefactsQuery.rows[0]?.total_artefacts || 0)
-
-    // Get total storage used (in GB)
-    const storageQuery = await query(
-      `SELECT COALESCE(SUM(file_size_bytes), 0) as total_bytes FROM artefacts WHERE org_id = $1`,
-      [orgId]
-    )
-    const totalBytes = parseInt(storageQuery.rows[0]?.total_bytes || 0)
-    const storageUsedGb = totalBytes / (1024 * 1024 * 1024)
-
     // Format response data
     const overview = {
       userCounts: {
@@ -196,8 +181,6 @@ export default defineEventHandler(async (event) => {
       },
       users_count: parseInt(userCounts.total_users),
       request_count: parseInt(totalTokenUsage.total_messages),
-      storage_used_gb: Math.round(storageUsedGb * 100) / 100,
-      artefacts_count: artefactsCount
     }
 
     setResponseStatus(event, 200)

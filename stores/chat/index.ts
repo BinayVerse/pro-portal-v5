@@ -18,6 +18,21 @@ export const useChatStore = defineStore('chat', () => {
   const selectedCategoryId = ref<string | null>(null)
   const selectedDocumentId = ref<string | null>(null)
 
+  const USAGE_LIMIT_TEXT = 'usage limit for your plan has been reached'
+
+  function isUsageLimitMessage(text?: string) {
+    return typeof text === 'string' &&
+      text.toLowerCase().includes(USAGE_LIMIT_TEXT)
+  }
+
+  function cleanUsageLimitContent(text: string) {
+    return text
+      .replace(/question\s*:\s*.*?\n+/is, '')
+      .replace(/answer\s*:\s*/i, '')
+      .trim()
+  }
+
+
   function formatMessageFromRow(r: any) {
     const msg = r.message || {}
 
@@ -146,6 +161,11 @@ export const useChatStore = defineStore('chat', () => {
             // first user message or first available text
             const first = msg.messages.find((m: any) => m && m.role === 'user') || msg.messages[0]
             header = first && (first.text || first.content || JSON.stringify(first))
+
+            if (isUsageLimitMessage(header)) {
+              header = cleanUsageLimitContent(header)
+            }
+
           } else if (msg && typeof msg === 'object' && msg.user) header = typeof msg.user === 'string' ? msg.user : msg.user.text || ''
           else if (msg && (msg.title || msg.subject)) header = msg.title || msg.subject
           else if (typeof msg === 'string') header = msg
@@ -159,7 +179,13 @@ export const useChatStore = defineStore('chat', () => {
           if (msg && typeof msg === 'object' && Array.isArray(msg.messages) && msg.messages.length) {
             // latest assistant response
             const lastAssistant = [...msg.messages].reverse().find((m: any) => m && m.role === 'assistant')
-            if (lastAssistant) body = extractContent(lastAssistant)
+            if (lastAssistant) {
+              body = extractContent(lastAssistant)
+              if (isUsageLimitMessage(body)) {
+                body = cleanUsageLimitContent(body)
+              }
+            }
+
           } else if (msg && typeof msg === 'object' && msg.assistant) {
             const a = msg.assistant
             if (typeof a === 'string') body = a
@@ -213,8 +239,21 @@ export const useChatStore = defineStore('chat', () => {
               mapped.push({ from: 'user', content: userText })
             } else {
               const metaType = m.meta_type || m.meta?.type || m.metaType || undefined
-              const content = typeof m.response === 'string' ? m.response : m.text || JSON.stringify(m.response || m.answer || m)
-              const botMsg: any = { from: 'bot', content, contentHtml: formatResponseToHtml(content) }
+              let content = typeof m.response === 'string'
+                ? m.response
+                : m.text || JSON.stringify(m.response || m.answer || m)
+
+              if (isUsageLimitMessage(content)) {
+                content = cleanUsageLimitContent(content)
+              }
+
+              const botMsg: any = {
+                from: 'bot',
+                content,
+                contentHtml: isUsageLimitMessage(content)
+                  ? undefined
+                  : formatResponseToHtml(content),
+              }
               if (m.citations && m.citations.length) botMsg.citations = m.citations
               if (m.document_source || m.documentSource) botMsg.citations = [m.document_source || m.documentSource]
               if (metaType) {
@@ -255,7 +294,18 @@ export const useChatStore = defineStore('chat', () => {
             if (assistant.documentSource) citations = [assistant.documentSource]
             if (assistant.data && assistant.data.document_source) citations = [assistant.data.document_source]
 
-            mapped.push({ from: 'bot', content, contentHtml: formatResponseToHtml(content), citations })
+            if (isUsageLimitMessage(content)) {
+              content = cleanUsageLimitContent(content)
+            }
+
+            mapped.push({
+              from: 'bot',
+              content,
+              contentHtml: isUsageLimitMessage(content)
+                ? undefined
+                : formatResponseToHtml(content),
+              citations
+            })
           }
         } else {
           const role = r.role || (r.message && r.message.role) || 'user'
@@ -591,13 +641,39 @@ export const useChatStore = defineStore('chat', () => {
 
       // Present RAG response as a Question / Answer block for clarity
       const userQuestion = String(userText || '').trim()
-      // If server already returned a QA formatted response, use as-is to avoid double-wrapping
-      const serverProvidedQA = typeof content === 'string' && (/^\s*Question\s*:/i.test(content) || /\n\s*Answer\s*:/i.test(content))
-      const qaContent = serverProvidedQA ? content : (userQuestion ? `Question: ${userQuestion}\n\nAnswer:\n${content}` : content)
 
-      const botMessage: any = { from: 'bot', content: qaContent, contentHtml: formatResponseToHtml(qaContent) }
+      let finalContent = content
+      let finalHtml: string | undefined = undefined
+
+      if (isUsageLimitMessage(content)) {
+        finalContent = content
+        finalHtml = undefined
+      } else {
+        const serverProvidedQA =
+          typeof content === 'string' &&
+          (/^\s*Question\s*:/i.test(content) || /\n\s*Answer\s*:/i.test(content))
+
+        finalContent = serverProvidedQA
+          ? content
+          : (userQuestion ? `Question: ${userQuestion}\n\nAnswer:\n${content}` : content)
+
+        finalHtml = formatResponseToHtml(finalContent)
+      }
+
+      const botMessage: any = {
+        from: 'bot',
+        content: finalContent,
+        contentHtml: finalHtml,
+      }
+
       if (docSource) botMessage.citations = [docSource]
       messages.value.push(botMessage)
+
+
+      if (isUsageLimitMessage(finalContent)) {
+        // 🚫 Do NOT persist usage-limit messages
+        return botMessage
+      }
 
       // Persist the interaction so history stores the same QA content
       try { await persistInteraction() } catch (e) { /* ignore */ }
@@ -617,7 +693,7 @@ export const useChatStore = defineStore('chat', () => {
       const orgId = auth.user?.org_id || undefined
       if (!orgId) return
 
-      // ensure categories and artefacts are loaded
+      // ensure categories and artifacts are loaded
       await Promise.all([artefactsStore.fetchCategories(orgId), artefactsStore.fetchArtefacts()])
       const cats = artefactsStore.categories || []
       const artefacts = artefactsStore.artefacts || []

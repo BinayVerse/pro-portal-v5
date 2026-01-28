@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken'
 import { CustomError } from '../../utils/custom.error'
 import { query, getClient } from '../../utils/db'
+import { setResponseStatus } from 'h3'
+import { checkConversationLimitExceeded } from '../../utils/usageLimits'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -47,6 +49,15 @@ export default defineEventHandler(async (event) => {
   if (!user_id) throw new CustomError('user_id is required', 400)
   if (!chat_id) throw new CustomError('chat_id is required', 400)
   if (!message) throw new CustomError('message is required', 400)
+
+  // Check conversation limit if org_id is provided
+  if (org_id) {
+    const conversationLimitCheck = await checkConversationLimitExceeded(org_id)
+    if (conversationLimitCheck.exceeded) {
+      setResponseStatus(event, 403)
+      throw new CustomError(conversationLimitCheck.message, 403)
+    }
+  }
 
   try {
     // If upsert requested and role is 'interaction', try to update existing interaction row
@@ -121,6 +132,7 @@ export default defineEventHandler(async (event) => {
             const params = [JSON.stringify(mergedMessage), JSON.stringify(metadata || {}), existing.id]
             const result = await client.query(updateSql, params)
             await client.query('COMMIT')
+            setResponseStatus(event, 201)
             return { status: 'success', data: result.rows[0] }
           } catch (e) {
             // fallback to overwrite
@@ -129,6 +141,7 @@ export default defineEventHandler(async (event) => {
             const params = [JSON.stringify(mergedMessage), JSON.stringify(metadata || {}), existing.id]
             const result = await client.query(updateSql, params)
             await client.query('COMMIT')
+            setResponseStatus(event, 201)
             return { status: 'success', data: result.rows[0] }
           }
         }
@@ -145,6 +158,7 @@ export default defineEventHandler(async (event) => {
           const params = [user_id, org_id, chat_id, 'interaction', JSON.stringify(message), JSON.stringify(metadata || {})]
           const result = await client.query(insertSql, params)
           await client.query('COMMIT')
+          setResponseStatus(event, 201)
           return { status: 'success', data: result.rows[0] }
         } catch (errInner: any) {
           // Try insert without gen_random_uuid fallback
@@ -157,6 +171,7 @@ export default defineEventHandler(async (event) => {
             const params = [user_id, org_id, chat_id, 'interaction', JSON.stringify(message), JSON.stringify(metadata || {})]
             const result = await client.query(insertSql2, params)
             await client.query('COMMIT')
+            setResponseStatus(event, 201)
             return { status: 'success', data: result.rows[0] }
           }
           await client.query('ROLLBACK')
@@ -182,6 +197,7 @@ export default defineEventHandler(async (event) => {
     const params = [user_id, org_id, chat_id, role, JSON.stringify(message), JSON.stringify(metadata || {})]
 
     const result = await query(insertSql, params)
+    setResponseStatus(event, 201)
     return { status: 'success', data: result.rows[0] }
   } catch (err: any) {
     // If gen_random_uuid() not available, fallback to insert without it
@@ -193,6 +209,7 @@ export default defineEventHandler(async (event) => {
       `
       const params = [user_id, org_id, chat_id, role, JSON.stringify(message), JSON.stringify(metadata || {})]
       const result = await query(insertSql, params)
+      setResponseStatus(event, 201)
       return { status: 'success', data: result.rows[0] }
     }
 

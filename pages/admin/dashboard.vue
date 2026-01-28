@@ -1,102 +1,108 @@
 <!-- pages/admin/dashboard.vue -->
 <template>
   <div class="space-y-6">
-    <!-- Plan Upgrade Alerts -->
-    <PlanUpgradeAlert :threshold-percentage="80" :auto-refresh-interval="60000" />
-
     <!-- Header -->
-    <div>
-      <h1 class="text-2xl font-bold text-white mb-2">Dashboard Overview</h1>
-      <p class="text-gray-400">Manage your artefact chatting platform from here.</p>
+    <div class="space-y-1 sm:space-y-2">
+      <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-white">Dashboard Overview</h1>
+      <p class="text-xs sm:text-sm lg:text-base text-gray-400">
+        Manage your artifact chatting platform from here.
+      </p>
     </div>
 
+    <!-- PLAN UPGRADE ALERT -->
+    <PlanUpgradeAlert :data="usageAlertData" @upgrade="goToPlans" />
+
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-6">
       <!-- Total Users -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Total Users</p>
-            <p class="text-3xl font-bold text-white mt-2">
-              {{ loading ? '...' : stats.totalUsers.toLocaleString() }}
+
+            <p :class="`text-lg font-bold mt-2 ${usersTextColor}`">
+              {{
+                loading
+                  ? '...'
+                  : `${stats.totalUsers} / ${profileStore.getUserProfile?.plan_details && (usersLimit === 0 || usersLimit === -1) ? 'Unlimited' : usersLimit || 0}`
+              }}
             </p>
-            <!-- <p class="text-sm mt-2">
-              <span :class="stats.userGrowth >= 0 ? 'text-green-400' : 'text-red-400'">
-                {{ stats.userGrowth >= 0 ? '+' : '' }}{{ stats.userGrowth }}% from last month
-              </span>
-            </p> -->
           </div>
+
           <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:users" class="w-6 h-6 text-blue-400" />
           </div>
         </div>
-      </UCard>
+      </div>
 
-      <!-- Documents -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <!-- Artifacts -->
+      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-gray-400 text-sm font-medium">Artefacts</p>
-            <p class="text-3xl font-bold text-white mt-2">
-              {{ loading ? '...' : stats.totalArtefacts.toLocaleString() }}
+            <p class="text-gray-400 text-sm font-medium">Artifacts</p>
+
+            <p :class="`text-lg font-bold mt-2 ${artefactsTextColor}`">
+              {{
+                loading
+                  ? '...'
+                  : `${stats.totalArtefacts} / ${profileStore.getUserProfile?.plan_details && (artefactsLimit === 0 || artefactsLimit === -1) ? 'Unlimited' : artefactsLimit || 0}`
+              }}
             </p>
-            <!-- <p class="text-sm mt-2">
-              <span class="text-green-400">+{{ stats.artefactsToday }} today</span>
-            </p> -->
           </div>
+
           <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:document-text" class="w-6 h-6 text-green-400" />
           </div>
         </div>
-      </UCard>
+      </div>
 
       <!-- Conversations -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-gray-400 text-sm font-medium">Conversations</p>
-            <p class="text-3xl font-bold text-white mt-2">
-              {{ loading ? '...' : stats.totalConversations.toLocaleString() }}
+            <p class="text-gray-400 text-sm font-medium">Total Queries</p>
+
+            <p :class="`text-lg font-bold mt-2 ${conversationsTextColor}`">
+              {{
+                loading
+                  ? '...'
+                  : `${stats.totalConversations} / ${profileStore.getUserProfile?.plan_details && (conversationsLimit === 0 || conversationsLimit === -1) ? 'Unlimited' : formatCompactNumber(conversationsLimit || 0)}`
+              }}
             </p>
-            <!-- <p class="text-sm mt-2">
-              <span :class="stats.conversationGrowth >= 0 ? 'text-green-400' : 'text-red-400'">
-                {{ stats.conversationGrowth >= 0 ? '+' : '' }}{{ stats.conversationGrowth }}% from last month
-              </span>
-            </p> -->
           </div>
+
           <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:chat-bubble-left-right" class="w-6 h-6 text-purple-400" />
           </div>
         </div>
-      </UCard>
+      </div>
 
       <!-- Tokens Used -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Tokens Used</p>
-            <p class="text-3xl font-bold text-white mt-2">
-              {{ loading ? '...' : formatCompactNumber(stats.tokensUsed) }}
+
+            <p class="text-lg font-bold mt-2">
+              {{ loading ? '...' : `${formatCompactNumber(stats.tokensUsed)}` }}
             </p>
-            <!-- <p class="text-sm mt-2">
-              <span :class="stats.tokenGrowth >= 0 ? 'text-green-400' : 'text-red-400'">
-                {{ stats.tokenGrowth >= 0 ? '+' : '' }}{{ stats.tokenGrowth }}% from last month
-              </span>
-            </p> -->
           </div>
+
           <div class="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:bolt" class="w-6 h-6 text-orange-400" />
           </div>
         </div>
-      </UCard>
+      </div>
     </div>
 
     <!-- Main Content Grid -->
-    <div class="grid lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4 xl:gap-6">
       <!-- Recent Users -->
       <div class="bg-dark-800 rounded-lg border border-dark-700">
-        <div class="flex items-center justify-between p-6 border-b border-dark-700">
-          <h2 class="text-lg font-semibold text-white">Recent Users</h2>
+        <div
+          class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 border-b border-dark-700 gap-3 sm:gap-0"
+        >
+          <h2 class="text-base sm:text-lg font-semibold text-white">Recent Users</h2>
           <div class="text-sm text-gray-400">Latest user registrations and activity</div>
           <!-- :disabled="disableAddUser" -->
           <!-- :title="
@@ -115,7 +121,7 @@
             Add User
           </button>
         </div>
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
           <div v-if="loading" class="space-y-4">
             <div v-for="i in 4" :key="i" class="flex items-center space-x-3 animate-pulse">
               <div class="w-10 h-10 bg-gray-600 rounded-full"></div>
@@ -153,9 +159,11 @@
 
       <!-- Recent Documents -->
       <div class="bg-dark-800 rounded-lg border border-dark-700">
-        <div class="flex items-center justify-between p-6 border-b border-dark-700">
-          <h2 class="text-lg font-semibold text-white">Recent Artefacts</h2>
-          <div class="text-sm text-gray-400">Latest artefact uploads and processing status</div>
+        <div
+          class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 border-b border-dark-700 gap-3 sm:gap-0"
+        >
+          <h2 class="text-base sm:text-lg font-semibold text-white">Recent Artifacts</h2>
+          <div class="text-sm text-gray-400">Latest artifact uploads and processing status</div>
           <button
             @click="navigateToArtefacts"
             class="text-primary-400 hover:text-primary-300 text-sm font-medium flex items-center gap-1"
@@ -164,7 +172,7 @@
             Upload
           </button>
         </div>
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
           <div v-if="loading" class="space-y-4">
             <div v-for="i in 4" :key="i" class="flex items-center space-x-3 animate-pulse">
               <div class="flex-1">
@@ -198,12 +206,12 @@
 
     <!-- Platform Integrations -->
     <div class="bg-dark-800 rounded-lg border border-dark-700">
-      <div class="flex items-center justify-between p-6 border-b border-dark-700">
-        <h2 class="text-lg font-semibold text-white">Platform Integrations</h2>
-        <div class="text-sm text-gray-400">Manage connections to external platforms</div>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 border-b border-dark-700 gap-2 sm:gap-0">
+        <h2 class="text-base sm:text-lg font-semibold text-white">Platform Integrations</h2>
+        <div class="text-xs sm:text-sm text-gray-400">Manage connections to external platforms</div>
       </div>
-      <div class="p-6">
-        <div class="grid md:grid-cols-3 gap-6">
+      <div class="p-4 sm:p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6">
           <div
             v-for="integration in integrations"
             :key="integration.id"
@@ -228,7 +236,7 @@
               size="xs"
               :icon="integration.isConnected ? 'heroicons:check' : 'heroicons:link'"
             >
-              {{ integration.isConnected ? 'Connected' : 'Connect' }}
+              {{ integration.isConnected ? 'Manage' : 'Manage' }}
             </UButton>
           </div>
         </div>
@@ -240,6 +248,7 @@
 <script setup lang="ts">
 useHead({ title: 'Dashboard - Admin Dashboard - provento.ai' })
 import { handleAuthError as handleAuthErrorShared } from '~/composables/useAuthError'
+import PlanUpgradeAlert from '@/components/ui/PlanUpgradeAlert.vue'
 
 definePageMeta({
   layout: 'admin',
@@ -249,6 +258,11 @@ definePageMeta({
 // Import stores - keep only necessary ones
 import { useAuthStore } from '~/stores'
 import { useDashboardStore } from '~/stores/dashboard'
+import { useProfileStore } from '~/stores/profile'
+
+const profileStore = useProfileStore()
+
+const planDetails = computed(() => profileStore.getUserProfile?.plan_details || {})
 
 const loading = ref(true)
 const authStore = useAuthStore()
@@ -265,7 +279,7 @@ const userColumns = [
 ]
 
 const artefactColumns = [
-  { key: 'fileInfo', label: 'Artefact', sortable: false },
+  { key: 'fileInfo', label: 'Artifact', sortable: false },
   { key: 'status', label: 'Status', sortable: false },
   { key: 'updatedAt', label: 'Updated At', sortable: false },
 ]
@@ -282,6 +296,89 @@ const stats = ref({
   tokenGrowth: 0,
   processedArtefacts: 0,
 })
+
+// ---- PLAN USAGE METRICS ----
+
+// 1. Users usage
+const usersLimit = computed(() => (planDetails.value as any)?.users || 0)
+const usersUsage = computed(() => {
+  const current = stats.value.totalUsers
+  const limit = usersLimit.value
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  return { name: 'Users', current, limit, percentage }
+})
+
+// 2. Artifacts usage
+const artefactsLimit = computed(() => (planDetails.value as any)?.artefacts || 0)
+const artefactsUsage = computed(() => {
+  const current = stats.value.totalArtefacts
+  const limit = artefactsLimit.value
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  return { name: 'Artifacts', current, limit, percentage }
+})
+
+// 3. Conversations usage (Query Limit)
+const conversationsLimit = computed(() => (planDetails.value as any)?.limit_requests || 0)
+const conversationsUsage = computed(() => {
+  const current = stats.value.totalConversations
+  const limit = conversationsLimit.value
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  return { name: 'Total Queries', current, limit, percentage }
+})
+
+// 4. Tokens usage (Token Limit)
+const tokensLimit = computed(() => (planDetails.value as any)?.tokens || 0)
+const tokensUsage = computed(() => {
+  const current = stats.value.tokensUsed
+  const limit = tokensLimit.value
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  return { name: 'Tokens', current, limit, percentage }
+})
+
+const usageMetrics = computed(() => [
+  usersUsage.value,
+  artefactsUsage.value,
+  conversationsUsage.value,
+  tokensUsage.value,
+])
+
+const usageAlertData = computed(() => {
+  const metrics = usageMetrics.value
+  return {
+    metrics,
+    exceededMetrics: metrics.filter((m) => m.percentage >= 100),
+    highMetrics: metrics.filter((m) => m.percentage >= 80 && m.percentage < 100),
+    hasExceeded: metrics.some((m) => m.percentage >= 100),
+    hasHigh: metrics.some((m) => m.percentage >= 80 && m.percentage < 100),
+  }
+})
+
+const goToPlans = () => {
+  navigateTo('/admin/plans')
+}
+
+const getUsageColor = (current: number, limit?: number) => {
+  if (!limit) return 'text-white'
+  const percent = (current / limit) * 100
+  if (percent >= 100) return 'text-red-400'
+  if (percent >= 80) return 'text-orange-400'
+  return 'text-white'
+}
+
+// ---- COLOR CLASSES FOR DASHBOARD CARDS ----
+
+// Users
+const usersTextColor = computed(() => getUsageColor(stats.value.totalUsers, usersLimit.value))
+
+// Artifacts
+const artefactsTextColor = computed(() =>
+  getUsageColor(stats.value.totalArtefacts, artefactsLimit.value),
+)
+
+// Conversations (queries)
+const conversationsTextColor = computed(() =>
+  getUsageColor(stats.value.totalConversations, conversationsLimit.value),
+)
 
 const recentUsers = ref([])
 const recentArtefacts = ref([])
@@ -366,7 +463,7 @@ const fetchDashboardData = async (orgId?: string | null) => {
       updated_at: u.updated_at,
     }))
 
-    // Map recent artefacts
+    // Map recent artifacts
     recentArtefacts.value = dashboardStore.recentArtefacts.map((d: any) => ({
       id: d.id,
       title: d.title,

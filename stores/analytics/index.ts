@@ -105,7 +105,7 @@ export const useAnalyticsStore = defineStore('analyticsStore', {
 
         // Parse the counts to numbers
         this.activeUsersCount = Number(response.meta.active_users_count) || 0;
-        this.totalQueriesCount = Number(response.meta.total_queries_count) || 0;
+        // this.totalQueriesCount = Number(response.meta.total_queries_count) || 0;
 
       } catch (error) {
         if (await handleAuthErrorShared(error)) return;

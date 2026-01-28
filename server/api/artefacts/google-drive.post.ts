@@ -7,6 +7,7 @@ import { processDocument } from '~/server/utils/processDocument'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { Buffer } from 'buffer'
 import { Readable } from 'stream'
+import { getOrgUsageLimits, getOrgUsageStats } from '../../utils/usageLimits'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -77,6 +78,57 @@ export default defineEventHandler(async (event) => {
     }
 
     const categoryId = categoryResult.rows[0].id
+
+    // Calculate total size of files being uploaded and check limits
+    let totalFileSize = 0
+    for (const file of selectedFileDetails) {
+      const fileSize = file.size ? parseInt(file.size.replace(' KB', '')) * 1024 : 0
+      totalFileSize += fileSize
+    }
+
+    // Check document count and storage limits for multiple files
+    const limits = await getOrgUsageLimits(org_id)
+    const stats = await getOrgUsageStats(org_id)
+
+    // console.log(`[google-drive.post.ts] Multiple file upload check for org_id ${org_id}:`)
+    // console.log(`  - Files to upload: ${selectedFileDetails.length}`)
+    // console.log(`  - Total file size: ${(totalFileSize / (1024 * 1024)).toFixed(2)}MB`)
+    // console.log(`  - Current documents: ${stats.totalDocuments}, Limit: ${limits.documents}`)
+    // console.log(`  - Current storage: ${(stats.totalStorageBytes / (1024 * 1024 * 1024)).toFixed(2)}GB, Limit: ${limits.storageGb}GB`)
+
+    // Check if plan is expired/unsubscribed (limits are 0)
+    if (limits.documents === 0 || limits.storageGb === 0) {
+      // console.log(`[google-drive.post.ts] Plan expired/unsubscribed - blocking upload`)
+      setResponseStatus(event, 403)
+      throw new CustomError('Document upload not allowed. Your plan has expired or is not subscribed. Please renew your subscription.', 403)
+    }
+
+    // Check document count limit
+    if (limits.documents !== null && limits.documents > 0) {
+      const wouldBeDocuments = stats.totalDocuments + selectedFileDetails.length
+      if (wouldBeDocuments > limits.documents) {
+        // console.log(`[google-drive.post.ts] Artifact count limit exceeded - would be: ${wouldBeDocuments}, limit: ${limits.documents}`)
+        setResponseStatus(event, 403)
+        throw new CustomError(
+          `The Artifact limit for your plan has been reached. Please contact your Organization Admin to upgrade and continue. This upload would exceed your artifact limit by ${wouldBeDocuments - limits.documents} artifact(s).`,
+          403
+        )
+      }
+    }
+
+    // Check storage limit
+    if (limits.storageGb !== null && limits.storageGb > 0) {
+      const currentStorageGb = stats.totalStorageBytes / (1024 * 1024 * 1024)
+      const totalSizeGb = totalFileSize / (1024 * 1024 * 1024)
+      if (currentStorageGb + totalSizeGb > limits.storageGb) {
+        // console.log(`[google-drive.post.ts] Storage limit exceeded - current: ${currentStorageGb.toFixed(2)}GB, adding: ${totalSizeGb.toFixed(2)}GB, limit: ${limits.storageGb}GB`)
+        setResponseStatus(event, 403)
+        throw new CustomError(
+          `The Artifact storage limit for your plan has been reached. Please contact your Organization Admin to upgrade and continue. This upload would exceed your storage limit by ${(currentStorageGb + totalSizeGb - limits.storageGb).toFixed(2)}GB.`,
+          403
+        )
+      }
+    }
 
     const s3Client = new S3Client({
       region: config.awsRegion,

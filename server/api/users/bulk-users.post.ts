@@ -9,6 +9,7 @@ import {
   sendUserAdditionMail,
   sendWelcomeMail,
 } from '../helper'
+import { checkUserLimitExceeded } from '../../utils/usageLimits'
 
 const config = useRuntimeConfig()
 
@@ -79,6 +80,13 @@ export default defineEventHandler(async (event) => {
     } else {
       setResponseStatus(event, 400)
       throw new CustomError('Expected an array of users or { users: [...] }', 400)
+    }
+
+    // Check user limit before proceeding with bulk upload
+    const userLimitCheck = await checkUserLimitExceeded(orgDetail.org_id, usersArray.length)
+    if (userLimitCheck.exceeded) {
+      setResponseStatus(event, 403)
+      throw new CustomError(userLimitCheck.message, 403)
     }
 
     client = await getClient()

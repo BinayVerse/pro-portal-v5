@@ -211,11 +211,11 @@ export default defineEventHandler(async (event) => {
     const responseText = assistantText || (result?.response || result?.answer || result?.text || result?.data?.response || result?.data?.answer || result?.data?.text || '')
     const documentSource = assistantDocSource || (result?.document_source || result?.documentSource || result?.source || result?.data?.document_source || result?.data?.documentSource || '')
 
-    setResponseStatus(event, 200)
+    setResponseStatus(event, 201)
     return {
       success: true,
       message: 'RAG prediction process completed.',
-      status_code: 200,
+      status_code: 201,
       data: {
         response: responseText,
         document_source: documentSource,

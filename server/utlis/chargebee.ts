@@ -11,34 +11,73 @@ chargebee.configure({
   product_catalog_version: runtimeConfig.chargebeeProductCatalogVersion ?? 'v2',
 })
 
+type SubscriptionStatus = {
+  subscription_id: string | null
+  status: 'active' | 'non_renewing' | 'cancelled' | null
+  auto_renew: boolean
+  current_term_start: string | null
+  current_term_end: string | null
+  next_billing_at: string | null
+  renewal_at: string | null
+  payment_issue?: boolean
+  due_invoices?: number
+  cancel_reason?: string
+}
+
+
 // ***** Create customer with basic information we can add more details like billing address and stuff
 export async function createChargebeeCustomer(orderDetails: any) {
   try {
-    console.log('Creating Chargebee customer with details:', orderDetails)
-    // const [cFirstName, cLastName] = orderDetails.cardHolderName.split(' ')
+    // 1️⃣ Try reuse
+
+    const existing = await chargebee.customer
+      .list({ email: orderDetails.email })
+      .request()
+
+    if (existing.list.length > 0) {
+      const customers = existing.list
+        .map(r => r.customer)
+        .filter(Boolean)
+
+      const exactCustomer = customers.find(
+        c => c.email?.toLowerCase() === orderDetails.email.toLowerCase()
+      )
+
+      if (exactCustomer) {
+        return {
+          status: 'Success',
+          statusCode: 200,
+          customerId: exactCustomer.id,
+        }
+      }
+    }
+
+    // 2️⃣ Create only if not exists
     const res = await chargebee.customer.create({
       email: orderDetails.email,
       first_name: orderDetails.firstName,
-      last_name: orderDetails.lastName,
+      last_name: orderDetails.lastName || '',
       phone: orderDetails.phoneNumber,
       company: orderDetails.orgName,
       billing_address: {
-        first_name: orderDetails.firstName,
-        last_name: orderDetails.lastName,
-        email: orderDetails.email,
-        phone: orderDetails.phoneNumber,
-        line1: orderDetails.address,
+        line1: orderDetails.addressLine1,
+        line2: orderDetails.addressLine2,
         city: orderDetails.city,
         country: orderDetails.countryCode,
         zip: orderDetails.zipcode,
       },
     }).request()
-    return { status: 'Success', statusCode: 200, customerId: res.customer.id }
-  }
-  catch (error: any) {
-    return { status: 'Error', statusCode: error.statusCode, error }
+
+    return {
+      status: 'Success',
+      statusCode: 200,
+      customerId: res.customer.id,
+    }
+  } catch (error: any) {
+    return { status: 'Error', statusCode: 500, error }
   }
 }
+
 
 // **** Card details of customer
 export async function getCustomerCardDetails(chargebeeCustomerId: string) {
@@ -250,16 +289,331 @@ export async function getSubscriptionById(subscriptionId: string) {
 }
 
 // ✅ Cancel
-export async function cancelSubscription(subscriptionId: string, endOfTerm = true) {
+export async function cancelSubscription(subscriptionId: string, endOfTerm: boolean = true) {
   try {
-    const result = await chargebee.subscription.cancel(subscriptionId, { end_of_term: endOfTerm }).request()
-    return { status: 'Success', statusCode: 200, data: result.subscription }
+    const result = await chargebee.subscription
+      .cancel_for_items(subscriptionId, {
+        end_of_term: endOfTerm,
+      } as any)
+      .request()
+
+    return {
+      status: 'Success',
+      statusCode: 200,
+      data: result.subscription,
+    }
   } catch (error: any) {
-    return handleError(error)
+    return {
+      status: 'Error',
+      statusCode: error.http_status_code || 500,
+      error: error.message || 'Chargebee cancellation failed',
+    }
   }
 }
 
-// ✅ Helper
+// Cancel subscription IMMEDIATELY
+export async function cancelSubscriptionImmediately(subscriptionId: string) {
+  try {
+    const result = await chargebee.subscription
+      .cancel_for_items(subscriptionId, {
+        end_of_term: false,
+      } as any)
+      .request()
+
+    return {
+      status: 'Success',
+      statusCode: 200,
+      data: result.subscription,
+    }
+  } catch (error: any) {
+    return {
+      status: 'Error',
+      statusCode: error.http_status_code || 500,
+      error: error.message || 'Chargebee immediate cancellation failed',
+    }
+  }
+}
+
+/**
+ * DAILY Chargebee sync
+ * - Detects renewal (even for legacy rows)
+ * - Expires subscription + addons
+ * - Creates new subscription cycle row
+ * - Resets org limits
+ * - Preserves old metadata and injects chargebee
+ */
+export async function getSubscriptionDetails(orgId: string): Promise<SubscriptionStatus> {
+  /* --------------------------------------------------
+   * 1️⃣ Fetch latest subscription anchor
+   * -------------------------------------------------- */
+  const subRes = await query(
+    `
+      SELECT id, status, metadata, created_at
+      FROM subscription_details
+      WHERE org_id = $1
+        AND subscription_kind = 'subscription'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [orgId]
+  )
+
+  if (!subRes.rows.length)
+    return emptyResult()
+
+  const anchor = subRes.rows[0]
+  const anchorId = anchor.id
+  const anchorCreatedAt = anchor.created_at
+  const metadata = anchor.metadata || {}
+
+  let cb = metadata.chargebee || null
+
+  /* --------------------------------------------------
+   * 2️⃣ Fallback: hydrate subscription_id from org table
+   * -------------------------------------------------- */
+  if (!cb?.subscription_id) {
+    const orgRes = await query(
+      `
+        SELECT chargebee_subscription_id
+        FROM organizations
+        WHERE org_id = $1
+        LIMIT 1
+      `,
+      [orgId]
+    )
+
+    if (!orgRes.rows[0]?.chargebee_subscription_id)
+      return emptyResult()
+
+    cb = {
+      subscription_id: orgRes.rows[0].chargebee_subscription_id,
+      last_synced_at: null,
+    }
+  }
+
+  /* --------------------------------------------------
+   * 3️⃣ Fetch subscription from Chargebee (source of truth)
+   * -------------------------------------------------- */
+  const result = await chargebee.subscription
+    .retrieve(cb.subscription_id)
+    .request()
+
+  const sub = result.subscription
+
+  const cycleStart = sub.current_term_start
+    ? new Date(sub.current_term_start * 1000)
+    : null
+
+  const cycleEnd = sub.current_term_end
+    ? new Date(sub.current_term_end * 1000)
+    : null
+
+  if (!cycleStart)
+    return normalize(cb)
+
+  const cycleStartIso = cycleStart.toISOString()
+  const cycleEndIso = cycleEnd?.toISOString() ?? null
+  const nextBillingAtIso = sub.next_billing_at
+    ? new Date(sub.next_billing_at * 1000).toISOString()
+    : null
+
+  /* --------------------------------------------------
+   * 4️⃣ Determine DB cycle start (legacy-safe)
+   * -------------------------------------------------- */
+  const dbCycleStart = cb?.current_term_start
+    ? new Date(cb.current_term_start)
+    : new Date(anchorCreatedAt)
+
+  /* --------------------------------------------------
+   * 5️⃣ Renewal detection (robust)
+   * -------------------------------------------------- */
+  const isRenewal =
+    dbCycleStart.getTime() !== cycleStart.getTime()
+
+  /* --------------------------------------------------
+   * 6️⃣ Handle renewal
+   * -------------------------------------------------- */
+  if (isRenewal) {
+    console.log(
+      '🔁 Renewal detected',
+      {
+        orgId,
+        at: new Date().toISOString(),
+        db_subscription_start: dbCycleStart.toISOString(),
+        cb_cycle_start: cycleStartIso,
+      }
+    )
+
+    /* 6.1 Expire ALL active subscriptions + addons */
+    await query(
+      `
+        UPDATE subscription_details
+        SET status = 'expired'
+        WHERE org_id = $1
+          AND status = 'active'
+          AND subscription_kind IN ('subscription', 'addon')
+      `,
+      [orgId]
+    )
+
+    /* 6.2 Reset org limits to BASE plan */
+    const planRes = await query(
+      `
+        SELECT p.users, p.limit_requests, p.storage_limit_gb, p.artefacts
+        FROM organizations o
+        JOIN plans p ON p.id = o.plan_id
+        WHERE o.org_id = $1
+        LIMIT 1
+      `,
+      [orgId]
+    )
+
+    if (planRes.rows.length) {
+      const limits = planRes.rows[0]
+
+      await query(
+        `
+          UPDATE organizations
+          SET
+            org_users = $2,
+            org_limit_requests = $3,
+            org_storage_limit_gb = $4,
+            org_artefacts = $5,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE org_id = $1
+        `,
+        [
+          orgId,
+          limits.users ?? null,
+          limits.limit_requests ?? null,
+          limits.storage_limit_gb ?? null,
+          limits.artefacts ?? null,
+        ]
+      )
+    }
+
+    /* 6.3 Insert NEW subscription row (preserve metadata + inject chargebee) */
+    await query(
+      `
+        INSERT INTO subscription_details (
+          org_id,
+          plan_id,
+          status,
+          subscription_kind,
+          metadata
+        )
+        SELECT
+          o.org_id,
+          o.plan_id,
+          'active',
+          'subscription',
+          jsonb_set(
+            COALESCE(sd.metadata, '{}'::jsonb),
+            '{chargebee}',
+            $1::jsonb,
+            true
+          )
+        FROM organizations o
+        LEFT JOIN subscription_details sd
+          ON sd.org_id = o.org_id
+          AND sd.subscription_kind = 'subscription'
+        WHERE o.org_id = $2
+        ORDER BY sd.created_at DESC
+        LIMIT 1
+      `,
+      [
+        JSON.stringify({
+          subscription_id: sub.id,
+          status: sub.status,
+          auto_renew: sub.status === 'active',
+          current_term_start: cycleStartIso,
+          current_term_end: cycleEndIso,
+          next_billing_at: nextBillingAtIso,
+          renewal_at: cycleEndIso,
+          last_synced_at: new Date().toISOString(),
+          source: 'chargebee',
+        }),
+        orgId,
+      ]
+    )
+  }
+
+  /* --------------------------------------------------
+   * 7️⃣ Always sync org plan_start_date
+   * -------------------------------------------------- */
+  await query(
+    `
+      UPDATE organizations
+      SET plan_start_date = $2,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE org_id = $1
+    `,
+    [orgId, cycleStartIso]
+  )
+
+  /* --------------------------------------------------
+   * 8️⃣ Update Chargebee cache on anchor row
+   * -------------------------------------------------- */
+  const updatedCb = {
+    subscription_id: sub.id,
+    status: sub.status,
+    auto_renew: sub.status === 'active',
+    current_term_start: cycleStartIso,
+    current_term_end: cycleEndIso,
+    next_billing_at: nextBillingAtIso,
+    renewal_at: cycleEndIso,
+    last_synced_at: new Date().toISOString(),
+  }
+
+  await query(
+    `
+      UPDATE subscription_details
+      SET metadata = jsonb_set(
+        COALESCE(metadata, '{}'::jsonb),
+        '{chargebee}',
+        $1::jsonb,
+        true
+      )
+      WHERE id = $2
+    `,
+    [JSON.stringify(updatedCb), anchorId]
+  )
+
+  return normalize(updatedCb)
+}
+
+
+/* ---------------- HELPERS ---------------- */
+
+function isSameDay(date: string) {
+  return new Date(date).toDateString() === new Date().toDateString()
+}
+
+function normalize(cb: any): SubscriptionStatus {
+  return {
+    subscription_id: cb?.subscription_id ?? null,
+    status: cb?.status ?? null,
+    auto_renew: cb?.auto_renew ?? false,
+    current_term_start: cb?.current_term_start ?? null,
+    current_term_end: cb?.current_term_end ?? cb?.renewal_at ?? null,
+    next_billing_at: cb?.next_billing_at ?? null,
+    renewal_at: cb?.current_term_end ?? cb?.renewal_at ?? null,
+  }
+}
+
+
+function emptyResult(): SubscriptionStatus {
+  return {
+    subscription_id: null,
+    status: null,
+    auto_renew: false,
+    current_term_start: null,
+    current_term_end: null,
+    next_billing_at: null,
+    renewal_at: null,
+  }
+}
+
 function handleError(error: any) {
   return {
     status: 'Error',

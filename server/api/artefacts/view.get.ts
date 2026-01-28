@@ -1,4 +1,4 @@
-import { defineEventHandler, readBody, setResponseStatus } from 'h3'
+import { defineEventHandler, setResponseStatus, getQuery } from 'h3'
 import { CustomError } from '../../utils/custom.error'
 import { query } from '../../utils/db'
 import jwt from 'jsonwebtoken'
@@ -35,6 +35,13 @@ export default defineEventHandler(async (event) => {
         throw new CustomError('Unauthorized: Invalid token', 401)
     }
 
+    const queryParams = getQuery(event) as Record<string, any>
+    const artefactId = queryParams.artefactId
+    if (!artefactId) {
+        setResponseStatus(event, 400)
+        throw new CustomError('Artifact ID is required', 400)
+    }
+
     // Determine caller org/role and allow superadmin override
     const userQuery = `
         SELECT u.org_id, u.role_id, o.org_name
@@ -52,15 +59,7 @@ export default defineEventHandler(async (event) => {
     const tokenUserOrg = userResult.rows[0].org_id
     const tokenUserRole = userResult.rows[0].role_id
 
-    const body = await readBody<{ artefactId?: number, org_id?: string }>(event)
-    const { artefactId } = body
-    if (!artefactId) {
-        setResponseStatus(event, 400)
-        throw new CustomError('Artefact ID is required', 400)
-    }
-
-    const q = getQuery(event) as Record<string, any>
-    const requestedOrg = q?.org || q?.org_id || body?.org_id || null
+    const requestedOrg = queryParams?.org || queryParams?.org_id || null
     const effectiveOrg = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
     // Fetch org_name for effectiveOrg
@@ -86,6 +85,41 @@ export default defineEventHandler(async (event) => {
         }
 
         const doc = documentResult.rows[0]
+
+        // Check department access for Department Admin (role_id = 3)
+        if (tokenUserRole === 3) {
+            try {
+                // Get user's departments
+                const deptResult = await query(
+                    `SELECT dept_id FROM user_departments WHERE user_id = $1`,
+                    [String(userId)],
+                )
+                const userDeptIds = deptResult.rows.map((row) => row.dept_id)
+
+                // Check if document is in any of user's departments or is unassigned
+                const accessCheck = await query(
+                    `SELECT 1 FROM organization_documents d
+                     WHERE d.id = $1 AND (
+                       NOT EXISTS (
+                         SELECT 1 FROM document_departments dd WHERE dd.document_id = d.id
+                       )
+                       OR EXISTS (
+                         SELECT 1 FROM document_departments dd WHERE dd.document_id = d.id AND dd.dept_id = ANY($2)
+                       )
+                     )`,
+                    [artefactId, userDeptIds],
+                )
+
+                if (accessCheck.rows.length === 0) {
+                    setResponseStatus(event, 403)
+                    throw new CustomError('Forbidden: You do not have access to this document', 403)
+                }
+            } catch (e: any) {
+                if (e instanceof CustomError) throw e
+                console.error('Department access check failed:', e)
+                // Continue if check fails to avoid breaking existing behavior
+            }
+        }
         const fileName = doc.name
         const documentLink = doc.document_link
 

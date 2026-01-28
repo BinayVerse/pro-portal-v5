@@ -12,6 +12,7 @@ import {
 } from '../helper'
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { checkUserLimitExceeded } from '../../utils/usageLimits'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -115,6 +116,13 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // Check user limit for organization
+  const userLimitCheck = await checkUserLimitExceeded(orgDetail.org_id, 1)
+  if (userLimitCheck.exceeded) {
+    setResponseStatus(event, 403)
+    throw new CustomError(userLimitCheck.message, 403)
+  }
+
   // Prepare insert query
   let insertUserQuery = `
     INSERT INTO users (name, email, contact_number, role_id, org_id, added_by)
@@ -134,43 +142,57 @@ export default defineEventHandler(async (event) => {
     values = [name, normalizedEmail, null, contact_number, roleIdNum, orgDetail.org_id, userId]
   }
 
-
-
   try {
     const result = await query(insertUserQuery, values)
     const newUserId = result.rows[0].user_id
 
-    // Email notifications: send welcome email for Admin; for User send invite if channels available
-   if (roleIdNum === 1) {
-     const { resetLink } = await generateResetLink(normalizedEmail, config.public.appUrl, newUserId)
-     await sendWelcomeMail(name, normalizedEmail, password, appLink, resetLink)
-   } else if (roleIdNum === 2) {
-    try {
-      const integ = await query(
-        `SELECT o.qr_code, COALESCE(w.whatsapp_status, false) AS whatsapp_status, COALESCE(s.status, 'inactive') AS slack_status, COALESCE(t.status, 'inactive') AS teams_status
-         FROM organizations o
-         LEFT JOIN meta_app_details w ON o.org_id = w.org_id
-         LEFT JOIN slack_team_mappings s ON o.org_id = s.org_id
-         LEFT JOIN teams_tenant_mappings t ON o.org_id = t.org_id
-         WHERE o.org_id = $1 LIMIT 1`,
-        [orgDetail.org_id]
-      )
-      const row = integ.rows[0] || {}
-      const channels: string[] = []
-      if (row.whatsapp_status) channels.push('whatsapp')
-      if (row.slack_status === 'active' || row.slack_status === 'connected') channels.push('slack')
-      if (row.teams_status === 'active' || row.teams_status === 'connected') channels.push('teams')
-
-      if (channels.length > 0) {
-        await sendUserAdditionMail(name, normalizedEmail, row.qr_code || null, orgDetail.org_id)
-      } else {
-        // No channels available — do not send invite email
-        console.info('No channels connected for org; skipping user addition email for', normalizedEmail)
+    // Handle department assignment for Department Admin (role_id = 3)
+    if (roleIdNum === 3 && userDetails.departments && Array.isArray(userDetails.departments) && userDetails.departments.length > 0) {
+      try {
+        for (const deptId of userDetails.departments) {
+          await query(
+            `INSERT INTO user_departments (user_id, dept_id, org_id)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, dept_id) DO NOTHING`,
+            [String(newUserId), deptId, orgDetail.org_id],
+          )
+        }
+      } catch (e) {
+        console.error('Failed to assign departments to user:', e)
       }
-    } catch (e) {
-      console.error('Failed to determine integrations or send user addition email to user:', normalizedEmail, e?.message || e)
     }
-  }
+
+    // Email notifications: send welcome email for Admin; for User send invite if channels available
+    if (roleIdNum === 1) {
+      const { resetLink } = await generateResetLink(normalizedEmail, config.public.appUrl, newUserId)
+      await sendWelcomeMail(name, normalizedEmail, password, appLink, resetLink)
+    } else if (roleIdNum === 2) {
+      try {
+        const integ = await query(
+          `SELECT o.qr_code, COALESCE(w.whatsapp_status, false) AS whatsapp_status, COALESCE(s.status, 'inactive') AS slack_status, COALESCE(t.status, 'inactive') AS teams_status
+           FROM organizations o
+           LEFT JOIN meta_app_details w ON o.org_id = w.org_id
+           LEFT JOIN slack_team_mappings s ON o.org_id = s.org_id
+           LEFT JOIN teams_tenant_mappings t ON o.org_id = t.org_id
+           WHERE o.org_id = $1 LIMIT 1`,
+          [orgDetail.org_id],
+        )
+        const row = integ.rows[0] || {}
+        const channels: string[] = []
+        if (row.whatsapp_status) channels.push('whatsapp')
+        if (row.slack_status === 'active' || row.slack_status === 'connected') channels.push('slack')
+        if (row.teams_status === 'active' || row.teams_status === 'connected') channels.push('teams')
+
+        if (channels.length > 0) {
+          await sendUserAdditionMail(name, normalizedEmail, row.qr_code || null, orgDetail.org_id)
+        } else {
+          // No channels available — do not send invite email
+          console.info('No channels connected for org; skipping user addition email for', normalizedEmail)
+        }
+      } catch (e) {
+        console.error('Failed to determine integrations or send user addition email to user:', normalizedEmail, e?.message || e)
+      }
+    }
 
     setResponseStatus(event, 201) // User created
     return {

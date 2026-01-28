@@ -32,9 +32,11 @@ export const usePaymentsStore = defineStore('payments', () => {
     couponCode: '',
     isCreditCardIsPresent: false,
     isComplereOrderRunning: false,
-    paidAmount: 1,
+    paidAmount: 0,
     couponDurationType: '',
     gwToken: '',
+    purchaseType: '',
+    quantity: 1,
   })
 
   /**
@@ -201,6 +203,74 @@ export const usePaymentsStore = defineStore('payments', () => {
     }
   }
 
+  /**
+ * 🆓 Activate free plan (NO Braintree, NO Chargebee)
+ */
+  const activateFreePlan = async (payload: {
+    planId: string, metadata?: any, billing?: {
+      firstName?: string
+      lastName?: string
+      email?: string
+      phoneNumber?: string
+      addressLine1?: string
+      addressLine2?: string
+      city?: string
+      region?: string
+      zipcode?: string
+      country?: string
+      taxId?: string
+    }
+  }) => {
+    isLoading.value = true
+    error.value = null
+    try {
+      const res = await $fetch('/api/payments/free', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: payload,
+      })
+
+      return { success: true, data: res }
+    } catch (err: any) {
+      const msg = handleError(err, 'Failed to activate free plan')
+      error.value = msg
+      return { success: false, error: msg }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * ❌ Cancel subscription
+   */
+
+  const cancelSubscription = async () => {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const res = await fetch('/api/payments/cancel', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to cancel subscription')
+      }
+
+      return { success: true, data }
+    } catch (err: any) {
+      const msg = handleError(err, 'Failed to cancel subscription')
+      error.value = msg
+      return { success: false, error: msg }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+
   return {
     isLoading: readonly(isLoading),
     error: readonly(error),
@@ -211,5 +281,7 @@ export const usePaymentsStore = defineStore('payments', () => {
     generateClientToken,
     checkout,
     completeOrder,
+    activateFreePlan,
+    cancelSubscription,
   }
 })

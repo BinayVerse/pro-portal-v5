@@ -8,6 +8,17 @@
     @cancel="cancelUpload"
   />
 
+  <!-- Size Limit Exceeded Modal -->
+  <SizeLimitExceededModal
+    v-model:open="showSizeLimitModal"
+    :file-size="exceededFileSize"
+    :max-file-size="maxFileSizeDisplay"
+    :available-storage="availableStorageDisplay"
+    :used-storage="usedStorageDisplay"
+    :total-storage="totalStorageDisplay"
+    :exceeded-type="exceededType"
+  />
+
   <UModal
     :model-value="isOpen"
     @update:model-value="canCloseModal ? $emit('update:isOpen', $event) : null"
@@ -178,6 +189,28 @@
                 <p class="text-xs text-gray-400 mt-1">
                   {{ state.description?.length || 0 }}/100 characters
                 </p>
+              </UFormGroup>
+
+              <!-- Departments (Optional) -->
+              <UFormGroup label="Departments (Optional)" name="departments">
+                <USelectMenu
+                  v-model="state.departments"
+                  :options="props.availableDepartments"
+                  option-attribute="name"
+                  value-attribute="dept_id"
+                  multiple
+                  searchable
+                  placeholder="Select departments"
+                >
+                  <template #label>
+                    <span v-if="!state.departments.length" class="text-gray-400">
+                      Select departments
+                    </span>
+                    <span v-else>
+                      {{ selectedDepartmentsLabel }}
+                    </span>
+                  </template>
+                </USelectMenu>
               </UFormGroup>
 
               <div class="flex justify-end space-x-3 pt-6 border-t border-dark-600 mt-6">
@@ -474,6 +507,28 @@
                 </div>
               </div>
 
+              <!-- Departments (Optional) -->
+              <UFormGroup label="Departments (Optional)" name="departments">
+                <USelectMenu
+                  v-model="googleDriveState.departments"
+                  :options="props.availableDepartments"
+                  option-attribute="name"
+                  value-attribute="dept_id"
+                  multiple
+                  searchable
+                  placeholder="Select departments"
+                >
+                  <template #label>
+                    <span v-if="!googleDriveState.departments.length" class="text-gray-400">
+                      Select departments
+                    </span>
+                    <span v-else>
+                      {{ selectedGoogleDepartmentsLabel }}
+                    </span>
+                  </template>
+                </USelectMenu>
+              </UFormGroup>
+
               <!-- Bottom Actions -->
               <div class="flex justify-end space-x-3 pt-6 border-t border-dark-600 mt-6">
                 <UButton
@@ -513,14 +568,18 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '#ui/types'
-import { nextTick, onMounted, onUnmounted, withDefaults } from 'vue'
+import { nextTick, onMounted, onUnmounted, withDefaults, ref, computed, reactive, watch } from 'vue'
 import { useArtefactsStore } from '~/stores/artefacts'
 import { useNotification } from '~/composables/useNotification'
+import { useOrganizationStore } from '~/stores/organization'
 import {
   useGoogleDrive,
   type GoogleDriveFile as GoogleOAuthFile,
 } from '~/composables/useGoogleDrive'
 import FileReplacementModal from '~/components/ui/FileReplacementModal.vue'
+import SizeLimitExceededModal from '~/components/ui/SizeLimitExceededModal.vue'
+import { useRoute } from 'vue-router'
+import { useAuthStore } from '~/stores/auth'
 
 interface GoogleDriveFile {
   id: string
@@ -537,20 +596,28 @@ interface Props {
   isOpen: boolean
   availableCategories: string[]
   categoriesLoading?: boolean
+  availableDepartments?: Array<{ dept_id: string; name: string }>
+  departmentsLoading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   categoriesLoading: false,
+  departmentsLoading: false,
+  availableDepartments: () => [],
 })
 
 // Initialize artefacts store
 const artefactsStore = useArtefactsStore()
+
+// Initialize organization store
+const orgStore = useOrganizationStore()
 
 // Initialize notification composable
 const { showError, showWarning, showSuccess } = useNotification()
 
 // Initialize Google Drive OAuth composable
 const googleDrive = useGoogleDrive()
+const exceededType = ref<'file' | 'storage'>('file')
 
 const emit = defineEmits<{
   'update:isOpen': [value: boolean]
@@ -566,6 +633,7 @@ const schema = z.object({
   file: z.any().refine((file) => file !== null, 'File is required'),
   category: z.string().min(1, 'Category is required'),
   description: z.string().max(100, 'Description must be 100 characters or less').optional(),
+  departments: z.array(z.string()).optional().default([]),
 })
 
 type Schema = z.output<typeof schema>
@@ -593,6 +661,7 @@ const tabItems = [
 const googleDriveState = reactive({
   category: '',
   url: '',
+  departments: [] as string[],
 })
 
 // Google Drive computed properties from store
@@ -625,6 +694,7 @@ const state = reactive({
   file: null as File | null,
   category: '',
   description: '',
+  departments: [] as string[],
 })
 
 // File replacement modal state
@@ -635,6 +705,14 @@ const pendingUpload = reactive({
   existingCategory: '', // The category the existing file is currently in
   formData: null as FormData | null,
 })
+
+// Size limit exceeded modal state
+const showSizeLimitModal = ref(false)
+const exceededFileSize = ref('')
+const maxFileSizeDisplay = ref('20 MB')
+const availableStorageDisplay = ref<string | undefined>()
+const usedStorageDisplay = ref<string | undefined>()
+const totalStorageDisplay = ref<string | undefined>()
 
 // Drag and drop state
 const isDragOver = ref(false)
@@ -695,6 +773,27 @@ const categoryOptions = computed(() => {
   }))
 })
 
+// Compute storage limit from plan
+const storageLimitGb = computed(() => {
+  return orgStore.currentPlan?.plan?.storage_limit_gb ?? 0
+})
+
+// Check if user has an active plan
+const hasPlan = computed(() => {
+  return orgStore.currentPlan?.plan !== null && orgStore.currentPlan?.plan !== undefined
+})
+
+// Helper function to format file size
+const formatStorageSize = (gb: number): string => {
+  if (gb === 0 || gb === -1 || gb === null) return 'Unlimited'
+  return `${gb} GB`
+}
+
+// Helper to convert bytes to GB
+const bytesToGb = (bytes: number): number => {
+  return bytes / (1024 * 1024 * 1024)
+}
+
 // Drag and drop handlers
 const handleDragEnter = (e: DragEvent) => {
   if (isAnyOperationInProgress.value) return
@@ -739,10 +838,56 @@ const handleFileSelect = (event: Event) => {
 
 const setFile = (file: File) => {
   try {
-    // Validate file size (20MB limit)
+    // Validate file size (20MB limit per file)
     if (file.size > 20 * 1024 * 1024) {
-      showError('File size must be less than 20MB')
+      exceededFileSize.value = formatFileSize(file.size)
+      maxFileSizeDisplay.value = '20 MB'
+      exceededType.value = 'file'
+
+      const currentStats = artefactsStore.getStats
+
+      usedStorageDisplay.value = formatFileSize(currentStats.totalSizeBytes || 0)
+      totalStorageDisplay.value =
+        hasPlan.value && (storageLimitGb.value === 0 || storageLimitGb.value === -1)
+          ? 'Unlimited'
+          : formatStorageAuto(storageLimitGb.value)
+
+      // ✅ FIX: Correct available storage
+      const usedGB = bytesToGb(currentStats.totalSizeBytes || 0)
+      const availableGB = Math.max(0, storageLimitGb.value - usedGB)
+      availableStorageDisplay.value =
+        hasPlan.value && (storageLimitGb.value === 0 || storageLimitGb.value === -1)
+          ? 'Unlimited'
+          : formatStorageAuto(availableGB)
+
+      showSizeLimitModal.value = true
       return
+    }
+
+    // Check against plan storage limit
+    if (storageLimitGb.value > 0) {
+      const currentStats = artefactsStore.getStats
+      const usedStorageGb = bytesToGb(currentStats.totalSizeBytes || 0)
+      const fileStorageGb = bytesToGb(file.size)
+      const availableGb = storageLimitGb.value - usedStorageGb
+
+      if (fileStorageGb > availableGb) {
+        exceededFileSize.value = formatFileSize(file.size)
+        maxFileSizeDisplay.value = '20 MB'
+        exceededType.value = 'storage'
+        usedStorageDisplay.value = formatFileSize(currentStats.totalSizeBytes || 0)
+        totalStorageDisplay.value =
+          hasPlan.value && (storageLimitGb.value === 0 || storageLimitGb.value === -1)
+            ? 'Unlimited'
+            : formatStorageAuto(storageLimitGb.value)
+        availableStorageDisplay.value =
+          hasPlan.value && (storageLimitGb.value === 0 || storageLimitGb.value === -1)
+            ? 'Unlimited'
+            : formatStorageAuto(Math.max(0, availableGb))
+
+        showSizeLimitModal.value = true
+        return
+      }
     }
 
     // Validate file type
@@ -807,6 +952,30 @@ const formatFileSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
+const formatStorageAuto = (gb: number): string => {
+  // Handle unlimited storage (0 or -1)
+  if (gb === 0 || gb === -1) return 'Unlimited'
+
+  const bytes = gb * 1024 * 1024 * 1024 // Convert GB → Bytes
+
+  if (bytes < 1024) {
+    return `${bytes.toFixed(0)} Bytes`
+  }
+
+  const kb = bytes / 1024
+  if (kb < 1024) {
+    return `${kb.toFixed(2)} KB`
+  }
+
+  const mb = kb / 1024
+  if (mb < 1024) {
+    return `${mb.toFixed(2)} MB`
+  }
+
+  const gbVal = mb / 1024
+  return `${gbVal.toFixed(2)} GB`
+}
+
 // UForm submission handler
 const route = useRoute()
 const authStore = useAuthStore()
@@ -818,6 +987,25 @@ const modalOrgId = computed(() => {
   }
   return authUser.value?.org_id || null
 })
+
+const buildDepartmentsLabel = (selectedIds: string[]) => {
+  if (!selectedIds || !selectedIds.length) return ''
+
+  const selected =
+    props.availableDepartments?.filter((d) => selectedIds.includes(String(d.dept_id))) || []
+
+  const names = selected.map((d) => d.name)
+
+  if (names.length <= 2) return names.join(', ')
+
+  return `${names.slice(0, 2).join(', ')} +${names.length - 2} more`
+}
+
+const selectedDepartmentsLabel = computed(() => buildDepartmentsLabel(state.departments))
+
+const selectedGoogleDepartmentsLabel = computed(() =>
+  buildDepartmentsLabel(googleDriveState.departments),
+)
 
 const onSubmit = async (event: FormSubmitEvent<Schema>) => {
   try {
@@ -863,7 +1051,7 @@ const performUpload = async (formData: FormData, orgId?: string | null) => {
       return
     }
 
-    // Emit the uploaded artefact data
+    // Emit the uploaded artifact data
     emit('fileUploaded', result.data)
 
     // Reset form
@@ -992,7 +1180,7 @@ const uploadFromGoogleDrive = async () => {
       return
     }
 
-    // Create artefact objects from uploaded files
+    // Create artifact objects from uploaded files
     const newArtefacts = result.files.map((file) => ({
       id: Date.now() + Math.random(),
       name: file.name,
@@ -1084,7 +1272,7 @@ const handleGoogleOAuthSignIn = async () => {
         )
 
         if (result.success) {
-          // Create artefact objects from uploaded files
+          // Create artifact objects from uploaded files
           const newArtefacts = result.files.map((file) => ({
             id: Date.now() + Math.random(),
             name: file.name,
@@ -1298,8 +1486,17 @@ onUnmounted(() => {
   performComprehensiveCleanup()
 })
 
-// Cleanup when user navigates away or closes browser
-onMounted(() => {
+// Fetch org plan and cleanup when user navigates away or closes browser
+onMounted(async () => {
+  try {
+    // Fetch organization plan to get storage limits
+    const orgId = modalOrgId.value
+    await orgStore.fetchOrgPlan(orgId)
+  } catch (error) {
+    // Silently handle fetch errors
+    console.error('Failed to fetch org plan:', error)
+  }
+
   const handleBeforeUnload = () => {
     performComprehensiveCleanup()
   }

@@ -55,7 +55,7 @@ export default defineEventHandler(async (event) => {
     const { startDate, endDate, timezone } = getQuery(event);
 
     const orgQuery = `
-    SELECT 
+    SELECT
         o.org_id,
         o.org_name,
         COUNT(DISTINCT d.id) AS docs_uploaded,
@@ -65,6 +65,7 @@ export default defineEventHandler(async (event) => {
             SELECT SUM(t.total_tokens)
             FROM token_cost_calculation t
             WHERE t.org_id = o.org_id
+            AND (o.plan_start_date IS NULL OR t.created_at >= o.plan_start_date)
         ), 0) AS total_tokens,
         p.id AS plan_id,
         p.title AS plan_title,
@@ -73,8 +74,6 @@ export default defineEventHandler(async (event) => {
         p.duration,
         p.users AS plan_users,
         p.limit_requests,
-        p.add_ons_unlimited_requests,
-        p.add_ons_price,
         p.features
     FROM organizations o
         LEFT JOIN users u ON o.org_id = u.org_id AND u.role_id IS DISTINCT FROM '0'
@@ -145,26 +144,28 @@ export default defineEventHandler(async (event) => {
     `;
 
     const totalQueriesQuery = `
-        SELECT COUNT(*)::int AS total
+        SELECT COUNT(DISTINCT id) AS total
         FROM token_cost_calculation
         WHERE org_id = $1
-        AND question_text IS NOT NULL
-        AND question_text NOT ILIKE 'document summarization:%'
+        AND COALESCE(question_text, '') NOT ILIKE 'document summarization:%'
+        AND ($2::timestamp IS NULL OR created_at >= $2::timestamp);
     `;
 
     try {
         const dbStart = Date.now();
-        const [{ rows: orgRows }, { rows: questionRows }, { rows: topDocumentsRows }, { rows: totalQueriesRows }] =
+        const [{ rows: orgRows }, { rows: questionRows }, { rows: topDocumentsRows }] =
             await Promise.all([
                 query(orgQuery, [org_id]),
                 query(allQuestionsQuery, params),
                 query(topDocumentsQuery, params),
-                query(totalQueriesQuery, [org_id]),
             ]);
-        const dbElapsed = Date.now() - dbStart;
-        // if (process.dev) console.log(`DB queries completed in ${dbElapsed}ms`);
 
         const organizationDetails = orgRows[0];
+        const planStartDate = organizationDetails?.plan_start_date || null;
+
+        const { rows: totalQueriesRows } = await query(totalQueriesQuery, [org_id, planStartDate]);
+        const dbElapsed = Date.now() - dbStart;
+        // if (process.dev) console.log(`DB queries completed in ${dbElapsed}ms`);
 
         const rawQuestions = questionRows.map((q: { question_text: string }) =>
             (q.question_text || '').toString().trim()
@@ -408,9 +409,9 @@ export default defineEventHandler(async (event) => {
                         duration: organizationDetails.duration,
                         users: organizationDetails.plan_users,
                         limit_requests: organizationDetails.limit_requests,
-                        add_ons_unlimited_requests:
-                            organizationDetails.add_ons_unlimited_requests,
-                        add_ons_price: organizationDetails.add_ons_price,
+                        // add_ons_unlimited_requests:
+                        //     organizationDetails.add_ons_unlimited_requests,
+                        // add_ons_price: organizationDetails.add_ons_price,
                         features: organizationDetails.features,
                     },
                 ]

@@ -7,6 +7,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { processDocument } from '~/server/utils/processDocument'
 import fs from 'fs'
 import mime from 'mime-types'
+import { checkDocumentLimitExceeded } from '../../utils/usageLimits'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -117,6 +118,16 @@ export default defineEventHandler(async (event) => {
         throw new CustomError(`The file "${uploadedFile.originalFilename}" exceeds 20MB size limit.`, 400)
       }
 
+      // Check document upload limits (count and storage)
+      const documentLimitCheck = await checkDocumentLimitExceeded(org_id, uploadedFile.size)
+      console.log(`[upload.post.ts] documentLimitCheck result for org_id ${org_id}:`, JSON.stringify(documentLimitCheck, null, 2))
+      if (documentLimitCheck.exceeded) {
+        console.log(`[upload.post.ts] Upload blocked - limit exceeded for org_id ${org_id}`)
+        setResponseStatus(event, 403)
+        throw new CustomError(documentLimitCheck.message, 403)
+      }
+      console.log(`[upload.post.ts] Upload allowed - limits not exceeded for org_id ${org_id}`)
+
       const filePath = uploadedFile.filepath
       let fileName = uploadedFile.originalFilename.replace(/\s+/g, '_')
 
@@ -171,9 +182,9 @@ export default defineEventHandler(async (event) => {
         // Update existing file
         const updateResult = await query(
           `UPDATE organization_documents
-        SET document_link = $1, status = $2, summary = $3, is_summarized = $4, updated_at = NOW(), file_category = $5, doc_type = 'document', content_type = $6, file_size = $7, description = $8, updated_by = $9
-        WHERE id = $10
-        RETURNING id`,
+            SET document_link = $1, status = $2, summary = $3, is_summarized = $4, updated_at = NOW(), file_category = $5, doc_type = 'document', content_type = $6, file_size = $7, description = $8, added_by = $9
+            WHERE id = $10
+            RETURNING id`,
           [publicUrl, 'processing', null, false, categoryId, fileMimeType, parseInt(uploadedFile.size.toString(), 10), description || null, userId, existingFile.id]
         )
         documentId = updateResult.rows[0].id
@@ -181,8 +192,8 @@ export default defineEventHandler(async (event) => {
         // Insert new file
         const insertFileResult = await query(
           `INSERT INTO organization_documents (org_id, doc_type, document_link, status, file_category, name, content_type, file_size, summary, is_summarized, description, added_by)
-        VALUES ($1, 'document', $2, 'processing', $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING id`,
+            VALUES ($1, 'document', $2, 'processing', $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING id`,
           [
             org_id,
             publicUrl,
@@ -208,7 +219,7 @@ export default defineEventHandler(async (event) => {
       return {
         statusCode: 201,
         status: 'success',
-        message: existingFile ? 'Artefact updated successfully' : 'Artefact uploaded successfully',
+        message: existingFile ? 'Artifact updated successfully' : 'Artifact uploaded successfully',
         data: {
           id: documentId,
           name: fileName,

@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
 
   const artefactId = getRouterParam(event, 'id')
   if (!artefactId) {
-    throw new CustomError('Artefact ID is required', 400)
+    throw new CustomError('Artifact ID is required', 400)
   }
 
   try {
@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
     if (!orgRow?.rows?.length) throw new CustomError('Organization not found', 404)
     const org_name = orgRow.rows[0].org_name
 
-    // Check if the artefact exists and belongs to user's org (or requested org for superadmin)
+    // Check if the artifact exists and belongs to user's org (or requested org for superadmin)
     const artefactResult = await query(
       `SELECT id, name, doc_type, document_link, status
        FROM organization_documents
@@ -62,17 +62,17 @@ export default defineEventHandler(async (event) => {
     )
 
     if (artefactResult.rows.length === 0) {
-      throw new CustomError('Artefact not found or access denied', 404)
+      throw new CustomError('Artifact not found or access denied', 404)
     }
 
     const artefact = artefactResult.rows[0]
 
-    // Check if artefact can be reprocessed (has a document link)
+    // Check if artifact can be reprocessed (has a document link)
     if (!artefact.document_link) {
-      throw new CustomError('Artefact cannot be reprocessed - no document link found', 400)
+      throw new CustomError('Artifact cannot be reprocessed - no document link found', 400)
     }
 
-    // Update artefact status to "processing" and clear summary data
+    // Update artifact status to "processing" and clear summary data
     await query(
       `UPDATE organization_documents
        SET status = 'processing', summary = NULL, is_summarized = FALSE, updated_at = NOW()
@@ -95,7 +95,7 @@ export default defineEventHandler(async (event) => {
     return {
       statusCode: 200,
       status: 'success',
-      message: 'Artefact re-processing started successfully',
+      message: 'Artifact re-processing started successfully',
       data: {
         id: artefact.id,
         name: artefact.name,
@@ -112,12 +112,12 @@ export default defineEventHandler(async (event) => {
         message: err.message,
       }
     }
-    
+
     setResponseStatus(event, 500)
     return {
       statusCode: 500,
       status: 'error',
-      message: 'Failed to reprocess artefact',
+      message: 'Failed to reprocess artifact',
     }
   }
 })

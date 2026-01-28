@@ -26,6 +26,7 @@ const PrivateSchema = z.object({
   NUXT_AWS_ACCESS_KEY_ID: z.string(),
   NUXT_AWS_SECRET_ACCESS_KEY: z.string(),
   NUXT_AWS_BUCKET_NAME: z.string(),
+  NUXT_FEATURES_AWS_BUCKET_NAME: z.string(),
   NUXT_AWS_FOLDER_NAME: z.string(),
   NUXT_DB_HOST: z.string(),
   NUXT_DB_PORT: z.string(),

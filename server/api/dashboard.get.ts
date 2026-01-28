@@ -54,7 +54,7 @@ export default defineEventHandler(async (event) => {
       [orgId],
     )
 
-    // Recent artefacts: latest updated_at desc, limit 5
+    // Recent artifacts: latest updated_at desc, limit 5
     const artefactsQ = await query(
       `SELECT d.id, d.name, d.file_size, d.status, d.updated_at, d.file_category, d.description, d.is_summarized, d.summary, d.document_link,
         COALESCE(c.name, 'Uncategorized') AS category_name, COALESCE(u.name, 'Unknown User') AS uploaded_by_name
@@ -107,13 +107,32 @@ export default defineEventHandler(async (event) => {
       [orgId],
     )
 
-    // Conversations count: total number of queries/rows in token_cost_calculation for this org
-    // Exclude automated/document summarization entries
-    const conversationsQ = await query(
-      `SELECT COUNT(DISTINCT id) AS total_conversations
-      FROM token_cost_calculation WHERE org_id = $1 AND (question_text IS NULL OR question_text NOT ILIKE 'Document summarization:%')`,
+    // Get organization plan info
+    const planInfoQ = await query(
+      `SELECT plan_id, plan_start_date FROM organizations WHERE org_id = $1`,
       [orgId],
     )
+    const planInfo = planInfoQ.rows[0] || { plan_id: null, plan_start_date: null }
+
+    // Conversations count: total number of queries/rows in token_cost_calculation for this org
+    // Only count from plan_start_date onwards if an active plan exists
+    // Exclude automated/document summarization entries
+    let conversationsQ
+    if (planInfo.plan_id && planInfo.plan_start_date) {
+      conversationsQ = await query(
+        `SELECT COUNT(DISTINCT id) AS total_conversations
+          FROM token_cost_calculation
+          WHERE org_id = $1
+          AND created_at >= $2
+          AND COALESCE(question_text, '') NOT ILIKE 'document summarization:%'`,
+        [orgId, planInfo.plan_start_date],
+      )
+    } else {
+      conversationsQ = await query(
+        `SELECT 0 AS total_conversations`,
+        [],
+      )
+    }
 
     // Format users
     const recentUsers = (recentUsersQ.rows || []).map((u: any) => ({

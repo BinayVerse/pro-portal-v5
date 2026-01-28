@@ -1,4 +1,4 @@
-import { defineEventHandler, readBody, setResponseStatus } from 'h3'
+import { defineEventHandler, setResponseStatus, getQuery } from 'h3'
 import { CustomError } from '../../utils/custom.error'
 import { query } from '../../utils/db'
 import jwt from 'jsonwebtoken'
@@ -27,13 +27,12 @@ export default defineEventHandler(async (event) => {
     throw new CustomError('Unauthorized: Invalid token', 401)
   }
 
-  const { artefactId, artefactName } = await readBody<{ 
-    artefactId?: number
-    artefactName?: string 
-  }>(event)
+  const queryParams = getQuery(event) as Record<string, any>
+  const artefactId = queryParams.artefactId
+  const artefactName = queryParams.artefactName
 
   if (!artefactId && !artefactName) {
-    throw new CustomError('Artefact ID or name is required', 400)
+    throw new CustomError('Artifact ID or name is required', 400)
   }
 
   try {
@@ -52,10 +51,7 @@ export default defineEventHandler(async (event) => {
     const tokenUserOrg = userResult.rows[0].org_id
     const tokenUserRole = userResult.rows[0].role_id
 
-    const body = await readBody<{ artefactId?: number; artefactName?: string; org_id?: string }>(event)
-
-    const q = getQuery(event) as Record<string, any>
-    const requestedOrg = q?.org || q?.org_id || body?.org_id || null
+    const requestedOrg = queryParams?.org || queryParams?.org_id || null
     const org_id = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
     // Fetch org_name for effective org
@@ -71,26 +67,26 @@ export default defineEventHandler(async (event) => {
 
     // Find the document by ID or name
     let checkDocQuery = ''
-    let queryParams: any[] = []
+    let queryParamsArr: any[] = []
 
     if (artefactId) {
       checkDocQuery = `
         SELECT id, name, document_link, status FROM organization_documents 
         WHERE org_id = $1 AND id = $2;
       `
-      queryParams = [org_id, artefactId]
+      queryParamsArr = [org_id, artefactId]
     } else {
       checkDocQuery = `
         SELECT id, name, document_link, status FROM organization_documents 
         WHERE org_id = $1 AND name = $2;
       `
-      queryParams = [org_id, artefactName]
+      queryParamsArr = [org_id, artefactName]
     }
 
-    const docResult = await query(checkDocQuery, queryParams)
+    const docResult = await query(checkDocQuery, queryParamsArr)
 
     if (!docResult.rows.length) {
-      throw new CustomError('Artefact not found in database', 404)
+      throw new CustomError('Artifact not found in database', 404)
     }
 
     const documentId = docResult.rows[0].id
@@ -146,7 +142,7 @@ export default defineEventHandler(async (event) => {
     return {
       statusCode: 200,
       status: 'success',
-      message: 'Artefact deleted successfully',
+      message: 'Artifact deleted successfully',
       data: {
         id: documentId,
         name: documentName
@@ -161,12 +157,12 @@ export default defineEventHandler(async (event) => {
         message: err.message,
       }
     }
-    
+
     setResponseStatus(event, 500)
     return {
       statusCode: 500,
       status: 'error',
-      message: 'Failed to delete artefact',
+      message: 'Failed to delete artifact',
     }
   }
 })

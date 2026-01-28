@@ -4,7 +4,15 @@
       <!-- Header with Date Range -->
       <div class="flex justify-between items-center">
         <div class="flex items-center space-x-4">
-          <UButton to="/admin/superadmin" variant="ghost" color="gray" icon="heroicons:arrow-left" class="!px-2 !py-1" title="Back to Dashboard" aria-label="Back to Dashboard" />
+          <UButton
+            to="/admin/superadmin"
+            variant="ghost"
+            color="gray"
+            icon="heroicons:arrow-left"
+            class="!px-2 !py-1"
+            title="Back to Dashboard"
+            aria-label="Back to Dashboard"
+          />
           <div>
             <h1 class="text-2xl font-bold text-white">Analytics of {{ orgName }}</h1>
             <p class="text-gray-400">Organizations comprehensive usage report</p>
@@ -83,7 +91,7 @@
         <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-400 text-sm font-medium">Artefacts Created</p>
+              <p class="text-gray-400 text-sm font-medium">Artifacts Created</p>
               <p
                 class="text-3xl font-bold text-white mt-2 cursor-pointer"
                 @click="showOrganizationDocuments"
@@ -741,7 +749,6 @@ const frequentQuestions = computed(() => {
   const orgDetails = analyticsStore.organizationDetails as any
   const questions = orgDetails?.questions || []
 
-
   return questions
     .map((q: any, index: number) => ({
       id: index + 1,
@@ -870,7 +877,7 @@ const exportReport = () => {
     // Organization Summary
     rows.push(['--- Organization Summary ---'])
     rows.push(['Active Users', String(orgDetails?.total_users || 0)])
-    rows.push(['Artefacts Created', String(orgDetails?.docs_uploaded || 0)])
+    rows.push(['Artifacts Created', String(orgDetails?.docs_uploaded || 0)])
     rows.push(['Total Tokens', String(totalTokens.value || 0)])
     rows.push(['Total Queries', String(totalQueriesCount.value || 0)])
 

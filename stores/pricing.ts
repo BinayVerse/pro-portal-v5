@@ -7,19 +7,28 @@ export interface PricingPlan {
   price: number | string
   currency: string
   interval: 'month' | 'year'
-  period?: string
-  cta?: string
+  plan_type: 'subscription' | 'addon'
+  users: number
+  limit_requests: number
+  storage_limit_gb: number | null
+  artefacts: number
+  support_level: string | null
+  contact_sales: boolean
+  display_order: number
   features: string[]
   popular: boolean
   createdAt: string
   product_family?: string | null
+  is_free?: boolean
+  metadata?: any
 }
+
 
 import { handleError } from '../utils/apiHandler'
 
 export const usePricingStore = defineStore('pricing', () => {
   const plans = ref<PricingPlan[]>([])
-  const isLoading = ref(false)
+  const isLoading = ref(true)
   const error = ref<string | null>(null)
 
   const fetchPlans = async (family?: string) => {
@@ -63,13 +72,21 @@ export const usePricingStore = defineStore('pricing', () => {
             price,
             currency: p.currency || 'USD',
             interval,
-            period,
-            cta,
-            features: Array.isArray(p.features) ? p.features : (p._raw?.features || []),
+            plan_type: p.plan_type,
+            users: p.users ?? 0,
+            limit_requests: p.limit_requests ?? 0,
+            storage_limit_gb: p.storage_limit_gb ?? null,
+            artefacts: p.artefacts ?? 0,
+            support_level: p.support_level ?? null,
+            contact_sales: !!p.contact_sales,
+            display_order: p.display_order ?? 0,
+
+            features: Array.isArray(p.features) ? p.features : [],
             popular: !!p.popular || !!p.recommended,
-            createdAt: p.createdAt || (p._raw?.created_at) || new Date().toISOString(),
+            createdAt: p.createdAt || new Date().toISOString(),
             product_family: p.product_family || null,
-            _raw: p._raw || p,
+            is_free: p.is_free,
+            metadata: p.metadata || {},
           }
         })
         return { success: true }

@@ -1,4 +1,4 @@
-import { defineEventHandler, getRouterParam, setResponseStatus } from 'h3'
+import { defineEventHandler, getRouterParam, setResponseStatus, getQuery } from 'h3'
 import { CustomError } from '../../../utils/custom.error'
 import { query } from '../../../utils/db'
 import jwt from 'jsonwebtoken'
@@ -44,22 +44,9 @@ export default defineEventHandler(async (event) => {
         const tokenUserOrg = userResult.rows[0].org_id
         const tokenUserRole = userResult.rows[0].role_id
 
-        // Allow org override via query param, body.org_id, or Referer URL (fallback)
+        // Allow org override via query param (for superadmin)
         const q = getQuery(event) as Record<string, any>
-        let requestedOrg = q?.org || q?.org_id || null
-        const body = await readBody(event)
-        if (!requestedOrg) requestedOrg = body?.org_id || null
-        if (!requestedOrg) {
-          const referer = (event.node.req.headers['referer'] || event.node.req.headers['referrer'] || null) as string | null
-          if (referer) {
-            try {
-              const refUrl = new URL(String(referer))
-              requestedOrg = refUrl.searchParams.get('org') || refUrl.searchParams.get('org_id') || requestedOrg
-            } catch (e) {
-              // ignore invalid referer
-            }
-          }
-        }
+        const requestedOrg = q?.org || q?.org_id || null
 
         // Only allow superadmin to override org
         const effectiveOrg = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg

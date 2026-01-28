@@ -78,9 +78,9 @@ const companySizeOptions = [
 ]
 
 const useCaseOptions = [
-  { value: 'legal', label: 'Legal artefact analysis' },
+  { value: 'legal', label: 'Legal artifact analysis' },
   { value: 'hr', label: 'HR documentation' },
-  { value: 'finance', label: 'Financial artefacts' },
+  { value: 'finance', label: 'Financial artifacts' },
   { value: 'research', label: 'Research and analysis' },
   { value: 'customer-support', label: 'Customer support' },
   { value: 'other', label: 'Other' },
@@ -88,7 +88,7 @@ const useCaseOptions = [
 
 const demoExpectations = [
   'Personalized demo based on your use case',
-  'Live artefact upload and questioning',
+  'Live artifact upload and questioning',
   'Integration walkthrough',
   'Pricing and plan discussion',
   'Next steps and trial setup',
@@ -233,7 +233,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             <span class="text-primary-400">Demo</span>
           </h1>
           <p class="text-xl text-gray-300">
-            See provento.ai in action and discover how it can transform your artefact workflow
+            See provento.ai in action and discover how it can transform your artifact workflow
           </p>
         </div>
 
@@ -398,7 +398,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                 </div>
                 <div class="flex items-center">
                   <UIcon name="i-heroicons-document-text" class="w-5 h-5 text-primary-400 mr-3" />
-                  <span class="text-gray-300">Custom artefact demo</span>
+                  <span class="text-gray-300">Custom artifact demo</span>
                 </div>
                 <div class="flex items-center">
                   <UIcon

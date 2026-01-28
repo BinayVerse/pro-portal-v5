@@ -1,17 +1,19 @@
 <template>
   <div class="space-y-6">
-    <!-- Plan Upgrade Alerts -->
-    <PlanUpgradeAlert :threshold-percentage="80" :auto-refresh-interval="60000" />
-
     <!-- Header -->
-    <ArtefactsHeader @upload="showUploadModal = true" />
+    <ArtefactsHeader @upload="showUploadModal = true" :disabled="disableUpload" />
+
+    <!-- Plan Usage Alerts -->
+    <PlanUpgradeAlert :data="usageAlertData" @upgrade="goToPlans" />
 
     <!-- Stats Cards -->
     <ArtefactsStats
       :total-artefacts="totalArtefacts"
+      :artefacts-limit="(planDetails as any)?.artefacts"
       :processed-artefacts="processedArtefacts"
       :total-categories="totalCategories"
-      :total-size="totalSize"
+      :total-size="totalSizeGB"
+      :storage-limit="(planDetails as any)?.storage_limit_gb"
       :loading="isLoadingStats"
     />
 
@@ -22,10 +24,12 @@
       v-model:selected-type="selectedType"
       v-model:selected-status="selectedStatus"
       :available-categories="availableCategories"
+      v-model:selected-department="selectedDepartment"
+      :department-options="departmentFilterOptions"
       :categories-loading="categoriesLoading"
     />
 
-    <!-- Artefacts Table -->
+    <!-- Artifacts Table -->
     <ArtefactsTable
       :artefacts="filteredArtefacts"
       :summarizing-docs="artefactsStore.getSummarizingDocs"
@@ -43,6 +47,8 @@
         v-model:is-open="showUploadModal"
         :available-categories="availableCategories"
         :categories-loading="categoriesLoading"
+        :available-departments="departmentsList"
+        :departments-loading="departmentsLoading"
         @close="showUploadModal = false"
         @file-uploaded="handleFileUploaded"
         @google-drive-uploaded="handleGoogleDriveUploaded"
@@ -80,13 +86,13 @@
       @cancel="cancelDeleteCategory"
     />
 
-    <!-- Confirm Delete Artefact Popup -->
+    <!-- Confirm Delete Artifact Popup -->
     <ConfirmPopup
       v-model:is-open="showConfirmDeleteArtefact"
-      title="Delete Artefact"
+      title="Delete Artifact"
       :message="`Are you sure you want to delete '${artefactToDelete?.name}'?`"
       details="This action cannot be undone. The artefact will be permanently removed from your storage and vector database."
-      confirm-text="Delete Artefact"
+      confirm-text="Delete Artifact"
       cancel-text="Cancel"
       type="danger"
       :loading="isDeletingArtefact"
@@ -94,13 +100,13 @@
       @cancel="cancelDeleteArtefact"
     />
 
-    <!-- Confirm Reprocess Artefact Popup -->
+    <!-- Confirm Reprocess Artifact Popup -->
     <ConfirmPopup
       v-model:is-open="showConfirmReprocessArtefact"
-      title="Reprocess Artefact"
+      title="Reprocess Artifact"
       :message="`Are you sure you want to reprocess '${artefactToReprocess?.name}'?`"
       details="This will regenerate the summary and analysis using the latest AI models. The current summary will be replaced."
-      confirm-text="Reprocess Artefact"
+      confirm-text="Reprocess Artifact"
       cancel-text="Cancel"
       type="info"
       :loading="isReprocessingArtefact"
@@ -108,7 +114,7 @@
       @cancel="cancelReprocessArtefact"
     />
 
-    <!-- Confirm Summarize Artefact Popup -->
+    <!-- Confirm Summarize Artifact Popup -->
     <ConfirmPopup
       v-model:is-open="showConfirmSummarizeArtefact"
       title="Summarize Document"
@@ -143,14 +149,29 @@ import ArtefactUploadModal from '~/components/admin/artefacts/ArtefactUploadModa
 import ArtefactSummaryModal from '~/components/admin/artefacts/ArtefactSummaryModal.vue'
 import ArtefactViewModal from '~/components/admin/artefacts/ArtefactViewModal.vue'
 import ConfirmPopup from '~/components/ui/ConfirmPopup.vue'
+import PlanUpgradeAlert from '~/components/ui/PlanUpgradeAlert.vue'
 
 // Import stores
 import { useAuthStore } from '~/stores/auth'
 import { useArtefactsStore } from '~/stores/artefacts'
+import { useProfileStore } from '~/stores/profile'
+const profileStore = useProfileStore()
+
+const planDetails = computed(() => profileStore.getUserProfile?.plan_details || null)
+
+// Compute safe limits from plan details
+const safePlanLimits = computed(() => {
+  if (!planDetails.value) return { artefacts: undefined, storage_limit_gb: undefined }
+  return {
+    artefacts: planDetails.value.artefacts,
+    storage_limit_gb: planDetails.value.storage_limit_gb,
+  }
+})
 
 // Reactive data
 const searchQuery = ref('')
 const selectedCategory = ref('')
+const selectedDepartment = ref('')
 const selectedType = ref('')
 const selectedStatus = ref('')
 const showUploadModal = ref(false)
@@ -158,11 +179,17 @@ const showSummaryModal = ref(false)
 const selectedArtefact = ref(null)
 const showViewModal = ref(false)
 const selectedViewArtefact = ref(null)
+const departmentsList = ref<any[]>([])
+const departmentsLoading = ref(false)
 
 // Confirm popup state
 const showConfirmPopup = ref(false)
 const categoryToDelete = ref('')
 const isDeletingCategory = ref(false)
+
+const disableUpload = computed(() => {
+  return usageAlertData.value.hasExceeded === true
+})
 
 // Initialize stores
 const authStore = useAuthStore()
@@ -206,6 +233,14 @@ const categoriesLoading = computed(() => {
 })
 const categoriesError = computed(() => artefactsStore.getCategoryError)
 
+const departmentFilterOptions = computed(() => [
+  { label: 'All Departments', value: '' },
+  ...departmentsList.value.map((d) => ({
+    label: d.name,
+    value: String(d.dept_id),
+  })),
+])
+
 // Computed properties for artefacts and stats from store
 const artefacts = computed(() => artefactsStore.getArtefacts)
 const stats = computed(() => artefactsStore.getStats)
@@ -222,21 +257,66 @@ const isLoadingStats = computed(() => {
 const totalArtefacts = computed(() => stats.value?.totalArtefacts || 0)
 const processedArtefacts = computed(() => stats.value?.processedArtefacts || 0)
 const totalCategories = computed(() => stats.value?.totalCategories || 0)
+const totalSizeGB = computed(
+  () => formatGB(bytesToGB(parseSizeToBytes(stats.value?.totalSize))) || '0 GB',
+)
 const totalSize = computed(() => stats.value?.totalSize || '0 Bytes')
+
+// ----------------------
+// Size helpers
+// ----------------------
+const parseSizeToBytes = (sizeStr: string): number => {
+  if (!sizeStr || typeof sizeStr !== 'string') return 0
+
+  const units: Record<string, number> = {
+    bytes: 1,
+    b: 1,
+    kb: 1024,
+    mb: 1024 ** 2,
+    gb: 1024 ** 3,
+    tb: 1024 ** 4,
+  }
+
+  const match = sizeStr
+    .trim()
+    .toLowerCase()
+    .match(/^([\d.]+)\s*([a-z]+)$/)
+  if (!match) return 0
+
+  const value = parseFloat(match[1])
+  const unit = match[2]
+  const multiplier = units[unit] || 1
+
+  return Math.round(value * multiplier)
+}
+
+const bytesToGB = (bytes: number): number => bytes / 1024 ** 3
+
+// const formatGB = (gb: number): string => {
+//   if (gb < 1) return (gb * 1024).toFixed(1) + ' MB'
+//   return gb.toFixed(2) + ' GB'
+// }
+
+const formatGB = (gb: number): string => {
+  return gb < 0.1 ? parseFloat(gb.toFixed(3)) + ' GB' : gb.toFixed(2) + ' GB'
+}
 
 const filteredArtefacts = computed(() => {
   return artefacts.value.filter((artefact) => {
     const matchesSearch =
-      !searchQuery.value ||
-      (artefact.name && artefact.name.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-      (artefact.description &&
-        artefact.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
+      !searchQuery.value || artefact.name?.toLowerCase().includes(searchQuery.value.toLowerCase())
 
     const matchesCategory = !selectedCategory.value || artefact.category === selectedCategory.value
+
     const matchesType = !selectedType.value || artefact.type === selectedType.value
+
     const matchesStatus = !selectedStatus.value || artefact.status === selectedStatus.value
 
-    return matchesSearch && matchesCategory && matchesType && matchesStatus
+    const matchesDepartment =
+      !selectedDepartment.value ||
+      artefact.rawDepartmentIds?.includes(String(selectedDepartment.value))
+
+    return matchesSearch && matchesCategory && matchesType && matchesStatus && matchesDepartment
   })
 })
 
@@ -247,10 +327,10 @@ const viewArtefact = (artefact: any) => {
 }
 
 const reprocessArtefact = async (artefact: any) => {
-  // Check if artefact can be reprocessed
+  // Check if artifact can be reprocessed
   if (!artefact.id) {
     const { showError } = useNotification()
-    showError('Cannot reprocess artefact - invalid artefact data')
+    showError('Cannot reprocess artifact - invalid artifact data')
     return
   }
 
@@ -298,11 +378,12 @@ const confirmDeleteArtefact = async () => {
       showSuccess(result.message)
       // Refresh the artefacts list
       await artefactsStore.fetchArtefacts(orgId.value)
+      await fetchArtifactDepartments()
     } else {
       showError(result.message)
     }
   } catch (error: any) {
-    showError(error.message || 'Failed to delete artefact')
+    showError(error.message || 'Failed to delete artifact')
   } finally {
     isDeletingArtefact.value = false
     showConfirmDeleteArtefact.value = false
@@ -331,11 +412,12 @@ const confirmReprocessArtefact = async () => {
       showSuccess(result.message)
       // Refresh the artefacts list to show updated status
       await artefactsStore.fetchArtefacts(orgId.value)
+      await fetchArtifactDepartments()
     } else {
       showError(result.message)
     }
   } catch (error: any) {
-    showError(error.message || 'Failed to reprocess artefact')
+    showError(error.message || 'Failed to reprocess artifact')
   } finally {
     isReprocessingArtefact.value = false
     showConfirmReprocessArtefact.value = false
@@ -350,12 +432,12 @@ const cancelReprocessArtefact = () => {
   isReprocessingArtefact.value = false
 }
 
-// Summarize artefact handler
+// Summarize artifact handler
 const summarizeArtefact = async (artefact: any) => {
-  // Check if artefact can be summarized
+  // Check if artifact can be summarized
   if (!artefact.id) {
     const { showError } = useNotification()
-    showError('Cannot summarize artefact - invalid artefact data')
+    showError('Cannot summarize artifact - invalid artifact data')
     return
   }
 
@@ -407,6 +489,7 @@ const confirmSummarizeArtefact = async () => {
 
       // Refresh the artefacts list to show updated summarization status
       await artefactsStore.fetchArtefacts(orgId.value)
+      await fetchArtifactDepartments()
     } else {
       showError(result.message)
     }
@@ -434,7 +517,7 @@ const viewSummary = (artefact: any) => {
 const downloadArtefact = async (artefact: any) => {
   if (!artefact || !artefact.id) {
     const { showError } = useNotification()
-    showError('Cannot download artefact - invalid artefact data')
+    showError('Cannot download artifact - invalid artifact data')
     return
   }
 
@@ -468,34 +551,17 @@ const downloadArtefact = async (artefact: any) => {
 
 // Upload handlers
 const handleFileUploaded = async (artefact: any) => {
-  // Stop any existing auto-processing/polling and start a fresh cycle
-  try {
-    // Ensure any existing polling is cancelled
-    artefactsStore.stopAutoProcessing()
-
-    // Start fresh polling so fetchArtefacts can detect newly processed documents during the fetch
-    artefactsStore.startAutoProcessing()
-
-    // Immediately refresh the artefacts list to reflect the newly uploaded file
-    await artefactsStore.fetchArtefacts(orgId.value)
-  } catch (e) {
-    // Silent: UI already shows upload success/failure in the modal
-  }
+  artefactsStore.stopAutoProcessing() // ⬅ STOP WHEN UPLOAD COMPLETES OR STARTS
+  await artefactsStore.fetchArtefacts(orgId.value)
+  await fetchArtifactDepartments()
+  artefactsStore.startAutoProcessing() // ⬅ RESTART AFTER FINISH
 }
 
-const handleGoogleDriveUploaded = async (newArtefacts: any[]) => {
-  try {
-    // Cancel any existing polling
-    artefactsStore.stopAutoProcessing()
-
-    // Start fresh polling so fetchArtefacts can detect newly processed documents during the fetch
-    artefactsStore.startAutoProcessing()
-
-    // Refresh artefacts list
-    await artefactsStore.fetchArtefacts(orgId.value)
-  } catch (e) {
-    // Silent
-  }
+const handleGoogleDriveUploaded = async (files: any[]) => {
+  artefactsStore.stopAutoProcessing() // ⬅ STOP
+  await artefactsStore.fetchArtefacts(orgId.value)
+  await fetchArtifactDepartments()
+  artefactsStore.startAutoProcessing() // ⬅ RESTART
 }
 
 // Category management methods
@@ -509,6 +575,7 @@ const addCategory = async (category: string) => {
       await artefactsStore.createCategory(trimmedCategory, orgId.value)
       // Refresh artefacts list to update stats if needed
       await artefactsStore.fetchArtefacts(orgId.value)
+      await fetchArtifactDepartments()
     } catch (error) {
       // Show error message to user
       const { showError } = useNotification()
@@ -542,6 +609,7 @@ const confirmDeleteCategory = async () => {
 
         // Refresh artefacts list to update stats and category assignments
         await artefactsStore.fetchArtefacts(orgId.value)
+        await fetchArtifactDepartments()
       }
     } else {
       // Fallback to local management if no orgId
@@ -594,6 +662,24 @@ const initializeCategories = async () => {
   }
 }
 
+// Load departments list for the organization
+const loadDepartments = async () => {
+  await artefactsStore.fetchDepartments(orgId.value)
+  departmentsList.value = artefactsStore.getDepartments
+  departmentsLoading.value = artefactsStore.isDepartmentsLoading
+}
+
+// Fetch departments for all artifacts
+const fetchArtifactDepartments = async () => {
+  await artefactsStore.fetchArtefactDepartments(artefacts.value.map((a) => a.id))
+
+  // Update artefacts with department names for display (converted from IDs)
+  artefacts.value.forEach((artefact) => {
+    const deptIds = artefactsStore.getArtefactDepartments[artefact.id] || []
+    artefact.departments = artefactsStore.getDepartmentNames(deptIds)
+  })
+}
+
 // Initialize page data
 const initializePage = async () => {
   try {
@@ -608,8 +694,14 @@ const initializePage = async () => {
       // Ensure token is available before fetching data
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
-        // Fetch both categories and artefacts (pass orgId for superadmin if available)
-        await Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
+        // Fetch categories, artefacts, and departments in parallel
+        await Promise.all([
+          initializeCategories(),
+          artefactsStore.fetchArtefacts(orgId.value),
+          loadDepartments(),
+        ])
+        // After fetching artefacts, fetch their departments
+        await fetchArtifactDepartments()
       }
     }
   } catch (error) {
@@ -617,14 +709,95 @@ const initializePage = async () => {
   }
 }
 
+// Storage usage metric
+const storageUsageValue = computed(() => {
+  const currentGB = bytesToGB(
+    stats.value?.totalSizeBytes ??
+      (typeof stats.value?.totalSizeBytes === 'number' ? stats.value?.totalSizeBytes : 0),
+  )
+  const hasPlan = planDetails.value && Object.keys(planDetails.value).length > 0
+  const limitGB = hasPlan ? ((planDetails.value as any)?.storage_limit_gb ?? 0) : null
+  const percentage = limitGB && limitGB > 0 ? (currentGB / limitGB) * 100 : 0
+
+  return {
+    current: currentGB,
+    limit: limitGB ?? 0,
+    percentage: percentage,
+    display:
+      hasPlan && (limitGB === 0 || limitGB === -1)
+        ? `${currentGB.toFixed(2)}GB / Unlimited`
+        : `${currentGB.toFixed(2)}GB${limitGB && limitGB > 0 ? ` / ${limitGB}GB` : ''}`,
+  }
+})
+
+// Aggregated usage alert data (same structure as analytics)
+const usageAlertData = computed(() => {
+  const metrics: any[] = []
+  const hasPlan = planDetails.value && Object.keys(planDetails.value).length > 0
+
+  // Artifacts limit (only show if plan exists and limit is > 0)
+  if (hasPlan) {
+    const artefactsLimit = (planDetails.value as any)?.artefacts ?? 0
+    if (artefactsLimit > 0) {
+      const current = totalArtefacts.value
+      const limit = artefactsLimit
+      const percentage = limit > 0 ? (current / limit) * 100 : 0
+
+      metrics.push({
+        name: 'Artifacts',
+        current,
+        limit,
+        percentage: percentage,
+      })
+    }
+  }
+
+  // Storage limit (only show if plan exists and limit is > 0)
+  if (hasPlan) {
+    const storageLimit = (planDetails.value as any)?.storage_limit_gb ?? 0
+    if (storageLimit > 0) {
+      const current = storageUsageValue.value.current
+      const limit = storageLimit
+      const percentage = limit > 0 ? (current / limit) * 100 : 0
+
+      metrics.push({
+        name: 'Storage',
+        current,
+        limit,
+        percentage,
+      })
+    }
+  }
+
+  const exceededMetrics = metrics.filter((m) => m.percentage >= 100)
+  const highMetrics = metrics.filter((m) => m.percentage >= 80 && m.percentage < 100)
+
+  return {
+    metrics,
+    exceededMetrics,
+    highMetrics,
+    hasExceeded: exceededMetrics.length > 0,
+    hasHigh: highMetrics.length > 0,
+  }
+})
+
+const goToPlans = () => {
+  navigateTo('/admin/plans')
+}
+
 // Watch for orgId changes and fetch data
 watch(
   orgId,
-  (newOrgId) => {
+  async (newOrgId) => {
     if (newOrgId && authStore.isLoggedIn) {
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
-        Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
+        await Promise.all([
+          initializeCategories(),
+          artefactsStore.fetchArtefacts(orgId.value),
+          loadDepartments(),
+        ])
+        await fetchArtifactDepartments()
       }
     }
   },
@@ -717,6 +890,6 @@ onUnmounted(() => {
 })
 
 useHead({
-  title: 'Artefact Management - Admin Dashboard - provento.ai',
+  title: 'Artifact Management - Admin Dashboard - provento.ai',
 })
 </script>

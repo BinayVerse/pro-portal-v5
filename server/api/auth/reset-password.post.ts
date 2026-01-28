@@ -35,10 +35,10 @@ export default defineEventHandler(async (event) => {
     const { resetLink } = await generateResetLink(email, config.public.appUrl, user_id);
     await sendResetPasswordMail(name, email, resetLink);
 
-    setResponseStatus(event, 200);
+    setResponseStatus(event, 201);
 
     return {
-      statusCode: 200,
+      statusCode: 201,
       status: 'success',
       message: 'Password reset email sent successfully',
     };

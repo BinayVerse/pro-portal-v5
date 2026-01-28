@@ -3,7 +3,7 @@ import { query } from '../../utils/db'
 export default defineEventHandler(async (event) => {
   try {
     const q = `
-      SELECT id, title, price_currency, price_amount, duration, users, limit_requests, add_ons_unlimited_requests, add_ons_price, features, created_at, updated_at, chargebee_plan_id, active, public, trial_period_days, storage_limit_gb, support_level, contact_sales, display_order, recommended, metadata, artefacts
+      SELECT id, title, price_currency, price_amount, duration, users, limit_requests, features, created_at, updated_at, chargebee_plan_id, active, public, trial_period_days, storage_limit_gb, support_level, contact_sales, display_order, recommended, metadata, artefacts, plan_type
       FROM public.plans
       WHERE active = true AND public = true
       ORDER BY display_order ASC, price_amount ASC
@@ -42,7 +42,21 @@ export default defineEventHandler(async (event) => {
 
         const productFamily = metadata?.product_family || metadata?.product_family_name || metadata?.family || null
 
-        const interval = (String(r.duration || '').toLowerCase().includes('year') ? 'year' : 'month')
+        // const interval = (String(r.duration || '').toLowerCase().includes('year') ? 'year' : 'month')
+
+        let interval: 'month' | 'year' | null = null
+
+        if (r.duration) {
+          const d = String(r.duration).toLowerCase()
+          if (d.includes('year')) interval = 'year'
+          else if (d.includes('month')) interval = 'month'
+        }
+
+        const isFreePlan =
+          Number(r.price_amount) === 0 &&
+          r.contact_sales !== true &&
+          metadata?.free_plan === true
+
 
         return {
           id: r.id,
@@ -58,12 +72,15 @@ export default defineEventHandler(async (event) => {
           support_level: r.support_level,
           display_order: r.display_order,
           artefacts: r.artefacts,
+          plan_type: r.plan_type,
           interval,
           features,
           popular: !!r.recommended,
           createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
           product_family: productFamily || null,
           contact_sales: !!r.contact_sales,
+          is_free: isFreePlan,
+          metadata: metadata || {},
           // _raw: r,
         }
       })

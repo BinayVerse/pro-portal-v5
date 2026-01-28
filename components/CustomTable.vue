@@ -3,7 +3,7 @@
     <!-- Controls Section -->
     <div
       v-if="searchable"
-      class="controls flex justify-between items-center pb-3.5 border-b border-gray-200 dark:border-gray-700"
+      class="controls flex flex-col sm:flex-row justify-between items-stretch sm:items-center pb-3.5 border-b border-gray-200 dark:border-gray-700 gap-3 sm:gap-0"
     >
       <UInput
         v-model="searchQuery"
@@ -36,12 +36,12 @@
         </template>
       </UInput>
 
-      <div>
+      <div class="flex flex-col sm:flex-row gap-2 sm:gap-2 w-full sm:w-auto">
         <UButton
           v-if="showActionButton"
           @click="actionButtonCallback"
           icon="i-heroicons:plus-16-solid"
-          class="rounded-md text-white bg-custom1-400 hover:bg-custom1-500"
+          class="rounded-md text-white bg-custom1-400 hover:bg-custom1-500 w-full sm:w-auto"
           :disabled="disabled"
         >
           {{ actionButtonLabel }}
@@ -50,7 +50,7 @@
           v-if="showActionButton2"
           @click="actionButtonCallback2"
           icon="i-heroicons:globe-alt-16-solid"
-          class="ml-2 rounded-md text-white bg-custom1-400 hover:bg-custom1-500"
+          class="rounded-md text-white bg-custom1-400 hover:bg-custom1-500 w-full sm:w-auto"
           :loading="loadingActionButton2"
           :loading-state="{
             icon: 'i-heroicons-arrow-path-20-solid',
@@ -64,7 +64,7 @@
           v-if="showBulkUploadButton"
           @click="bulkUploadButtonCallback"
           icon="i-heroicons:cloud-arrow-up-16-solid"
-          class="ml-2 rounded-md text-white bg-custom1-400 hover:bg-custom1-500"
+          class="rounded-md text-white bg-custom1-400 hover:bg-custom1-500 w-full sm:w-auto"
           :disabled="disabled"
         >
           {{ bulkUploadButtonLabel }}
@@ -76,15 +76,16 @@
       :class="headerText ? 'border mt-2 rounded-b-none' : 'mb-2'"
       :style="{ borderBottom: '0' }"
     >
-      <h1 v-if="headerText" class="text-2xl font-semibold text-center py-3.5">
+      <h1 v-if="headerText" class="text-lg sm:text-2xl font-semibold text-center py-2 sm:py-3.5">
         Proxima Systems
       </h1>
     </div>
-    <!-- Table Section -->
-    <UTable
-      :columns="columns"
-      :rows="paginatedRows"
-      class="custom-table"
+    <!-- Table Section - responsive wrapper -->
+    <div class="w-full overflow-x-auto -mx-4 sm:mx-0">
+      <UTable
+        :columns="columns"
+        :rows="paginatedRows"
+        class="custom-table w-full"
       :loading="loading"
       :loading-state="{
         icon: 'i-heroicons-arrow-path-20-solid',
@@ -101,12 +102,13 @@
       <template v-for="(_, slotName) in $slots" #[slotName]="slotProps">
         <slot :name="slotName" v-bind="slotProps" />
       </template>
-    </UTable>
+      </UTable>
+    </div>
 
     <!-- Pagination -->
     <div
       v-if="paginatedRows.length"
-      class="flex items-center justify-between px-3 py-3.5 border-t border-gray-200 dark:border-gray-700"
+      class="flex flex-col sm:flex-row items-center justify-between px-3 py-3.5 border-t border-gray-200 dark:border-gray-700 gap-3 sm:gap-0"
     >
       <div class="flex items-center space-x-3">
         <div class="text-sm text-gray-400 hidden sm:block">Rows per page</div>

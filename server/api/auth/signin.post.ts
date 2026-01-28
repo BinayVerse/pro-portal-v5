@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const userResult = await query(
-      'SELECT * FROM users WHERE email = $1 AND role_id IN (0, 1)',
+      'SELECT * FROM users WHERE email = $1 AND role_id IN (0, 1, 3)',
       [email]
     );
 
@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const adminUsers = userResult.rows.filter(
-      (u: any) => u.role_id === 0 || u.role_id === 1
+      (u: any) => u.role_id === 0 || u.role_id === 1 || u.role_id === 3
     );
 
     if (adminUsers.length > 1) {

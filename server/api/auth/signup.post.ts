@@ -6,11 +6,30 @@ import { getPasswordRegex, SignupValidation } from '../../utils/validations';
 import { isPersonalEmail, personalEmailDomains } from '../../utils/auth-utils';
 import { query } from '../../utils/db';
 import { sendWelcomeMail, sendOrganizationOnboardedMail } from '../helper';
+import { getCookie, setCookie } from 'h3'
 
 const isValidPhoneNumber = (wpNumber: string): boolean => {
   const phoneRegex = /^\+(\d{1,3})\d{10,14}$/;
   return phoneRegex.test(wpNumber);
 };
+
+async function getAwsMarketplaceSession(event) {
+  const sessionToken = getCookie(event, 'aws_marketplace_session')
+  if (!sessionToken) return null
+
+  const res = await query(
+    `
+    SELECT customer_id
+    FROM aws_marketplace_sessions
+    WHERE session_token = $1
+      AND consumed = false
+      AND expires_at > now()
+    `,
+    [sessionToken]
+  )
+
+  return res.rows[0] || null
+}
 
 export default defineEventHandler(async (event) => {
   const params = await readBody(event);
@@ -46,7 +65,18 @@ export default defineEventHandler(async (event) => {
 
     const existingCompany = await query('SELECT * FROM organizations WHERE org_name = $1', [params.companyName]);
     let orgId: string;
-    let isCompanyExists = !existingCompany?.rows?.length;
+    const isNewCompany = !existingCompany?.rows?.length;
+
+    // Check for duplicate org_tax_id if provided
+    if (params.taxId) {
+      const existingTaxId = await query(
+        'SELECT org_id FROM organizations WHERE org_tax_id = $1',
+        [params.taxId]
+      );
+      if (existingTaxId?.rows?.length) {
+        throw new CustomError('This organization already exists in the system. Please contact admin for access.', 409);
+      }
+    }
 
     const existingUserByEmail = await query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [params.email]);
     if (existingUserByEmail?.rows?.length) {
@@ -63,26 +93,33 @@ export default defineEventHandler(async (event) => {
     }
 
     const hashedPassword = await bcrypt.hash(params.password, 10);
-    const roleId = isCompanyExists ? '1' : '2';
+    const roleId = isNewCompany ? '1' : '2';
     const appLink = `${config.public.appUrl}/login`;
-    let processFulfillmentData = null;
+    const awsSession = await getAwsMarketplaceSession(event)
+    const awsCustomerId = awsSession?.customer_id || null
 
-    if (params.registrationToken) {
-      processFulfillmentData = await processFulfillment(params.registrationToken)
+    if (getCookie(event, 'aws_marketplace_session') && !awsCustomerId) {
+      throw new CustomError('AWS Marketplace session expired. Please return to AWS Marketplace and try again.', 401);
     }
 
-    if (isCompanyExists) {
+    // let processFulfillmentData = null;
+
+    // if (params.registrationToken) {
+    //   processFulfillmentData = await processFulfillment(params.registrationToken)
+    // }
+
+    if (isNewCompany) {
       const newOrg = await query(
-        'INSERT INTO organizations (org_name, source) VALUES ($1, $2) RETURNING org_id',
-        [params.companyName, params.registrationToken ? 'aws' : 'website']
+        'INSERT INTO organizations (org_name, org_country, org_tax_id, source) VALUES ($1, $2, $3, $4) RETURNING org_id',
+        [params.companyName, params.country || 'usa', params.taxId || null, awsCustomerId ? 'aws' : 'website']
       );
       orgId = newOrg.rows[0].org_id;
     } else {
       throw new CustomError('Company is already registered, please contact admin', 409);
     }
 
-    if (processFulfillmentData?.data?.customerId) {
-      const customerId = processFulfillmentData.data.customerId;
+    if (awsCustomerId) {
+      const customerId = awsCustomerId
       const res = await query(
         `
           UPDATE public.aws_marketplace_subscriptions
@@ -94,7 +131,7 @@ export default defineEventHandler(async (event) => {
         [orgId, customerId]
       )
 
-      if (res.rowCount < 0) {
+      if (res.rowCount === 0) {
         console.warn(`⚠️ No AWS subscription found for customer_id ${customerId}`)
       }
 
@@ -147,7 +184,7 @@ export default defineEventHandler(async (event) => {
 
     const user = await query(
       'INSERT INTO users (email, password, name, org_id, contact_number, role_id, primary_contact) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [params.email, hashedPassword, params.name, orgId, params.wpNumber, roleId, isCompanyExists]
+      [params.email, hashedPassword, params.name, orgId, params.wpNumber, roleId, isNewCompany]
     );
 
     const userId = user.rows[0].user_id;
@@ -166,6 +203,26 @@ export default defineEventHandler(async (event) => {
         [category, orgId, userId]
       );
     }
+
+    if (awsCustomerId) {
+      const sessionToken = getCookie(event, 'aws_marketplace_session')
+
+      await query(
+        `
+          UPDATE aws_marketplace_sessions
+          SET consumed = true
+          WHERE session_token = $1
+          `,
+        [sessionToken]
+      )
+
+      // Clear cookie
+      setCookie(event, 'aws_marketplace_session', '', {
+        path: '/',
+        maxAge: 0
+      })
+    }
+
 
     await sendWelcomeMail(params.name, params.email, params.password, appLink);
 

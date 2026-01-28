@@ -1,15 +1,19 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 sm:space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
       <div>
-        <h1 class="text-2xl font-bold text-white mb-2">Integrations Overview</h1>
-        <p class="text-gray-400">Configure and manage integrations with messaging platforms</p>
+        <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 sm:mb-2">
+          Integrations Overview
+        </h1>
+        <p class="text-xs sm:text-sm lg:text-base text-gray-400">
+          Configure and manage integrations with messaging platforms
+        </p>
       </div>
       <button
         @click="refreshData"
         :disabled="integrationsStore.isLoading"
-        class="flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+        class="flex items-center justify-center sm:justify-start px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex-shrink-0 w-full sm:w-auto"
       >
         <UIcon
           v-if="integrationsStore.isLoading"
@@ -17,14 +21,15 @@
           class="w-4 h-4 mr-2 animate-spin"
         />
         <UIcon v-else name="heroicons:arrow-path" class="w-4 h-4 mr-2" />
-        Refresh
+        <span class="hidden sm:inline">Refresh</span>
+        <span class="sm:hidden">Refresh Data</span>
       </button>
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-6">
       <!-- Active Integrations -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Active Integrations</p>
@@ -38,10 +43,10 @@
             <UIcon name="heroicons:check-circle" class="w-6 h-6 text-green-400" />
           </div>
         </div>
-      </UCard>
+      </div>
 
       <!-- Total Users -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Total Users</p>
@@ -57,10 +62,10 @@
             <UIcon name="heroicons:user-group" class="w-6 h-6 text-blue-400" />
           </div>
         </div>
-      </UCard>
+      </div>
 
       <!-- Messages Today -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Messages Today</p>
@@ -76,10 +81,10 @@
             <UIcon name="heroicons:chat-bubble-left-ellipsis" class="w-6 h-6 text-purple-400" />
           </div>
         </div>
-      </UCard>
+      </div>
 
       <!-- Token Usage -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Token Usage Today</p>
@@ -102,11 +107,11 @@
             <UIcon name="heroicons:bolt" class="w-6 h-6 text-orange-400" />
           </div>
         </div>
-      </UCard>
+      </div>
     </div>
 
     <!-- Main Content Grid -->
-    <div class="grid lg:grid-cols-2 gap-6">
+    <div class="grid xl:grid-cols-2 gap-6">
       <!-- Integration Status -->
       <UCard class="bg-dark-800 border-dark-700">
         <template #header>
@@ -193,7 +198,11 @@
                 <button
                   @click="navigateToIntegration(integration.path)"
                   class="flex items-center px-3 py-1 text-xs font-medium rounded transition-colors"
-                  :class="integration.connected ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'"
+                  :class="
+                    integration.connected
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  "
                 >
                   <UIcon name="heroicons:cog-6-tooth" class="w-3 h-3 mr-1" />
                   Manage
@@ -287,7 +296,8 @@ let integrationsIntervalId: number | null = null
 
 onMounted(async () => {
   // derive orgId from route query for superadmin support
-  const orgId = route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
+  const orgId =
+    route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
 
   // initial load (pass orgId if present)
   await integrationsStore.fetchOverview(orgId)
@@ -346,7 +356,9 @@ const onIntegrationClick = (integration: any) => {
     // show a tooltip or notification (non-blocking)
     if (process.client) {
       const { showInfo } = useNotification()
-      showInfo('Super admin cannot connect integrations. Switch to an organization admin to connect.')
+      showInfo(
+        'Super admin cannot connect integrations. Switch to an organization admin to connect.',
+      )
     }
     return
   }
@@ -385,7 +397,8 @@ const getIntegrationDetailText = (integration: any) => {
 }
 
 const refreshData = async () => {
-  const orgId = route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
+  const orgId =
+    route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
   await integrationsStore.refreshOverview(orgId, true, true)
 }
 

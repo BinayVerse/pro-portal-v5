@@ -1,10 +1,10 @@
-// stores/profile/index.ts
 import { defineStore } from 'pinia'
-import type { UserProfileState, UserProfile } from './types'
-import { useNotification } from '~/composables/useNotification'
-import { useAuthStore } from '~/stores/auth/index'
-import { handleError, handleSuccess, extractErrors } from '../../utils/apiHandler'
 import { handleAuthError as handleAuthErrorShared } from '~/composables/useAuthError'
+import { useAuthStore } from '~/stores/auth/index'
+import { useNotification } from '~/composables/useNotification'
+
+import type { UserProfileState, UserProfile } from './types'
+import { handleError, handleSuccess, extractErrors } from '../../utils/apiHandler'
 
 export const useProfileStore = defineStore('userStore', {
   state: (): UserProfileState => ({
@@ -52,7 +52,7 @@ export const useProfileStore = defineStore('userStore', {
       }
 
       // Auto-logout on 401
-    if (normalized.statusCode === 401) {
+      if (normalized.statusCode === 401) {
         // Use shared handler to clear auth and redirect
         await handleAuthErrorShared({ statusCode: 401, response: { status: 401 }, message: normalized.message })
 
@@ -62,7 +62,7 @@ export const useProfileStore = defineStore('userStore', {
         showInfo('You have been logged out due to session timeout.')
 
         // Ensure a short delay for UX before navigation (shared handler already triggers navigate)
-        setTimeout(() => {}, 500)
+        setTimeout(() => { }, 500)
       }
 
       return normalized
@@ -160,7 +160,7 @@ export const useProfileStore = defineStore('userStore', {
           try {
             const authStore = useAuthStore()
             authStore.setAuthUser(authStore.user, data.authToken)
-          } catch (e) {}
+          } catch (e) { }
         }
 
         handleSuccess(data?.message || 'Profile updated successfully.')

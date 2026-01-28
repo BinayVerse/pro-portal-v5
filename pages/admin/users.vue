@@ -1,50 +1,69 @@
 <template>
   <div class="space-y-6">
-    <!-- Plan Upgrade Alerts -->
-    <PlanUpgradeAlert :threshold-percentage="80" :auto-refresh-interval="60000" />
-
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-white mb-2">User Management</h1>
-        <p class="text-gray-400">
+    <div
+      class="space-y-4 sm:space-y-0 sm:flex sm:flex-row sm:items-start sm:justify-between"
+      style="margin-top: 0"
+    >
+      <div class="w-full sm:w-auto">
+        <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 sm:mb-2">
+          User Management
+        </h1>
+        <p class="text-xs sm:text-sm lg:text-base text-gray-400">
           Manage user accounts, roles, and permissions across your organization.
         </p>
       </div>
-      <div class="flex items-center space-x-3">
+      <div
+        class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto flex-shrink-0"
+      >
         <button
-          @click="openBulkUplaod"
+          @click="!disableUserActions && openBulkUplaod()"
+          :disabled="disableUserActions"
           :class="[
             baseButtonClass,
             'bg-dark-800 text-white hover:bg-dark-700',
-            'flex items-center space-x-2',
+            'flex items-center justify-center sm:justify-start space-x-2',
+            disableUserActions ? 'opacity-50 cursor-not-allowed' : '',
+            'flex-1 sm:flex-auto',
           ]"
         >
           <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4" />
           <span>Bulk Upload</span>
         </button>
         <button
-          @click="openAddUserModal"
+          @click="!disableUserActions && openAddUserModal()"
+          :disabled="disableUserActions"
           :class="[
             baseButtonClass,
             'bg-blue-600 hover:bg-blue-700 text-white',
-            'flex items-center space-x-2',
+            'flex items-center justify-center sm:justify-start space-x-2',
+            disableUserActions ? 'opacity-50 cursor-not-allowed' : '',
+            'flex-1 sm:flex-auto',
           ]"
         >
           <UIcon name="i-heroicons-plus" class="w-4 h-4" />
-          <span>Add User</span>
+          <span class="truncate">Add User</span>
         </button>
       </div>
     </div>
 
+    <PlanUpgradeAlert :data="usageAlertData" @upgrade="goToPlans" />
+
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-6">
       <!-- Total Users -->
-      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-3 sm:p-4 xl:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Total Users</p>
-            <p class="text-3xl font-bold text-white mt-2">{{ stats.totalUsers }}</p>
+            <p :class="`text-lg font-bold mt-2 ${usersTextColor}`">
+              {{ stats.totalUsers }} /
+              {{
+                profileStore.getUserProfile?.plan_details && (usersLimit === 0 || usersLimit === -1)
+                  ? 'Unlimited'
+                  : usersLimit || 0
+              }}
+            </p>
           </div>
           <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="i-heroicons-users" class="w-6 h-6 text-blue-400" />
@@ -53,11 +72,11 @@
       </div>
 
       <!-- Active Users -->
-      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Active Users</p>
-            <p class="text-3xl font-bold text-white mt-2">{{ stats.activeUsers }}</p>
+            <p class="text-lg font-bold text-white mt-2">{{ stats.activeUsers }}</p>
           </div>
           <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="i-heroicons-check-circle" class="w-6 h-6 text-green-400" />
@@ -66,11 +85,11 @@
       </div>
 
       <!-- Admins -->
-      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Admins</p>
-            <p class="text-3xl font-bold text-white mt-2">{{ stats.adminUsers }}</p>
+            <p class="text-lg font-bold text-white mt-2">{{ stats.adminUsers }}</p>
           </div>
           <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="i-heroicons-shield-check" class="w-6 h-6 text-purple-400" />
@@ -79,11 +98,11 @@
       </div>
 
       <!-- New This Month -->
-      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">New This Month</p>
-            <p class="text-3xl font-bold text-white mt-2">{{ stats.newThisMonth }}</p>
+            <p class="text-lg font-bold text-white mt-2">{{ stats.newThisMonth }}</p>
           </div>
           <div class="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="i-heroicons-user-plus" class="w-6 h-6 text-orange-400" />
@@ -93,39 +112,52 @@
     </div>
 
     <!-- Search, Filters and Sort -->
-    <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
-      <div class="flex flex-col sm:flex-row gap-4 items-center">
-        <!-- Search Input -->
-        <div class="flex-1">
-          <div class="relative">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <UIcon name="i-heroicons-magnifying-glass" class="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search users..."
-              :class="baseInputWithIcon"
-            />
-          </div>
+    <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
+      <div class="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <!-- Search -->
+        <div class="w-full">
+          <UInput
+            :model-value="searchQuery"
+            @update:model-value="searchQuery = $event"
+            placeholder="Search users..."
+            size="md"
+            icon="i-heroicons-magnifying-glass"
+          />
         </div>
 
-        <!-- Role Filter -->
-        <div class="sm:w-48">
-          <select v-model="selectedRole" :class="baseInputClass">
-            <option value="">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="user">User</option>
-          </select>
+        <!-- Role -->
+        <div class="w-full">
+          <USelect
+            v-model="selectedRole"
+            :options="[{ label: 'All Roles', value: '' }, ...roleOptions]"
+            option-attribute="label"
+            value-attribute="value"
+            size="md"
+          />
         </div>
 
-        <!-- Status Filter -->
-        <div class="sm:w-48">
-          <select v-model="selectedStatus" :class="baseInputClass">
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
+        <!-- Status -->
+        <div class="w-full">
+          <USelect
+            v-model="selectedStatus"
+            :options="[
+              { label: 'All Status', value: '' },
+              { label: 'Active', value: 'active' },
+              { label: 'Inactive', value: 'inactive' },
+            ]"
+            size="md"
+          />
+        </div>
+
+        <!-- Department -->
+        <div class="w-full">
+          <USelect
+            v-model="selectedDepartment"
+            :options="departmentFilterOptions"
+            option-attribute="label"
+            value-attribute="value"
+            size="md"
+          />
         </div>
       </div>
     </div>
@@ -133,9 +165,9 @@
     <!-- Users Table -->
     <div class="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
       <!-- Table Header -->
-      <div class="px-6 py-4 border-b border-dark-700">
-        <h2 class="text-lg font-semibold text-white">All Users</h2>
-        <p class="text-gray-400 text-sm">
+      <div class="px-4 sm:px-6 py-4 border-b border-dark-700">
+        <h2 class="text-base sm:text-lg font-semibold text-white">All Users</h2>
+        <p class="text-gray-400 text-xs sm:text-sm mt-1">
           A list of all users in your organization including their contact information and roles.
         </p>
       </div>
@@ -211,11 +243,27 @@
               :class="{
                 'bg-red-500/20 text-red-400': row.role === 'super admin',
                 'bg-purple-500/20 text-purple-400': row.role === 'admin',
+                'bg-emerald-500/20 text-emerald-400': row.role === 'department admin',
                 'bg-gray-500/20 text-gray-400': row.role === 'user',
               }"
             >
               {{ row.role }}
             </span>
+          </template>
+
+          <template #departments-data="{ row }">
+            <div v-if="row.departments && row.departments.length > 0" class="flex flex-wrap gap-1">
+              <UBadge
+                v-for="dept in row.departments"
+                :key="dept"
+                size="sm"
+                class="bg-blue-500/20 text-blue-400"
+                :ui="{ rounded: 'rounded-full' }"
+              >
+                {{ dept }}
+              </UBadge>
+            </div>
+            <span v-else class="text-gray-400 text-xs">—</span>
           </template>
 
           <template #status-data="{ row }">
@@ -280,24 +328,28 @@
             </div>
           </template>
         </UTable>
-        <div class="p-4 flex items-center justify-between border-t border-dark-700">
-          <div class="flex items-center space-x-3">
-            <div class="text-sm text-gray-400 hidden sm:block">Rows per page</div>
-            <div class="w-24">
+        <div
+          class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-dark-700 gap-4 sm:gap-0"
+        >
+          <div class="flex items-center space-x-3 text-xs sm:text-sm">
+            <div class="text-gray-400 hidden sm:block">Rows per page</div>
+            <div class="w-20 sm:w-24">
               <USelect v-model="perPage" :options="perPageOptions" size="sm" />
             </div>
           </div>
 
-          <UPagination
-            v-model="page"
-            :total="sortedRows.length"
-            :page-count="computedPageCount"
-            :show-first="true"
-            :show-last="true"
-            :show-edges="true"
-            size="sm"
-            color="blue"
-          />
+          <div class="overflow-x-auto">
+            <UPagination
+              v-model="page"
+              :total="sortedRows.length"
+              :page-count="computedPageCount"
+              :show-first="false"
+              :show-last="false"
+              :show-edges="false"
+              size="sm"
+              color="blue"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -382,6 +434,38 @@
               }"
               icon="i-heroicons-cursor-arrow-ripple"
             />
+          </UFormGroup>
+
+          <!-- Departments (for Department Admin) -->
+          <UFormGroup
+            v-if="userForm.role_id === 3 || String(userForm.role_id) === '3'"
+            label="Departments"
+            name="departments"
+            required
+          >
+            <USelectMenu
+              v-model="userForm.departments"
+              :options="departmentsList"
+              option-attribute="name"
+              value-attribute="dept_id"
+              multiple
+              searchable
+              placeholder="Select departments"
+              icon="i-heroicons-building-office"
+              class="w-full"
+              selectClass="custom-select"
+            >
+              <!-- Custom selected value display -->
+              <template #label>
+                <span v-if="!userForm.departments.length" class="text-gray-400">
+                  Select departments
+                </span>
+
+                <span v-else>
+                  {{ selectedDepartmentsLabel }}
+                </span>
+              </template>
+            </USelectMenu>
           </UFormGroup>
 
           <!-- Primary Contact -->
@@ -670,6 +754,7 @@
 import { ref } from 'vue'
 import { z } from 'zod'
 import { useRoute } from 'vue-router'
+import PlanUpgradeAlert from '@/components/ui/PlanUpgradeAlert.vue'
 
 // Types
 interface ApiUser {
@@ -708,6 +793,8 @@ interface MappedUser {
   source: string
   primaryContact?: boolean
   isActive?: boolean
+  departments?: string[] // department names for Department Admin users
+  rawDepartmentIds?: string[]
 }
 
 interface UserStats {
@@ -725,6 +812,7 @@ interface UserForm {
   role_id?: number
   primaryContact: boolean
   isActive: boolean
+  departments?: string[] // for Department Admin role (dept_id array)
 }
 
 // Using admin layout
@@ -743,6 +831,20 @@ const baseButtonClass = 'px-4 py-2 rounded-lg border border-dark-700 transition-
 const profileStore = useProfileStore()
 const authStore = useAuthStore()
 const integrationsStore = useIntegrationsStore()
+
+const planDetails = computed(() => profileStore.getUserProfile?.plan_details || {})
+const usersLimit = computed(() => (planDetails.value as any)?.users || 0)
+const selectedDepartment = ref('')
+
+const departmentFilterOptions = computed(() => [
+  { label: 'All Departments', value: '' },
+  ...departmentsList.value
+    .filter((d) => d.id !== 'ALL') // safeguard
+    .map((d) => ({
+      label: d.name,
+      value: String(d.dept_id),
+    })),
+])
 
 const authUser = computed(() => authStore.getAuthUser)
 // WhatsApp connection status
@@ -763,6 +865,66 @@ const isWhatsAppConnected = computed(() => {
   }
 })
 
+const usersUsage = computed(() => {
+  const current = stats.value.totalUsers
+  const limit = usersLimit.value
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+
+  return {
+    name: 'Users',
+    current,
+    limit,
+    percentage: percentage,
+  }
+})
+
+const usageAlertData = computed(() => {
+  const metrics = [usersUsage.value]
+
+  return {
+    metrics,
+    exceededMetrics: metrics.filter((m) => m.percentage >= 100),
+    highMetrics: metrics.filter((m) => m.percentage >= 80 && m.percentage < 100),
+    hasExceeded: metrics.some((m) => m.percentage >= 100),
+    hasHigh: metrics.some((m) => m.percentage >= 80 && m.percentage < 100),
+  }
+})
+
+const disableUserActions = computed(() => usageAlertData.value.hasExceeded)
+
+const goToPlans = () => {
+  navigateTo('/admin/plans')
+}
+
+const getUsageColor = (current: number, limit?: number) => {
+  if (!limit) return 'text-white'
+  const percent = (current / limit) * 100
+  if (percent >= 100) return 'text-red-400'
+  if (percent >= 80) return 'text-orange-400'
+  return 'text-white'
+}
+
+const selectedDepartmentsLabel = computed(() => {
+  if (!userForm.departments.length) return ''
+
+  const selected = departmentsList.value.filter((d) =>
+    userForm.departments.includes(String(d.dept_id)),
+  )
+
+  const names = selected.map((d) => d.name)
+
+  if (names.length <= 2) {
+    return names.join(', ')
+  }
+
+  const visible = names.slice(0, 2).join(', ')
+  const remaining = names.length - 2
+
+  return `${visible} +${remaining} more`
+})
+
+const usersTextColor = computed(() => getUsageColor(stats.value.totalUsers, usersLimit.value))
+
 // Reactive state
 const phoneRef = ref(null)
 const phoneValidation = ref({ status: true, message: '' })
@@ -781,6 +943,7 @@ const error = ref<string | null>(null)
 const usersList = ref<MappedUser[]>([])
 const selectedUser = ref<MappedUser | null>(null)
 const isEditMode = ref(false)
+const departmentsList = ref<any[]>([]) // stores organization departments
 
 const showPrimaryContactConfirm = ref(false)
 const pendingPrimaryContactChange = ref(false)
@@ -807,6 +970,7 @@ const userForm = reactive<UserForm>({
   role_id: 2, // default to 'user'
   primaryContact: false,
   isActive: true,
+  departments: [],
 })
 
 const { showSuccess, showError } = useNotification()
@@ -816,6 +980,7 @@ const columns = [
   { key: 'name', label: 'User', sortable: true },
   { key: 'contact', label: 'Contact', sortable: false },
   { key: 'role', label: 'Role', sortable: true },
+  { key: 'departments', label: 'Departments', sortable: false },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'lastActive', label: 'Last Active', sortable: true },
   { key: 'created', label: 'Created', sortable: true },
@@ -825,21 +990,21 @@ const columns = [
 ]
 
 const filteredUsers = computed(() => {
-  return (
-    usersList.value
-      // .filter((user) => user.role.toLowerCase() !== 'super admin')
-      .filter((user) => {
-        const matchesSearch =
-          !searchQuery.value ||
-          user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchQuery.value.toLowerCase())
+  return usersList.value.filter((user) => {
+    const matchesSearch =
+      !searchQuery.value ||
+      user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.value.toLowerCase())
 
-        const matchesRole = !selectedRole.value || user.role === selectedRole.value
-        const matchesStatus = !selectedStatus.value || user.status === selectedStatus.value
+    const matchesRole = !selectedRole.value || String(user.role_id) === String(selectedRole.value)
 
-        return matchesSearch && matchesRole && matchesStatus
-      })
-  )
+    const matchesStatus = !selectedStatus.value || user.status === selectedStatus.value
+
+    const matchesDepartment =
+      !selectedDepartment.value || user.rawDepartmentIds?.includes(String(selectedDepartment.value))
+
+    return matchesSearch && matchesRole && matchesStatus && matchesDepartment
+  })
 })
 
 const sort = ref<{ column: string; direction: 'asc' | 'desc' | null }>({
@@ -917,8 +1082,12 @@ const perPageOptions = [
   { label: '50', value: 50 },
   { label: 'All', value: 'all' },
 ]
-const computedPageCount = computed(() => (perPage.value === 'all' ? Math.max(sortedRows.value.length, 1) : (perPage.value as number)))
-watch(perPage, () => { page.value = 1 })
+const computedPageCount = computed(() =>
+  perPage.value === 'all' ? Math.max(sortedRows.value.length, 1) : (perPage.value as number),
+)
+watch(perPage, () => {
+  page.value = 1
+})
 
 const paginatedUsers = computed(() => {
   if (perPage.value === 'all') return sortedRows.value
@@ -928,22 +1097,19 @@ const paginatedUsers = computed(() => {
 })
 
 const roleOptions = computed(() => {
-  // const superAdmin = [{ value: 0, label: 'Super Admin' }]
-
-  const superAdmin = []
-  const mappedRoles = usersStore.roles.map((role: any) => ({
-    value: role.role_id,
+  const allRoles = usersStore.roles.map((role: any) => ({
     label: role.role_name,
+    value: String(role.role_id),
   }))
 
-  if (authUser.value?.role_id === 0) {
-    return [...superAdmin, ...mappedRoles]
-  } else {
-    return mappedRoles
-  }
+  // role_id = 2 → normal user → LAST
+  const userRole = allRoles.find((r) => r.value === '2')
+  const others = allRoles.filter((r) => r.value !== '2')
+
+  return [...others, ...(userRole ? [userRole] : [])]
 })
 
-watch([selectedRole, selectedStatus, searchQuery], () => {
+watch([selectedRole, selectedStatus, searchQuery, selectedDepartment], () => {
   page.value = 1
 })
 
@@ -951,15 +1117,33 @@ watch([sort], () => {
   page.value = 1
 })
 
-const userSchema = z.object({
-  name: z.string().nonempty('Name is required').min(5, 'Name should be at least 5 characters long'),
-  email: z.string().email('Invalid email address'),
-  role_id: z.union([z.string(), z.number()]).refine((val) => val !== '', {
-    message: 'Role is required',
-  }),
-  primaryContact: z.boolean().optional(), // optional
-  isActive: z.boolean().default(true),
-})
+const userSchema = z
+  .object({
+    name: z
+      .string()
+      .nonempty('Name is required')
+      .min(5, 'Name should be at least 5 characters long'),
+    email: z.string().email('Invalid email address'),
+    role_id: z.union([z.string(), z.number()]).refine((val) => val !== '', {
+      message: 'Role is required',
+    }),
+    primaryContact: z.boolean().optional(), // optional
+    isActive: z.boolean().default(true),
+    departments: z.array(z.string()).optional().default([]),
+  })
+  .refine(
+    (data) => {
+      // For Department Admin (role_id = 3), departments are required
+      if (data.role_id === 3 || String(data.role_id) === '3') {
+        return data.departments && data.departments.length > 0
+      }
+      return true
+    },
+    {
+      message: 'At least one department must be assigned for Department Admin role',
+      path: ['departments'],
+    },
+  )
 
 // Function to validate phone and update UI
 function validatePhoneField() {
@@ -1047,7 +1231,7 @@ const mapRole = (roleId: number, roleName?: string): string => {
   return roleMap[roleId] || 'user'
 }
 
-const mapApiUserToMappedUser = (user: ApiUser): MappedUser => ({
+const mapApiUserToMappedUser = (user: ApiUser, userDepartments?: string[]): MappedUser => ({
   id: user.user_id,
   name: user.name,
   email: user.email,
@@ -1064,6 +1248,7 @@ const mapApiUserToMappedUser = (user: ApiUser): MappedUser => ({
   tokensUsed: parseFormattedTokens(user.tokens_used),
   source: user.source,
   primaryContact: user.primary_contact,
+  departments: userDepartments,
 })
 
 // API functions
@@ -1082,7 +1267,20 @@ const loadUsers = async (showLoading = true) => {
         : null
     await usersStore.fetchUsers(orgIdFromQuery)
     if (usersStore.users?.length) {
-      usersList.value = usersStore.users.map(mapApiUserToMappedUser)
+      // Map users with their department names (converted from IDs) for display
+      const mappedUsers = usersStore.users.map((user) => {
+        const deptIds: string[] = Array.isArray((user as any).departments)
+          ? (user as any).departments
+          : []
+
+        return {
+          ...mapApiUserToMappedUser(user),
+          rawDepartmentIds: deptIds.map(String), // 🔑 important
+          departments: deptIds.map((id: string) => departmentMap.value[String(id)]).filter(Boolean),
+        }
+      })
+
+      usersList.value = mappedUsers
     }
   } catch (err: any) {
     console.error('Failed to load users:', err)
@@ -1095,6 +1293,21 @@ const loadUsers = async (showLoading = true) => {
   }
 }
 
+const loadDepartments = async () => {
+  const orgIdFromQuery =
+    route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
+  await usersStore.fetchDepartments(orgIdFromQuery)
+  departmentsList.value = usersStore.getDepartments
+}
+
+const departmentMap = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  departmentsList.value.forEach((d) => {
+    map[String(d.dept_id)] = d.name
+  })
+  return map
+})
+
 const handlePrimaryContactUpdate = async () => {
   if (!userForm.primaryContact) return
 
@@ -1102,13 +1315,24 @@ const handlePrimaryContactUpdate = async () => {
   const currentPrimaryContact = usersStore.users.find((u) => u.primary_contact)
 
   // If the logged-in user is currently primary, unset them
-  const orgIdFromQuery = route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
+  const orgIdFromQuery =
+    route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
   if (profileStore.userProfile.primary_contact) {
-    await usersStore.editUser(profileStore.userProfile.user_id, { primary_contact: false }, true, orgIdFromQuery)
+    await usersStore.editUser(
+      profileStore.userProfile.user_id,
+      { primary_contact: false },
+      true,
+      orgIdFromQuery,
+    )
   }
   // If another user is primary, unset them
   else if (currentPrimaryContact && currentPrimaryContact.user_id !== userForm.user_id) {
-    await usersStore.editUser(currentPrimaryContact.user_id, { primary_contact: false }, true, orgIdFromQuery)
+    await usersStore.editUser(
+      currentPrimaryContact.user_id,
+      { primary_contact: false },
+      true,
+      orgIdFromQuery,
+    )
   }
 
   // Optionally refresh profile or users list
@@ -1124,7 +1348,7 @@ const saveUser = async () => {
   const phoneData = phoneRef.value?.phoneData
   const phoneNumberWithCountryCode = phoneData?.number || userForm.phone || ''
 
-  const payload = {
+  const payload: any = {
     user_id: userForm.user_id,
     name: userForm.name,
     email: userForm.email,
@@ -1132,6 +1356,11 @@ const saveUser = async () => {
     role_id: userForm.role_id,
     primary_contact: userForm.primaryContact || false,
     status: userForm.isActive ? 'active' : 'inactive',
+  }
+
+  // Include departments for Department Admin role
+  if (userForm.role_id === 3 || String(userForm.role_id) === '3') {
+    payload.departments = userForm.departments || []
   }
 
   // Set appropriate loading flag to prevent duplicate submissions
@@ -1159,7 +1388,10 @@ const saveUser = async () => {
     }
 
     if (isEditMode.value && userForm.user_id) {
-      const orgIdFromQuery = route?.query?.org || route?.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
+      const orgIdFromQuery =
+        route?.query?.org || route?.query?.org_id
+          ? String(route.query?.org || route.query?.org_id)
+          : null
       result = await usersStore.editUser(userForm.user_id, payload, false, orgIdFromQuery)
     } else {
       result = await usersStore.createUser(payload)
@@ -1190,6 +1422,7 @@ const resetUserForm = () => {
   userForm.role_id = 2
   userForm.primaryContact = false
   userForm.isActive = true
+  userForm.departments = []
 
   // Reset phone component
   if (phoneRef.value && phoneRef.value.resetPhoneField) {
@@ -1208,6 +1441,9 @@ const openAddUserModal = () => {
 const openEditUserModal = async (user: any) => {
   isEditMode.value = true
 
+  // Load user's departments if they're a Department Admin
+  let userDepartments: string[] = []
+
   Object.assign(userForm, {
     user_id: user.id,
     name: user.name,
@@ -1216,6 +1452,7 @@ const openEditUserModal = async (user: any) => {
     phone: user.phone,
     primaryContact: user.primaryContact || false,
     isActive: user.status === 'active',
+    departments: user.rawDepartmentIds || [],
   })
 
   showUserModal.value = true
@@ -1468,7 +1705,10 @@ const openPreview = async (file: File) => {
       route?.query?.org || route?.query?.org_id
         ? String(route.query?.org || route.query?.org_id)
         : null
-    const validationResponse = await usersStore.uploadAndValidateJson(parsedData as any, orgIdFromQuery)
+    const validationResponse = await usersStore.uploadAndValidateJson(
+      parsedData as any,
+      orgIdFromQuery,
+    )
 
     if (validationResponse.errors && validationResponse.errors.length > 0) {
       errors.value = validationResponse.errors.map(
@@ -1637,23 +1877,29 @@ const pollInterval = ref<number | null>(null)
 
 // Lifecycle
 onMounted(async () => {
-  const initialLoads: Promise<any>[] = [
-    loadUsers(true),
-    usersStore.fetchRoles(),
-    // pass org from route for superadmin
-    (async () => {
-      const route = useRoute()
-      const orgId =
-        route.query?.org || route.query?.org_id
-          ? String(route.query?.org || route.query?.org_id)
-          : null
-      await integrationsStore.fetchOverview(orgId, false, false).catch(() => {})
-    })(),
-  ]
-  await Promise.all(initialLoads)
+  loading.value = true
+  error.value = null
+
+  try {
+    const orgId =
+      route.query?.org || route.query?.org_id
+        ? String(route.query?.org || route.query?.org_id)
+        : null
+
+    // 1️⃣ Load dependencies FIRST
+    await Promise.all([usersStore.fetchRoles(), loadDepartments()])
+
+    // 2️⃣ Load users AFTER departments exist
+    await loadUsers(true)
+
+    // integrations can be parallel
+    integrationsStore.fetchOverview(orgId, false, false).catch(() => {})
+  } finally {
+    loading.value = false
+  }
 
   pollInterval.value = window.setInterval(() => {
-    loadUsers(false).catch((e) => console.warn('Polling loadUsers failed', e))
+    loadUsers(false).catch(() => {})
   }, 30000)
 })
 

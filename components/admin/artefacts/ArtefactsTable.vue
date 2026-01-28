@@ -1,10 +1,10 @@
 <template>
   <div class="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
     <!-- Table Header -->
-    <div class="px-6 py-4 border-b border-dark-700">
-      <h2 class="text-lg font-semibold text-white">All Artefacts</h2>
-      <p class="text-gray-400 text-sm">
-        Manage your uploaded artefacts and view their processing status and AI-generated summaries.
+    <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-dark-700">
+      <h2 class="text-base sm:text-lg font-semibold text-white">All Artifacts</h2>
+      <p class="text-gray-400 text-xs sm:text-sm mt-1">
+        Manage your uploaded artifacts and view their processing status and AI-generated summaries.
       </p>
     </div>
 
@@ -17,7 +17,7 @@
       sort-mode="manual"
       class="divide-y divide-dark-700"
       :ui="{
-        wrapper: 'relative overflow-x-auto',
+        wrapper: 'relative overflow-x-auto -mx-4 sm:mx-0',
         base: 'min-w-full table-fixed',
         thead: 'bg-dark-900',
         tbody: 'bg-dark-800 divide-y divide-dark-700 [&>tr:hover]:bg-dark-700/50',
@@ -28,28 +28,30 @@
         },
         th: {
           base: 'text-left rtl:text-right',
-          padding: 'px-6 py-3',
+          padding: 'px-3 sm:px-6 py-2 sm:py-3',
           color: 'text-gray-400',
           font: 'font-medium text-xs',
           size: 'text-xs',
         },
         td: {
           base: 'whitespace-nowrap',
-          padding: 'px-6 py-4',
+          padding: 'px-3 sm:px-6 py-2 sm:py-4',
           color: 'text-gray-300',
           font: '',
-          size: 'text-sm',
+          size: 'text-xs sm:text-sm',
         },
       }"
     >
-      <!-- Artefact column with icon and description -->
+      <!-- Artifact column with icon and description -->
       <template #artefact-data="{ row }">
         <div class="flex items-center">
-          <div class="min-w-[20rem] max-w-[32rem]">
-            <div class="text-sm font-medium text-white truncate" :title="row.name">
+          <div class="min-w-[8rem] sm:min-w-[20rem] max-w-[16rem] sm:max-w-[32rem]">
+            <div class="text-xs sm:text-sm font-medium text-white truncate" :title="row.name">
               {{ row.name }}
             </div>
-            <div class="text-sm text-gray-400 truncate">{{ row.description }}</div>
+            <div class="text-xs sm:text-sm text-gray-400 truncate hidden sm:block">
+              {{ row.description }}
+            </div>
           </div>
         </div>
       </template>
@@ -62,6 +64,21 @@
         >
           {{ row.category }}
         </span>
+      </template>
+
+      <!-- Departments column -->
+      <template #departments-data="{ row }">
+        <div v-if="row.departments?.length" class="flex flex-wrap gap-1">
+          <UBadge
+            v-for="dept in row.departments"
+            :key="dept"
+            size="sm"
+            class="bg-blue-500/20 text-blue-400"
+          >
+            {{ dept }}
+          </UBadge>
+        </div>
+        <span v-else class="text-gray-400 text-xs">—</span>
       </template>
 
       <!-- Status column with badge and dot -->
@@ -136,7 +153,7 @@
 
       <template #actions-data="{ row }">
         <div class="flex items-center space-x-2">
-          <UTooltip text="View Artefact">
+          <UTooltip text="View Artifact">
             <button
               @click="$emit('viewArtefact', row)"
               class="text-blue-400 hover:text-blue-300 transition-colors"
@@ -150,7 +167,7 @@
                 ? 'Document is processing'
                 : row.status === 'processed'
                   ? 'Document is already processed'
-                  : 'Reprocess Artefact'
+                  : 'Reprocess Artifact'
             "
           >
             <button
@@ -170,7 +187,7 @@
               <UIcon name="heroicons:arrow-path-rounded-square" class="w-4 h-4" />
             </button>
           </UTooltip>
-          <UTooltip text="Delete Artefact">
+          <UTooltip text="Delete Artifact">
             <button
               @click="$emit('deleteArtefact', row)"
               class="text-red-400 hover:text-red-300 transition-colors"
@@ -183,7 +200,10 @@
     </UTable>
 
     <!-- Pagination Footer -->
-    <div class="p-4 flex items-center justify-between border-t border-dark-700" v-if="sortedRows.length > 0">
+    <div
+      class="p-4 flex items-center justify-between border-t border-dark-700"
+      v-if="sortedRows.length > 0"
+    >
       <div class="flex items-center space-x-3">
         <div class="text-sm text-gray-400 hidden sm:block">Rows per page</div>
         <div class="w-24">
@@ -221,6 +241,7 @@ interface Artefact {
   summarized: string
   summary?: string
   isSummarizing?: boolean
+  departments?: string[] // department names assigned to this artifact
 }
 
 interface Props {
@@ -243,8 +264,12 @@ const perPageOptions = [
   { label: '50', value: 50 },
   { label: 'All', value: 'all' },
 ]
-const computedPageCount = computed(() => (perPage.value === 'all' ? Math.max(sortedRows.value.length, 1) : (perPage.value as number)))
-watch(perPage, () => { page.value = 1 })
+const computedPageCount = computed(() =>
+  perPage.value === 'all' ? Math.max(sortedRows.value.length, 1) : (perPage.value as number),
+)
+watch(perPage, () => {
+  page.value = 1
+})
 
 defineEmits<{
   viewArtefact: [artefact: Artefact]
@@ -258,7 +283,7 @@ defineEmits<{
 const columns = [
   {
     key: 'artefact',
-    label: 'Artefact',
+    label: 'Artifact',
     sortable: true,
   },
   {
@@ -275,6 +300,11 @@ const columns = [
     key: 'size',
     label: 'Size',
     sortable: true,
+  },
+  {
+    key: 'departments',
+    label: 'Departments',
+    sortable: false,
   },
   {
     key: 'status',

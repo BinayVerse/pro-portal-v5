@@ -1,4 +1,4 @@
-import { defineEventHandler, readBody, setResponseStatus } from 'h3'
+import { defineEventHandler, setResponseStatus, getQuery } from 'h3'
 import { CustomError } from '../../utils/custom.error'
 import { query } from '../../utils/db'
 import jwt from 'jsonwebtoken'
@@ -37,15 +37,27 @@ export default defineEventHandler(async (event) => {
   const tokenUserOrg = userResult.rows[0].org_id
   const tokenUserRole = userResult.rows[0].role_id
 
-  const body = await readBody<{ fileName?: string; fileNames?: string[]; org_id?: string }>(event)
-  const { fileName, fileNames } = body
+  const queryParams = getQuery(event) as Record<string, any>
+  const fileName = queryParams.fileName
+  const fileNamesParam = queryParams.fileNames
 
-  const q = getQuery(event) as Record<string, any>
-  const requestedOrg = q?.org || q?.org_id || body?.org_id || null
+  const requestedOrg = queryParams?.org || queryParams?.org_id || null
   const org_id = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
   // Handle both single file and multiple files
-  const filesToCheck = fileName ? [fileName] : (fileNames || [])
+  // Parse fileNames if it's a comma-separated string or array
+  let filesToCheck: string[] = []
+  
+  if (fileName) {
+    filesToCheck = [fileName]
+  } else if (fileNamesParam) {
+    // If passed as comma-separated string, split it
+    if (typeof fileNamesParam === 'string') {
+      filesToCheck = fileNamesParam.split(',').map(f => f.trim()).filter(f => f)
+    } else if (Array.isArray(fileNamesParam)) {
+      filesToCheck = fileNamesParam
+    }
+  }
 
   if (!filesToCheck || filesToCheck.length === 0) {
     setResponseStatus(event, 400)

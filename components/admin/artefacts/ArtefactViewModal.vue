@@ -122,7 +122,7 @@ const clearContent = () => {
   isLoading.value = false
 }
 
-// Watch for both artefact and modal state changes
+// Watch for both artifact and modal state changes
 watch(
   () => [props.artefact, props.isOpen],
   async ([newArtefact, isOpen]) => {
@@ -217,7 +217,11 @@ const renderContentByFileType = async (fileType: string, fileUrl: string) => {
         let arrayBuffer
 
         try {
-          if (decodedData.startsWith('data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,')) {
+          if (
+            decodedData.startsWith(
+              'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,',
+            )
+          ) {
             // Extract base64 content after the prefix
             const base64Content = decodedData.split(',')[1]
             const binaryString = atob(base64Content)
@@ -309,7 +313,8 @@ const parseCSVToHTML = (csvContent: string): string => {
   // Remove quotes from headers
   const headers = parsedRows[0].map((header) => header?.replace(/"/g, ''))
 
-  let tableHTML = '<div style="height: calc(100vh - 190px); overflow-y: auto; margin: 20px; background: #1e293b; border-radius: 0.375rem; padding: 1rem;"><table class="table-auto border-collapse border border-gray-300"><thead><tr>'
+  let tableHTML =
+    '<div style="height: calc(100vh - 190px); overflow-y: auto; margin: 20px; background: #1e293b; border-radius: 0.375rem; padding: 1rem;"><table class="table-auto border-collapse border border-gray-300"><thead><tr>'
 
   headers.forEach((col) => {
     tableHTML += `<th class="border border-gray-300 p-2">${escapeHtml(col)}</th>`

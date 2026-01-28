@@ -79,24 +79,24 @@ export const sendWelcomeMail = async (name: string, email: string, password: str
             <td style="padding: 20px;">
               <p style="font-size: 16px; line-height: 1.5; margin: 0 0 10px;">Hi <strong>${name}</strong>,</p>
               <p style="font-size: 16px; line-height: 1.5; margin: 0 0 20px;">
-                We're thrilled to have you on board. With provento.ai, you can chat with your documents like never before—extracting insights, finding answers, and streamlining workflows effortlessly.
+                We're thrilled to have you on board. With provento.ai, you can chat with your artifacts like never before—extracting insights, finding answers, and streamlining workflows effortlessly.
               </p>
               <h3 style="font-size: 18px; margin: 20px 0 10px;">Here's how to get started:</h3>
               <p style="line-height: 1.5; margin: 0 0 20px;">
-                <div style="font-size: 16px;">📁  Upload a Document:</div>
-                <div style="font-size: 15px;">Log in to your admin portal and drag and drop the documents you want your users to interact with.</div>
+                <div style="font-size: 16px;">📁  Upload a Artifact:</div>
+                <div style="font-size: 15px;">Log in to your admin portal and drag and drop the artifacts you want your users to interact with.</div>
               </p>
               <p style="line-height: 1.5; margin: 0 0 20px;">
                 <div style="font-size: 16px;">👥  Onboard WhatsApp Users:</div>
                 <div style="font-size: 15px;">Invite users by entering their WhatsApp number and Email ID.
                 <br />
-                They’ll receive an email with a QR Code to start chatting with documents on WhatsApp.</div>
+                They’ll receive an email with a QR Code to start chatting with artifacts on WhatsApp.</div>
               </p>
               <p style="line-height: 1.5; margin: 0 0 20px;">
                 <div style="font-size: 16px;">💬  Start Chatting on Slack (New!):</div>
                 <div style="font-size: 15px;">Once you connect your Slack workspace:
                 <br />
-                All users in the workspace will automatically be able to chat with your uploaded documents.
+                All users in the workspace will automatically be able to chat with your uploaded artifacts.
                 <br />
                 They simply need to open the bot in Slack and start asking questions.</div>
               </p>
@@ -104,14 +104,14 @@ export const sendWelcomeMail = async (name: string, email: string, password: str
                 <div style="font-size: 16px;">🏢  Chat on Microsoft Teams:</div>
                 <div style="font-size: 15px;">Once your Teams workspace is connected,
                 <br />
-                All users can instantly start chatting with your uploaded documents —
+                All users can instantly start chatting with your uploaded artifacts —
                 just open the bot in Teams and ask questions!</div>
               </p>
               <p style="font-size: 16px; line-height: 1.5; margin: 0 0 20px;">
                 Please access our app <a href="${portalLink}" style="color: #13dcff; text-decoration: none;">here</a> with your credentials.
               </p>
               ${resetPasswordSection}
-              <p style="font-size: 16px; line-height: 1.5; margin: 0 0 10px;">Let's transform the way you work with documents! 🚀</p>
+              <p style="font-size: 16px; line-height: 1.5; margin: 0 0 10px;">Let's transform the way you work with artifacts! 🚀</p>
               <p style="font-size: 16px; line-height: 1.5; margin: 0;">Cheers,</p>
               <p style="font-size: 16px; line-height: 1.5; margin: 0;"><strong>The provento.ai Team</strong></p>
             </td>
@@ -317,7 +317,7 @@ export const sendUserAdditionMail = async (name: string, email: string, qrCode: 
       : ''
 
     const slackSteps = slack_enabled
-      ? `\n        <h5>For Slack:</h5>\n        <ol>\n          <li>Open Slack.</li>\n          <li>Go to Apps → Search for provento.ai.</li>\n          <li>Click Add and start chatting with your documents.</li>\n        </ol>\n      `
+      ? `\n        <h5>For Slack:</h5>\n        <ol>\n          <li>Open Slack.</li>\n          <li>Go to Apps → Search for provento.ai.</li>\n          <li>Click Add and start chatting with your artifacts.</li>\n        </ol>\n      `
       : ''
 
     const teamsSteps = teams_enabled
@@ -395,7 +395,7 @@ export const sendUserAdditionMail = async (name: string, email: string, qrCode: 
         ${EMAIL_HEADER('Invitation to Access provento.ai')}
         <div class="content">
           <p>Hi <strong>${name}</strong>,</p>
-          <p>We are excited to introduce the Document Chatting Bot <strong>“provento.ai”</strong>! With this tool, managing and accessing organization documents and information has never been easier. You can now chat with your documents across multiple platforms.</p>
+          <p>We are excited to introduce the Artifact Chatting Bot <strong>“provento.ai”</strong>! With this tool, managing and accessing organization artifacts and information has never been easier. You can now chat with your artifacts across multiple platforms.</p>
 
           <h3>Available for you right now:</h3>
 
@@ -414,9 +414,9 @@ export const sendUserAdditionMail = async (name: string, email: string, qrCode: 
           <p>Once you’ve followed the steps above, you’ll be connected to our bot and ready to explore all the features we’ve built just for you!</p>
           <h3>Features of provento.ai:</h3>
           <ul class="steps">
-            <li>Chat with organization documents quickly by asking the bot.</li>
-            <li>Find quick answers to questions related to your organization documents.</li>
-            <li>This bot will simplify your organization interactions and make document chatting seamless.</li>
+            <li>Chat with organization artifacts quickly by asking the bot.</li>
+            <li>Find quick answers to questions related to your organization artifacts.</li>
+            <li>This bot will simplify your organization interactions and make artifact chatting seamless.</li>
           </ul>
           <p>We’re excited to have you try it out and hope it makes your experience smoother!</p>
           <p>Best regards,</p>
@@ -542,7 +542,7 @@ export const sendChannelAvailableMail = async (name: string, email: string, chan
         <ol style="margin-top:6px;margin-bottom:12px;padding-left:20px;color:#374151">
           <li>Open Slack.</li>
           <li>Go to Apps → Search for provento.ai.</li>
-          <li>Click Add and start chatting with your documents.</li>
+          <li>Click Add and start chatting with your artifacts.</li>
         </ol>
       `
       : ''
@@ -575,8 +575,8 @@ export const sendChannelAvailableMail = async (name: string, email: string, chan
 
           <div style="margin-top:18px">
             ${whatsapp_enabled ? `<div style="margin-bottom:14px;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #e6eef5"><strong>WhatsApp</strong><p style="margin:6px 0 0;color:#374151">Scan the QR code below with WhatsApp to start chatting with the bot instantly.</p></div>` : ''}
-            ${slack_enabled ? `<div style="margin-bottom:14px;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #e6eef5"><strong>Slack</strong><p style="margin:6px 0 0;color:#374151">Add the provento.ai app to your Slack workspace from the Apps section and start asking questions from your documents.</p></div>` : ''}
-            ${teams_enabled ? `<div style="margin-bottom:14px;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #e6eef5"><strong>Microsoft Teams</strong><p style="margin:6px 0 0;color:#374151">Install the provento.ai app in Teams to chat with your organization documents right from Teams.</p></div>` : ''}
+            ${slack_enabled ? `<div style="margin-bottom:14px;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #e6eef5"><strong>Slack</strong><p style="margin:6px 0 0;color:#374151">Add the provento.ai app to your Slack workspace from the Apps section and start asking questions from your artifacts.</p></div>` : ''}
+            ${teams_enabled ? `<div style="margin-bottom:14px;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #e6eef5"><strong>Microsoft Teams</strong><p style="margin:6px 0 0;color:#374151">Install the provento.ai app in Teams to chat with your organization artifacts right from Teams.</p></div>` : ''}
           </div>
 
           <div style="margin-top:18px">

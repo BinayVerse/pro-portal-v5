@@ -1,6 +1,14 @@
 // server/api/aws-marketplace.ts
-import { H3Event } from 'h3'
+import {
+    defineEventHandler,
+    getQuery,
+    readBody,
+    setCookie,
+    sendRedirect,
+    H3Event
+} from 'h3'
 import { query } from '~/server/utils/db'
+import { randomUUID } from 'crypto'
 
 export default defineEventHandler(async (event: H3Event) => {
     const queryParams = getQuery(event) || {}
@@ -8,9 +16,7 @@ export default defineEventHandler(async (event: H3Event) => {
     let body: any = {}
     try {
         body = await readBody(event)
-    } catch {
-        body = {}
-    }
+    } catch { }
 
     const token =
         body?.['x-amzn-marketplace-token'] ||
@@ -21,39 +27,55 @@ export default defineEventHandler(async (event: H3Event) => {
         queryParams?.['x_amzn-marketplace-token'] ||
         null
 
-    // If token was received
-    if (token) {
-        const encoded = encodeURIComponent(String(token))
-        const decodedToken = decodeURIComponent(encoded)
-
-        const fulfillmentRes = await processFulfillment(decodedToken)
-        const customerId = fulfillmentRes?.data?.customerId || null
-
-        if (customerId) {
-            // Query subscription table to check org status
-            const subscriptionQuery = `
-                SELECT org_id, active
-                FROM public.aws_marketplace_subscriptions
-                WHERE customer_id = $1
-                LIMIT 1
-            `
-            const subscriptionRes = await query(subscriptionQuery, [customerId])
-            const subscription = subscriptionRes?.rows?.[0]
-
-            if (subscription?.org_id && subscription?.active === true) {
-                return sendRedirect(event, `/login`, 302)
-            }
-
-            // Else → redirect to signup with encoded token
-            return sendRedirect(event, `/signup?x-amzn-marketplace-token=${encoded}`, 302)
-        }
-
-        // If no customer ID was returned → treat as new signup
-        return sendRedirect(event, `/signup?x-amzn-marketplace-token=${encoded}`, 302)
+    if (!token) {
+        return { message: 'No marketplace token found' }
     }
 
-    // Fallback no-token response
-    return {
-        message: "No marketplace token found"
+    // 1️⃣ Validate token with AWS (ONE TIME)
+    const fulfillmentRes = await processFulfillment(token)
+    const customerId = fulfillmentRes?.data?.customerId
+
+    if (!customerId) {
+        return sendRedirect(event, '/signup', 302)
     }
+
+    // 2️⃣ If already linked → login
+    const existing = await query(
+        `
+    SELECT org_id, active
+    FROM aws_marketplace_subscriptions
+    WHERE customer_id = $1
+    LIMIT 1
+    `,
+        [customerId]
+    )
+
+    if (existing.rows[0]?.org_id && existing.rows[0]?.active) {
+        return sendRedirect(event, '/login', 302)
+    }
+
+    // 3️⃣ Create server-side session (2 hours)
+    const sessionToken = randomUUID()
+
+    await query(
+        `
+    INSERT INTO aws_marketplace_sessions
+      (customer_id, session_token, expires_at)
+    VALUES
+      ($1, $2, now() + interval '2 hours')
+    `,
+        [customerId, sessionToken]
+    )
+
+    // 4️⃣ Set HttpOnly cookie
+    setCookie(event, 'aws_marketplace_session', sessionToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 2 // 2 hours
+    })
+
+    // 5️⃣ Redirect WITHOUT token
+    return sendRedirect(event, '/signup', 302)
 })

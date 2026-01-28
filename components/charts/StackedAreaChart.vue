@@ -5,6 +5,7 @@
 </template>
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import dayjs from 'dayjs'
 const props = defineProps({
   data: {
     type: Array,
@@ -34,7 +35,7 @@ const series = computed(() => {
   return props.data.map((userData: any, index: number) => ({
     name: userData.name,
     data: userData.data.map((point: any) => ({
-      x: new Date(point.x).getTime(),
+      x: dayjs(point.x).valueOf(),
       y: point.y,
     })),
     color: dynamicColors.value[index], // assign unique color per user

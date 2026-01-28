@@ -1,12 +1,12 @@
-import { defineEventHandler, readBody, setResponseStatus } from 'h3'
+import { defineEventHandler, setResponseStatus, getQuery } from 'h3'
 import { google } from 'googleapis'
 import { CustomError } from '../../utils/custom.error'
 import { query } from '../../utils/db'
 
 export default defineEventHandler(async (event) => {
     try {
-        const body = await readBody(event)
-        const { folderUrl } = body
+        const queryParams = getQuery(event) as Record<string, any>
+        const folderUrl = queryParams.folderUrl
 
         if (!folderUrl) {
             throw new CustomError('Google Drive folder URL is required', 400)
