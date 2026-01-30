@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt'
 import {
   generateRandomPassword,
   generateResetLink,
+  sendDepartmentAdminWelcomeMail,
   sendUserAdditionMail,
   sendWelcomeMail,
 } from '../helper'
@@ -42,6 +43,36 @@ export default defineEventHandler(async (event) => {
     }
 
     currentUser = userResult.rows[0]
+
+    // 🔑 DEPARTMENT ADMIN RESTRICTION: Can create users only with USER role (2) and in their departments
+    if (currentUser.role_id === 3) {
+      if (params.role_id && Number(params.role_id) !== 2) {
+        setResponseStatus(event, 403)
+        throw new CustomError('Department Admins can only create users with USER role', 403)
+      }
+
+      // Get Department Admin's departments
+      const adminDeptResult = await query(
+        `SELECT dept_id FROM user_departments WHERE user_id = $1`,
+        [String(currentUser.user_id)],
+      )
+      const adminDepts = adminDeptResult.rows.map(r => String(r.dept_id))
+
+      // If departments provided, verify they're all in admin's departments
+      if (params.departments && Array.isArray(params.departments)) {
+        const allAuthorized = params.departments.every((deptId: string) =>
+          adminDepts.includes(String(deptId))
+        )
+
+        if (!allAuthorized) {
+          setResponseStatus(event, 403)
+          throw new CustomError('Department Admins can only assign users to their own departments', 403)
+        }
+      } else {
+        setResponseStatus(event, 400)
+        throw new CustomError('Department Admins must assign users to at least one of their departments', 400)
+      }
+    }
 
     // Allow superadmin to create user for a requested org via query param or body.org_id
     const q = getQuery(event) as Record<string, any>
@@ -146,17 +177,19 @@ export default defineEventHandler(async (event) => {
     const result = await query(insertUserQuery, values)
     const newUserId = result.rows[0].user_id
 
-    // Handle department assignment for Department Admin (role_id = 3)
-    if (roleIdNum === 3 && userDetails.departments && Array.isArray(userDetails.departments) && userDetails.departments.length > 0) {
+    // Handle department assignment for USER (role_id = 2) and DEPARTMENT ADMIN (role_id = 3)
+    // 🔑 Company Admin can assign one or multiple departments to both roles
+    if ((roleIdNum === 2 || roleIdNum === 3) && userDetails.departments && Array.isArray(userDetails.departments) && userDetails.departments.length > 0) {
       try {
         for (const deptId of userDetails.departments) {
           await query(
-            `INSERT INTO user_departments (user_id, dept_id, org_id)
-             VALUES ($1, $2, $3)
+            `INSERT INTO user_departments (user_id, dept_id, org_id, created_by)
+             VALUES ($1, $2, $3, $4)
              ON CONFLICT (user_id, dept_id) DO NOTHING`,
-            [String(newUserId), deptId, orgDetail.org_id],
+            [String(newUserId), deptId, orgDetail.org_id, String(userId)],
           )
         }
+        console.log(`[create.post.ts] Assigned ${userDetails.departments.length} departments to user ${newUserId}`)
       } catch (e) {
         console.error('Failed to assign departments to user:', e)
       }
@@ -166,6 +199,25 @@ export default defineEventHandler(async (event) => {
     if (roleIdNum === 1) {
       const { resetLink } = await generateResetLink(normalizedEmail, config.public.appUrl, newUserId)
       await sendWelcomeMail(name, normalizedEmail, password, appLink, resetLink)
+    } else if (roleIdNum === 3) {
+      // ✅ Department Admin
+      const { resetLink } = await generateResetLink(normalizedEmail, config.public.appUrl, newUserId)
+
+      // OPTIONAL: fetch department names for nicer email
+      const deptRows = await query(
+        `SELECT dept_name FROM departments WHERE dept_id = ANY($1)`,
+        [userDetails.departments || []],
+      )
+      const deptNames = deptRows.rows.map(r => r.dept_name)
+
+      await sendDepartmentAdminWelcomeMail(
+        name,
+        normalizedEmail,
+        appLink,
+        deptNames,
+        resetLink,
+      )
+
     } else if (roleIdNum === 2) {
       try {
         const integ = await query(

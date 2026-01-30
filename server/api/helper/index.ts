@@ -138,6 +138,98 @@ export const sendWelcomeMail = async (name: string, email: string, password: str
   }
 };
 
+export const sendDepartmentAdminWelcomeMail = async (
+  name: string,
+  email: string,
+  portalLink: string,
+  departments: string[],
+  resetLink?: string
+) => {
+  try {
+    const config = useRuntimeConfig()
+
+    const resetPasswordSection = resetLink
+      ? `
+        <p style="font-size: 16px; line-height: 1.5; margin: 0 0 20px;">
+          Set your password by clicking the link below:
+        </p>
+        <p style="text-align: center; margin-bottom: 30px;">
+          <a href="${resetLink}" style="color: #13dcff; text-decoration: none; font-weight: bold;">
+            Set Password
+          </a>
+        </p>
+      `
+      : ''
+
+    const departmentList = departments.length
+      ? `
+        <ul style="font-size: 15px; padding-left: 20px;">
+          ${departments.map(d => `<li>${d}</li>`).join('')}
+        </ul>
+      `
+      : `<p style="font-size: 15px;">Your departments will be visible after login.</p>`
+
+    const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f9f9f9;">
+        <table align="center" width="600" style="background:#fff;border-radius:10px;padding:20px;">
+          ${EMAIL_HEADER('Welcome to provento.ai 🎉')}
+          <tr>
+            <td>
+              <p style="font-size:16px;">Hi <strong>${name}</strong>,</p>
+
+              <p style="font-size:16px;">
+                You’ve been added as a <strong>Department Admin</strong> on provento.ai.
+                This means you can manage and interact with artifacts for your assigned departments.
+              </p>
+
+              <h3 style="margin-top:20px;">Your responsibilities include:</h3>
+
+              <ul style="font-size:15px; line-height:1.6;">
+                <li>Managing artifacts within your departments</li>
+                <li>Helping users get answers from artifacts</li>
+                <li>Ensuring department knowledge stays up to date</li>
+              </ul>
+
+              <h3 style="margin-top:20px;">Assigned Departments</h3>
+              ${departmentList}
+
+              <p style="font-size:16px; margin-top:20px;">
+                You can log in to the portal here:
+                <a href="${portalLink}" style="color:#13dcff;">Access provento.ai</a>
+              </p>
+
+              ${resetPasswordSection}
+
+              <p style="font-size:14px; color:#666; margin-top:20px;">
+                Note: Organization-wide settings (billing, integrations, user limits)
+                are managed by your Organization Admin.
+              </p>
+
+              <p style="margin-top:20px;">Cheers,<br /><strong>The provento.ai Team</strong></p>
+            </td>
+          </tr>
+          ${EMAIL_FOOTER}
+        </table>
+      </body>
+      </html>
+    `
+
+    await sendEmail({
+      to: email,
+      from: (config as any).sesFromEmailId,
+      subject: 'Welcome to provento.ai — Department Admin Access',
+      html: htmlBody,
+      text: `Welcome to provento.ai! You’ve been added as a Department Admin.`,
+    })
+  } catch (err: any) {
+    console.error('Failed to send department admin welcome mail:', err)
+    throw err
+  }
+}
+
+
 export const sendResetPasswordMail = async (name: string, email: string, resetLink: string) => {
   try {
     const config = useRuntimeConfig();

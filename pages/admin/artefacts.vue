@@ -669,13 +669,13 @@ const loadDepartments = async () => {
   departmentsLoading.value = artefactsStore.isDepartmentsLoading
 }
 
-// Fetch departments for all artifacts
+// Fetch departments for all artifacts (now part of list API response)
 const fetchArtifactDepartments = async () => {
-  await artefactsStore.fetchArtefactDepartments(artefacts.value.map((a) => a.id))
-
-  // Update artefacts with department names for display (converted from IDs)
+  // Departments are now already included in the artefacts list API response
+  // Just map the department IDs to names for display
   artefacts.value.forEach((artefact) => {
-    const deptIds = artefactsStore.getArtefactDepartments[artefact.id] || []
+    const deptIds = artefact.departments || [] // Already populated from list API
+    artefact.rawDepartmentIds = deptIds.map(String) // 🔑 important - keep array of dept IDs for filtering
     artefact.departments = artefactsStore.getDepartmentNames(deptIds)
   })
 }

@@ -42,8 +42,7 @@ export default defineEventHandler(async (event) => {
   const orgId = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
   // For Department Admin (role_id = 3), get their departments
-  let departmentFilter = ''
-  let queryParams: any[] = [orgId]
+  let adminDepartmentIds: string[] = []
 
   if (tokenUserRole === 3) {
     try {
@@ -51,26 +50,47 @@ export default defineEventHandler(async (event) => {
         `SELECT dept_id FROM user_departments WHERE user_id = $1`,
         [String(tokenUserId)],
       )
-      const deptIds = deptResult.rows.map((row) => row.dept_id)
-
-      if (deptIds.length > 0) {
-        // Department Admin sees: users in their departments + unassigned users
-        departmentFilter = `AND (
-          EXISTS (
-            SELECT 1 FROM user_departments ud
-            WHERE ud.user_id = u.user_id AND ud.dept_id = ANY($2)
-          )
-          OR NOT EXISTS (
-            SELECT 1 FROM user_departments ud2
-            WHERE ud2.user_id = u.user_id
-          )
-        )`
-        queryParams.push(deptIds)
-      }
+      adminDepartmentIds = deptResult.rows.map((row) => String(row.dept_id))
+      // console.log(`[all.get.ts] Department Admin ${tokenUserId} has departments:`, adminDepartmentIds)
     } catch (e) {
       console.error('Failed to fetch department assignments for Department Admin:', e)
     }
   }
+
+  // Build the main query with Department Admin filtering
+  let whereClause = `
+  WHERE u.org_id = $1
+`
+  const queryParams: any[] = [orgId]
+
+  // 🟢 Admin (role_id = 1): see everyone except super admin
+  if (tokenUserRole === 1) {
+    whereClause += `
+    AND u.role_id != 0
+  `
+  }
+
+  // 🔵 Department Admin (role_id = 3): scoped view
+  else if (tokenUserRole === 3) {
+    whereClause += `
+    AND u.role_id NOT IN (0, 1)
+    AND (
+      EXISTS (
+        SELECT 1 FROM user_departments ud
+        WHERE ud.user_id = u.user_id
+          AND ud.dept_id = ANY($2)
+      )
+      OR NOT EXISTS (
+        SELECT 1 FROM user_departments ud2
+        WHERE ud2.user_id = u.user_id
+      )
+    )
+  `
+    queryParams.push(adminDepartmentIds)
+  }
+
+  // 🔑 Super Admin (role_id = 0): no additional filter
+
 
   const users = await query(
     `
@@ -88,9 +108,7 @@ export default defineEventHandler(async (event) => {
             COALESCE(u.created_at, NULL) AS created_at,
             COALESCE(u.is_active, true) AS is_active
         FROM users u
-        WHERE u.org_id = $1
-          AND u.role_id IS DISTINCT FROM '0'
-          ${departmentFilter}
+        ${whereClause}
         ORDER BY u.user_id, u.created_at DESC
       )
       SELECT
@@ -107,7 +125,7 @@ export default defineEventHandler(async (event) => {
           du.created_at,
           CASE WHEN du.is_active = true THEN 'active' ELSE 'inactive' END AS status,
 
-          -- ✅ DEPARTMENTS (THIS IS THE FIX)
+          -- ✅ DEPARTMENTS
           COALESCE(
             ARRAY_AGG(ud.dept_id) FILTER (WHERE ud.dept_id IS NOT NULL),
             '{}'

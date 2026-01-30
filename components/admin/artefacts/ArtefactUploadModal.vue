@@ -1016,6 +1016,10 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
     formData.append('file', event.data.file)
     formData.append('category', event.data.category)
     formData.append('description', event.data.description || '')
+    // 🔑 important - append departments as array
+    if (event.data.departments && event.data.departments.length > 0) {
+      formData.append('departments', JSON.stringify(event.data.departments))
+    }
 
     // Check if file already exists
     const fileName = event.data.file.name.replace(/\s+/g, '_')
@@ -1168,10 +1172,18 @@ const uploadFromGoogleDrive = async () => {
       showWarning(`The following files already exist and will be overwritten: ${fileList}`)
     }
 
+    // 🔑 important - pass departments as part of upload
+    const uploadPayload = {
+      files: selectedGoogleDriveFiles.value,
+      category: googleDriveState.category,
+      departments: googleDriveState.departments && googleDriveState.departments.length > 0
+        ? googleDriveState.departments
+        : [],
+    }
+
     // Call the store method to upload files
-    const result = await artefactsStore.uploadGoogleDriveFiles(
-      selectedGoogleDriveFiles.value,
-      googleDriveState.category,
+    const result = await artefactsStore.uploadGoogleDriveFilesWithDepartments(
+      uploadPayload,
       modalOrgId.value,
     )
 
@@ -1265,10 +1277,19 @@ const handleGoogleOAuthSignIn = async () => {
           googleAccessToken: file.googleAccessToken,
         }))
 
+        // 🔑 important - pass departments with the upload
+        const uploadPayload = {
+          files: convertedFiles,
+          category: googleDriveState.category,
+          departments: googleDriveState.departments && googleDriveState.departments.length > 0
+            ? googleDriveState.departments
+            : [],
+        }
+
         // Upload the files
-        const result = await artefactsStore.uploadGoogleDriveFiles(
-          convertedFiles,
-          googleDriveState.category,
+        const result = await artefactsStore.uploadGoogleDriveFilesWithDepartments(
+          uploadPayload,
+          modalOrgId.value,
         )
 
         if (result.success) {

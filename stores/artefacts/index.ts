@@ -170,6 +170,47 @@ export const useArtefactsStore = defineStore('artefacts', {
       }
     },
 
+    // Upload Google Drive files with departments support
+    async uploadGoogleDriveFilesWithDepartments(payload: { files: ArtefactGoogleDriveFile[]; category: string; departments: string[] }, orgId?: string | null) {
+      this.isUploadingGoogleDrive = true
+
+      try {
+        const token = localStorage.getItem('authToken')
+        const url = orgId ? `/api/artefacts/google-drive?org=${encodeURIComponent(String(orgId))}` : '/api/artefacts/google-drive'
+
+        const data = await $fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: token ? `Bearer ${token}` : '',
+          },
+          body: {
+            selectedFileDetails: payload.files,
+            category: payload.category,
+            departments: payload.departments, // 🔑 important - pass departments array
+          },
+        })
+
+        return {
+          success: true,
+          files: data.files || [],
+          message: data.message || 'Files uploaded successfully'
+        }
+      } catch (error: any) {
+        // Handle authentication errors using shared handler
+        if (await handleAuthErrorShared(error)) {
+          throw new Error('Session expired. Please sign in again.')
+        }
+
+        return {
+          success: false,
+          files: [],
+          message: handleError(error, 'Failed to upload Google Drive files', true)
+        }
+      } finally {
+        this.isUploadingGoogleDrive = false
+      }
+    },
+
     clearGoogleDriveFiles() {
       this.googleDriveFiles = []
       this.otherFilesCount = 0

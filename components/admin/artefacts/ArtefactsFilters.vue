@@ -1,19 +1,19 @@
 <template>
   <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
-    <div class="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-4">
+    <div class="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-4 xl:grid-cols-6">
       <!-- Search Input -->
-      <div class="flex-1 min-w-0">
+      <div class="min-w-0 md:col-span-3 xl:col-span-2">
         <UInput
           :model-value="searchQuery"
           @update:model-value="$emit('update:searchQuery', $event)"
           placeholder="Search artifacts..."
-          size="md"
           icon="i-heroicons-magnifying-glass"
+          size="md"
         />
       </div>
 
       <!-- Category Filter -->
-      <div class="w-full">
+      <div class="md:col-span-1 xl:col-span-1">
         <USelect
           :model-value="selectedCategory"
           @update:model-value="$emit('update:selectedCategory', $event)"
@@ -23,12 +23,11 @@
           ]"
           :loading="categoriesLoading"
           :disabled="categoriesLoading"
-          size="md"
         />
       </div>
 
       <!-- Type Filter -->
-      <div class="w-full">
+      <div class="md:col-span-1 xl:col-span-1">
         <USelect
           :model-value="selectedType"
           @update:model-value="$emit('update:selectedType', $event)"
@@ -40,12 +39,11 @@
             { label: 'TXT', value: 'TXT' },
             { label: 'CSV', value: 'CSV' },
           ]"
-          size="md"
         />
       </div>
 
       <!-- Status Filter -->
-      <div class="w-full">
+      <div class="md:col-span-1 xl:col-span-1">
         <USelect
           :model-value="selectedStatus"
           @update:model-value="$emit('update:selectedStatus', $event)"
@@ -55,19 +53,19 @@
             { label: 'Processing', value: 'processing' },
             { label: 'Failed', value: 'failed' },
           ]"
-          size="md"
         />
       </div>
 
       <!-- Department Filter -->
-      <USelect
-        :model-value="selectedDepartment"
-        @update:model-value="$emit('update:selectedDepartment', $event)"
-        :options="departmentOptions"
-        option-attribute="label"
-        value-attribute="value"
-        size="md"
-      />
+      <div class="md:col-span-2 xl:col-span-1">
+        <USelect
+          :model-value="selectedDepartment"
+          @update:model-value="$emit('update:selectedDepartment', $event)"
+          :options="departmentOptions"
+          option-attribute="label"
+          value-attribute="value"
+        />
+      </div>
     </div>
   </div>
 </template>

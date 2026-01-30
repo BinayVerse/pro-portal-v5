@@ -36,12 +36,12 @@ export default defineEventHandler(async (event) => {
 
     const result = await query(
         `
-    UPDATE organization_departments
-    SET name = $1, description = $2, updated_at = now()
-    WHERE dept_id = $3 AND org_id = $4
-    RETURNING dept_id AS id, name, description, status
-    `,
-        [name, description, deptId, orgId],
+            UPDATE organization_departments
+            SET name = $1, description = $2, updated_at = now(), updated_by = $5
+            WHERE dept_id = $3 AND org_id = $4
+            RETURNING dept_id AS id, name, description, status
+        `,
+        [name, description, deptId, orgId, userId],
     )
 
     if (!result.rowCount) {

@@ -118,6 +118,14 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // 🔑 Delete department links first (referential integrity)
+    try {
+      await query(`DELETE FROM document_departments WHERE document_id = $1;`, [documentId])
+    } catch (e) {
+      console.error('Failed to delete department links:', e)
+      // Continue even if department deletion fails
+    }
+
     // Delete from database
     await query(`DELETE FROM organization_documents WHERE id = $1;`, [documentId])
 

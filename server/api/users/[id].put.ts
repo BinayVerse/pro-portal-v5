@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken'
 import {
   generateRandomPassword,
   generateResetLink,
+  sendDepartmentAdminWelcomeMail,
   sendUserAdditionMail,
   sendWelcomeMail,
 } from '../helper'
@@ -63,6 +64,9 @@ export default defineEventHandler(async (event) => {
     }
 
     const currentUser = userResult.rows[0]
+    const previousRoleId = Number(currentUser.role_id)
+    const incomingRoleId = params.role_id ? Number(params.role_id) : previousRoleId
+
     let orgId = currentUser.org_id
 
     // Allow superadmin to target a different org via query param (org or org_id)
@@ -80,6 +84,36 @@ export default defineEventHandler(async (event) => {
       setResponseStatus(event, 403)
       throw new CustomError('Forbidden: Cannot modify users from another organization', 403)
     }
+
+    // 🔑 DEPARTMENT ADMIN RESTRICTIONS
+    if (callerRole === 3) {
+      // Department Admin cannot change roles
+      if (params.role_id && Number(params.role_id) !== previousRoleId) {
+        setResponseStatus(event, 403)
+        throw new CustomError('Department Admins cannot change user roles', 403)
+      }
+
+      // Department Admin can only assign departments they have access to
+      if (params.departments && Array.isArray(params.departments)) {
+        // Get Department Admin's departments
+        const adminDeptResult = await query(
+          `SELECT dept_id FROM user_departments WHERE user_id = $1`,
+          [String(callerUserId)],
+        )
+        const adminDepts = adminDeptResult.rows.map(r => String(r.dept_id))
+
+        // Check if all requested departments are in the admin's departments
+        const allAuthorized = params.departments.every((deptId: string) =>
+          adminDepts.includes(String(deptId))
+        )
+
+        if (!allAuthorized) {
+          setResponseStatus(event, 403)
+          throw new CustomError('Department Admins can only assign users to their own departments', 403)
+        }
+      }
+    }
+
     const appLink = `${config.public.appUrl}/login`
     const updates: string[] = []
     const values: any[] = []
@@ -262,34 +296,98 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('User not found or unauthorized', 404)
     }
 
-    // 🔑 Department access handling
-    try {
-      // Always remove existing department mappings
-      await query(
-        `DELETE FROM user_departments WHERE user_id = $1`,
-        [String(userId)],
-      )
+    /* ============================================================
+       🔑 DEPARTMENT SYNC (DIFF-BASED)
+    ============================================================ */
+    const targetRoleId = Number(params.role_id)
+    const incoming = Array.isArray(params.departments)
+      ? params.departments.map(String)
+      : []
 
-      // Re-assign ONLY if user is Department Admin
-      if (
-        (params.role_id === 3 || params.role_id === '3') &&
-        Array.isArray(params.departments) &&
-        params.departments.length > 0
-      ) {
-        for (const deptId of params.departments) {
-          await query(
-            `
-              INSERT INTO user_departments (user_id, dept_id, org_id)
-              VALUES ($1, $2, $3)
-              ON CONFLICT (user_id, dept_id) DO NOTHING
-            `,
-            [String(userId), String(deptId), String(orgId)],
-          )
-        }
+    const existing = await query(
+      `SELECT dept_id FROM user_departments WHERE user_id = $1`,
+      [String(userId)],
+    )
+
+    const existingIds = existing.rows.map(r => String(r.dept_id))
+
+    if (![2, 3].includes(targetRoleId)) {
+      // Role no longer supports departments
+      await query(`DELETE FROM user_departments WHERE user_id = $1`, [String(userId)])
+    } else {
+      const toAdd = incoming.filter(d => !existingIds.includes(d))
+      const toRemove = existingIds.filter(d => !incoming.includes(d))
+      const toUpdate = existingIds.filter(d => incoming.includes(d))
+
+      if (toRemove.length) {
+        await query(
+          `DELETE FROM user_departments WHERE user_id = $1 AND dept_id = ANY($2)`,
+          [String(userId), toRemove],
+        )
       }
-    } catch (e) {
-      console.error('Failed to update department assignments:', e)
+
+      for (const deptId of toAdd) {
+        await query(
+          `
+          INSERT INTO user_departments (user_id, dept_id, org_id, created_by)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (user_id, dept_id) DO NOTHING
+          `,
+          [String(userId), deptId, orgId, callerUserId],
+        )
+      }
+
+      if (toUpdate.length) {
+        await query(
+          `
+          UPDATE user_departments
+          SET updated_by = $1,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = $2
+            AND dept_id = ANY($3)
+          `,
+          [callerUserId, String(userId), toUpdate],
+        )
+      }
     }
+
+    // 📧 Role transition emails
+    try {
+      // Promoted to Department Admin
+      if (previousRoleId !== 3 && incomingRoleId === 3) {
+        const { resetLink } = await generateResetLink(
+          currentUser.email,
+          config.public.appUrl,
+          userId,
+        )
+
+        const deptRows = await query(
+          `SELECT d.name
+            FROM organization_departments d
+            JOIN user_departments ud ON ud.dept_id = d.dept_id
+            WHERE ud.user_id = $1`,
+          [String(userId)],
+        )
+
+        const deptNames = deptRows.rows.map(r => r.name)
+
+        const safeDeptNames =
+          deptNames.length > 0 ? deptNames : ['(Departments not assigned yet, please contact your org admin)']
+
+        await sendDepartmentAdminWelcomeMail(
+          currentUser.name,
+          currentUser.email,
+          appLink,
+          safeDeptNames,
+          resetLink,
+        )
+      }
+
+      // Promoted to Org Admin (already exists in your code earlier)
+    } catch (emailErr) {
+      console.error('Failed to send role transition email:', emailErr)
+    }
+
 
 
     setResponseStatus(event, 200)

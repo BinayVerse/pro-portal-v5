@@ -108,6 +108,45 @@ export default defineEventHandler(async (event) => {
       const category = String(fields.category || '')
       const description = String(fields.description || '')
 
+      // Parse departments array from form
+      // Note: formidable returns form fields as arrays
+      let departments: string[] = []
+      const departmentsField = fields.departments
+      console.log(`[upload.post.ts] Raw departmentsField:`, departmentsField, 'type:', typeof departmentsField, 'isArray:', Array.isArray(departmentsField))
+
+      if (departmentsField) {
+        try {
+          let parsedDepts: any = departmentsField
+
+          // formidable returns fields as arrays - extract the value
+          if (Array.isArray(departmentsField) && departmentsField.length > 0) {
+            parsedDepts = departmentsField[0]  // Get first element
+            console.log(`[upload.post.ts] Extracted from array, parsedDepts:`, parsedDepts, 'type:', typeof parsedDepts)
+          }
+
+          // If it's a string, parse it as JSON
+          if (typeof parsedDepts === 'string') {
+            console.log(`[upload.post.ts] Parsing JSON string...`)
+            parsedDepts = JSON.parse(parsedDepts)
+            console.log(`[upload.post.ts] Parsed to:`, parsedDepts, 'type:', typeof parsedDepts)
+          }
+
+          // Ensure it's an array and clean it up
+          if (Array.isArray(parsedDepts)) {
+            departments = parsedDepts.map((d: any) => String(d).trim()).filter((d: string) => d)
+            console.log(`[upload.post.ts] Final departments array:`, departments)
+          } else {
+            console.warn(`[upload.post.ts] parsedDepts is not an array after parsing:`, parsedDepts)
+            departments = []
+          }
+        } catch (e: any) {
+          console.error('Failed to parse departments field:', departmentsField, 'error:', e.message)
+          departments = []
+        }
+      } else {
+        console.log(`[upload.post.ts] No departmentsField provided`)
+      }
+
       if (!category) {
         throw new CustomError('Category is required', 400)
       }
@@ -208,6 +247,49 @@ export default defineEventHandler(async (event) => {
           ]
         )
         documentId = insertFileResult.rows[0].id
+      }
+
+      // 🔑 Handle department assignments
+      // Extra validation - ensure departments is an array of strings
+      if (departments && Array.isArray(departments) && departments.length > 0) {
+        try {
+          console.log(`[upload.post.ts] Assigning ${departments.length} departments to document ${documentId}`)
+          console.log(`[upload.post.ts] Department IDs:`, JSON.stringify(departments))
+
+          // Delete existing department mappings
+          await query(
+            `DELETE FROM document_departments WHERE document_id = $1`,
+            [documentId]
+          )
+
+          // Insert new department mappings - iterate safely
+          for (let i = 0; i < departments.length; i++) {
+            const deptId = departments[i]
+            const trimmedDeptId = String(deptId).trim()
+
+            console.log(`[upload.post.ts] Dept[${i}]: original="${deptId}", trimmed="${trimmedDeptId}", type=${typeof deptId}`)
+
+            if (trimmedDeptId && trimmedDeptId.length > 0 && /^[0-9a-f-]{36}$/.test(trimmedDeptId)) {
+              console.log(`[upload.post.ts] Inserting valid UUID: ${trimmedDeptId} for document ${documentId}`)
+
+              await query(
+                `INSERT INTO document_departments (document_id, dept_id, org_id)
+                 VALUES ($1, $2::uuid, $3::uuid)
+                 ON CONFLICT (document_id, dept_id) DO NOTHING`,
+                [documentId, trimmedDeptId, org_id]
+              )
+            } else {
+              console.warn(`[upload.post.ts] Skipping invalid UUID: "${trimmedDeptId}"`)
+            }
+          }
+          console.log(`[upload.post.ts] Successfully assigned departments to document ${documentId}`)
+        } catch (e: any) {
+          console.error('Failed to assign departments to document:', e)
+          // Don't fail the upload if department assignment fails
+        }
+      } else {
+        console.log(`[upload.post.ts] No departments to assign.`)
+        console.log(`[upload.post.ts] departments=${JSON.stringify(departments)}, isArray=${Array.isArray(departments)}, length=${departments?.length}`)
       }
 
       // Process the document

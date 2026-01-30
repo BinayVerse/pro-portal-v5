@@ -68,17 +68,20 @@
 
       <!-- Departments column -->
       <template #departments-data="{ row }">
-        <div v-if="row.departments?.length" class="flex flex-wrap gap-1">
-          <UBadge
-            v-for="dept in row.departments"
-            :key="dept"
-            size="sm"
-            class="bg-blue-500/20 text-blue-400"
-          >
-            {{ dept }}
-          </UBadge>
+        <div class="max-w-[10rem]">
+          <div v-if="row.departments?.length" class="flex flex-col gap-1">
+            <UBadge
+              v-for="dept in row.departments"
+              :key="dept"
+              size="sm"
+              class="bg-blue-500/20 text-blue-400 truncate w-full"
+              :title="dept"
+            >
+              {{ dept }}
+            </UBadge>
+          </div>
+          <span v-else class="text-gray-400 text-xs">—</span>
         </div>
-        <span v-else class="text-gray-400 text-xs">—</span>
       </template>
 
       <!-- Status column with badge and dot -->
@@ -305,6 +308,7 @@ const columns = [
     key: 'departments',
     label: 'Departments',
     sortable: false,
+    class: 'w-40 max-w-40',
   },
   {
     key: 'status',

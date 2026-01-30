@@ -77,19 +77,28 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Fetch documents with category information and user who added them
+    // Fetch documents with category information, user who added them, AND departments
     const documentResults = await query(
       `SELECT
           d.id, d.name, d.doc_type, d.document_link, d.content_type,
           d.file_size, d.status, d.updated_at, d.file_category, d.description,
           d.is_summarized AS summarized, d.summary, d.added_by,
           COALESCE(c.name, 'Uncategorized') AS category_name,
-          COALESCE(u.name, 'Unknown User') AS uploaded_by_name
+          COALESCE(u.name, 'Unknown User') AS uploaded_by_name,
+          -- 🔑 Fetch departments as array directly (like users API)
+          COALESCE(
+            ARRAY_AGG(dd.dept_id) FILTER (WHERE dd.dept_id IS NOT NULL),
+            '{}'::uuid[]
+          ) AS departments
         FROM organization_documents d
         LEFT JOIN document_category c
           ON d.file_category IS NOT NULL AND d.file_category::text = c.id::text
         LEFT JOIN users u ON d.added_by = u.user_id
+        LEFT JOIN document_departments dd ON dd.document_id = d.id
         WHERE d.org_id = $1 ${departmentFilter}
+        GROUP BY d.id, d.name, d.doc_type, d.document_link, d.content_type,
+                 d.file_size, d.status, d.updated_at, d.file_category, d.description,
+                 d.is_summarized, d.summary, d.added_by, c.name, u.name
         ORDER BY d.updated_at DESC;
         `,
       docQueryParams
@@ -159,6 +168,8 @@ export default defineEventHandler(async (event) => {
       contentType: doc.content_type,
       fileSize: doc.file_size,
       updatedAt: doc.updated_at,
+      // 🔑 Include departments as array (like users do)
+      departments: doc.departments || [],
     }))
 
     // Prepare stats object

@@ -47,7 +47,40 @@ export default defineEventHandler(async (event) => {
     const tokenUserRole = userResult.rows[0].role_id
 
     const body = await readBody(event)
-    const { selectedFileDetails, category, org_id: bodyOrg } = body
+    const { selectedFileDetails, category, org_id: bodyOrg, departments: departmentsFromBody } = body
+
+    // Parse departments from request body
+    let departments: string[] = []
+    console.log(`[google-drive.post.ts] Raw departmentsFromBody:`, departmentsFromBody, 'type:', typeof departmentsFromBody, 'isArray:', Array.isArray(departmentsFromBody))
+
+    if (departmentsFromBody) {
+      try {
+        let parsedDepts: any = departmentsFromBody
+
+        if (Array.isArray(departmentsFromBody)) {
+          parsedDepts = departmentsFromBody
+          console.log(`[google-drive.post.ts] departmentsFromBody is array:`, parsedDepts)
+        } else if (typeof departmentsFromBody === 'string') {
+          console.log(`[google-drive.post.ts] Parsing JSON string...`)
+          parsedDepts = JSON.parse(departmentsFromBody)
+          console.log(`[google-drive.post.ts] Parsed to:`, parsedDepts)
+        }
+
+        // Ensure all elements are strings and trim
+        if (Array.isArray(parsedDepts)) {
+          departments = parsedDepts.map((d: any) => String(d).trim()).filter((d: string) => d)
+          console.log(`[google-drive.post.ts] Final departments array:`, departments)
+        } else {
+          console.warn(`[google-drive.post.ts] parsedDepts is not an array:`, parsedDepts)
+          departments = []
+        }
+      } catch (e: any) {
+        console.error('Failed to parse departments:', departmentsFromBody, 'error:', e.message)
+        departments = []
+      }
+    } else {
+      console.log(`[google-drive.post.ts] No departmentsFromBody provided`)
+    }
 
     const q = getQuery(event) as Record<string, any>
     const requestedOrg = q?.org || q?.org_id || bodyOrg || null
@@ -231,6 +264,48 @@ export default defineEventHandler(async (event) => {
           ]
         )
         documentId = result.rows[0].id
+      }
+
+      // 🔑 Handle department assignments for each document
+      if (departments && Array.isArray(departments) && departments.length > 0) {
+        try {
+          console.log(`[google-drive.post.ts] Assigning ${departments.length} departments to document ${documentId}`)
+          console.log(`[google-drive.post.ts] Department IDs:`, JSON.stringify(departments))
+
+          // Delete existing department mappings
+          await query(
+            `DELETE FROM document_departments WHERE document_id = $1`,
+            [documentId]
+          )
+
+          // Insert new department mappings - iterate safely
+          for (let i = 0; i < departments.length; i++) {
+            const deptId = departments[i]
+            const trimmedDeptId = String(deptId).trim()
+
+            console.log(`[google-drive.post.ts] Dept[${i}]: original="${deptId}", trimmed="${trimmedDeptId}", type=${typeof deptId}`)
+
+            if (trimmedDeptId && trimmedDeptId.length > 0 && /^[0-9a-f-]{36}$/.test(trimmedDeptId)) {
+              console.log(`[google-drive.post.ts] Inserting valid UUID: ${trimmedDeptId} for document ${documentId}`)
+
+              await query(
+                `INSERT INTO document_departments (document_id, dept_id, org_id)
+                 VALUES ($1, $2::uuid, $3::uuid)
+                 ON CONFLICT (document_id, dept_id) DO NOTHING`,
+                [documentId, trimmedDeptId, org_id]
+              )
+            } else {
+              console.warn(`[google-drive.post.ts] Skipping invalid UUID: "${trimmedDeptId}"`)
+            }
+          }
+          console.log(`[google-drive.post.ts] Successfully assigned departments to document ${documentId}`)
+        } catch (e: any) {
+          console.error('Failed to assign departments to document:', e)
+          // Don't fail the upload if department assignment fails
+        }
+      } else {
+        console.log(`[google-drive.post.ts] No departments to assign.`)
+        console.log(`[google-drive.post.ts] departments=${JSON.stringify(departments)}, isArray=${Array.isArray(departments)}, length=${departments?.length}`)
       }
 
       documentData.push({

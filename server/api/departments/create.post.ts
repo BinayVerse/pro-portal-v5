@@ -46,11 +46,11 @@ export default defineEventHandler(async (event) => {
 
     const result = await query(
         `
-    INSERT INTO organization_departments (org_id, name, description, status)
-    VALUES ($1, $2, $3, 'active')
-    RETURNING dept_id AS id, name, description, status
-    `,
-        [orgId, name, description],
+            INSERT INTO organization_departments (org_id, name, description, status, created_by)
+            VALUES ($1, $2, $3, 'active', $4)
+            RETURNING dept_id AS id, name, description, status
+        `,
+        [orgId, name, description, userId],
     )
 
     setResponseStatus(event, 201)

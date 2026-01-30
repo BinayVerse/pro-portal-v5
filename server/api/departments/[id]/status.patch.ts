@@ -36,11 +36,11 @@ export default defineEventHandler(async (event) => {
 
     await query(
         `
-    UPDATE organization_departments
-    SET status = $1, updated_at = now()
-    WHERE dept_id = $2 AND org_id = $3
-    `,
-        [status, deptId, orgId],
+            UPDATE organization_departments
+            SET status = $1, updated_at = now(), updated_by = $4
+            WHERE dept_id = $2 AND org_id = $3
+        `,
+        [status, deptId, orgId, userId],
     )
 
     setResponseStatus(event, 200)

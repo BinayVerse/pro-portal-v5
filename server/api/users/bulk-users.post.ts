@@ -41,6 +41,12 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('User not found', 404)
     }
 
+    // 🔑 DEPARTMENT ADMIN RESTRICTION: Cannot bulk upload users
+    if (userResult.rows[0].role_id === 3) {
+      setResponseStatus(event, 403)
+      throw new CustomError('Department Admins cannot bulk upload users', 403)
+    }
+
     // Allow superadmin override via query or body.org_id
     const q = getQuery(event) as Record<string, any>
     const body = await readBody(event)

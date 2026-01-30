@@ -312,7 +312,7 @@
             />
           </UFormGroup>
 
-          <!-- Status -->
+          <!-- Status
           <UFormGroup label="Status" name="status" required>
             <USelect
               v-model="departmentForm.status"
@@ -325,7 +325,7 @@
                 padding: { sm: 'p-3' },
               }"
             />
-          </UFormGroup>
+          </UFormGroup> -->
 
           <!-- Buttons -->
           <div class="flex space-x-3 pt-4">
