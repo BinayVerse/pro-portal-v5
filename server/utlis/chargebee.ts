@@ -1,5 +1,6 @@
 import { ChargeBee } from 'chargebee-typescript'
 import { formatExpiryDate } from './helper'
+import dayjs from 'dayjs'
 
 const runtimeConfig = useRuntimeConfig()
 
@@ -22,6 +23,32 @@ type SubscriptionStatus = {
   payment_issue?: boolean
   due_invoices?: number
   cancel_reason?: string
+}
+
+export interface ChargebeeInvoice {
+  id: string
+  invoice_number: string
+  date: number // Unix timestamp
+  due_date: number // Unix timestamp
+  status: 'paid' | 'payment_due' | 'not_paid' | 'voided' | 'pending'
+  amount: number // in cents
+  amount_paid: number // in cents
+  credits_applied: number // in cents
+  amount_due: number // in cents
+  currency_code: string
+  line_items: Array<{
+    description: string
+    amount: number
+    entity_type: string
+    entity_id: string
+  }>
+  customer_id: string
+  subscription_id: string
+  pdf_url?: string
+  linked_payments?: Array<{
+    id: string
+    status: string
+  }>
 }
 
 
@@ -619,5 +646,401 @@ function handleError(error: any) {
     status: 'Error',
     statusCode: error.http_status_code || 500,
     error: error.message || 'Unknown error occurred',
+  }
+}
+
+
+export async function downloadInvoicePDF(invoiceId: string): Promise<{
+  status: 'Success' | 'Error'
+  statusCode: number
+  data?: Buffer
+  filename?: string
+  error?: any
+}> {
+  
+  try {
+    // First get invoice details to get the invoice number for filename
+    const invoiceResult = await getInvoiceById(invoiceId)
+    
+    
+    if (invoiceResult.status !== 'Success') {
+      console.error('Failed to fetch invoice details:', invoiceResult)
+      throw new Error(invoiceResult?.error || 'Failed to fetch invoice details')
+    }
+
+    const invoiceData = invoiceResult?.data
+    if (!invoiceData) {
+      throw new Error('No invoice data available')
+    }
+
+    // Retrieve the PDF from Chargebee
+    const result = await chargebee.invoice.pdf(invoiceId).request()
+        
+    if (!result.download?.download_url) {
+      throw new Error('No PDF URL available for this invoice')
+    }
+
+    const pdfUrl = result.download.download_url
+        
+    // Fetch the PDF content
+    const response = await fetch(pdfUrl)
+    
+    if (!response.ok) {
+      throw new Error(`Failed to download PDF: ${response.statusText} (${response.status})`)
+    }
+
+    // Get the PDF as ArrayBuffer and convert to Buffer
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    return {
+      status: 'Success',
+      statusCode: 200,
+      data: buffer,
+      filename: `invoice-${invoiceData.invoice_number || invoiceId}.pdf`,
+    }
+  } catch (error: any) {
+    return {
+      status: 'Error',
+      statusCode: error.http_status_code || 500,
+      error: error.message || 'Failed to download invoice PDF',
+    }
+  }
+}
+
+/**
+ * Helper function to extract plan name from line items
+ */
+function extractPlanName(lineItems: any[]): string {
+  if (!lineItems || !Array.isArray(lineItems)) return 'Unknown Plan'
+  
+  // Look for the main subscription line item
+  const subscriptionItem = lineItems.find(item => 
+    item.entity_type === 'plan' || 
+    item.description?.toLowerCase().includes('subscription') ||
+    item.description?.toLowerCase().includes('plan')
+  )
+  
+  return subscriptionItem?.description || 'Unknown Plan'
+}
+
+// Update the getInvoiceById function
+export async function getInvoiceById(invoiceId: string) {
+  try {
+    const result = await chargebee.invoice.retrieve(invoiceId).request()
+    
+    const invoice = result.invoice
+    
+    // Calculate total amount from line items
+    const amount = invoice.amount || calculateTotalFromLineItems(invoice.line_items)
+    const invoice_number = invoice.invoice_number || invoice.id || invoiceId
+    
+    const formattedInvoice = {
+      id: invoice.id,
+      invoice_number: invoice_number,
+      date: invoice.date,
+      due_date: invoice.due_date,
+      status: invoice.status,
+      amount: amount,
+      amount_paid: invoice.amount_paid || 0,
+      credits_applied: invoice.credits_applied || 0,
+      amount_due: invoice.amount_due || 0,
+      currency_code: invoice.currency_code || 'USD',
+      line_items: invoice.line_items || [],
+      customer_id: invoice.customer_id,
+      subscription_id: invoice.subscription_id,
+      pdf_url: invoice.download?.download_url || null,
+    }
+
+    return {
+      status: 'Success',
+      statusCode: 200,
+      data: formattedInvoice,
+    }
+  } catch (error: any) {
+    return handleError(error)
+  }
+}
+
+// Helper function to calculate total from line items
+function calculateTotalFromLineItems(lineItems: any[]): number {
+  if (!lineItems || !Array.isArray(lineItems)) return 0
+  
+  return lineItems.reduce((total, item) => {
+    return total + (item.amount || 0)
+  }, 0)
+}
+
+function extractPeriodBounds(invoice: any): {
+  period_start?: number
+  period_end?: number
+} {
+  // Invoice-level period
+  if (
+    typeof invoice?.period_start === 'number' &&
+    typeof invoice?.period_end === 'number'
+  ) {
+    return {
+      period_start: invoice.period_start,
+      period_end: invoice.period_end,
+    }
+  }
+
+  // Fallback: line item period
+  if (Array.isArray(invoice?.line_items)) {
+    const item = invoice.line_items.find(
+      (li: any) =>
+        typeof li?.date_from === 'number' &&
+        typeof li?.date_to === 'number'
+    )
+
+    if (item) {
+      return {
+        period_start: item.date_from,
+        period_end: item.date_to,
+      }
+    }
+  }
+
+  return {}
+}
+
+function formatPeriodWithTimezone(
+  start: number,
+  end: number,
+  timezone: string
+) {
+  // Unix timestamps are seconds since epoch in UTC
+  // Use .utc() first to interpret them correctly, then convert to target timezone
+  const startDate = dayjs
+    .unix(start)
+    .utc()  // First interpret as UTC
+    .tz(timezone)  // Then convert to invoice timezone
+    .format('MMM D, YYYY')
+
+  const endDate = dayjs
+    .unix(end)
+    .utc()  // First interpret as UTC
+    .tz(timezone)  // Then convert to invoice timezone
+    .format('MMM D, YYYY')
+
+  return {
+    period_start_date: startDate,
+    period_end_date: endDate,
+    billing_period: `${startDate} - ${endDate}`,
+  }
+}
+
+// ADDON DETECTION
+function isAddonInvoice(invoice: any): boolean {
+  return invoice.line_items?.some((item: any) =>
+    item.entity_type === 'charge_item_price' ||
+    item.description?.toLowerCase().includes('add-on') ||
+    item.description?.toLowerCase().includes('addon')
+  )
+}
+
+// BUILD BASE PLAN PERIOD INDEX
+function buildBasePlanPeriodsMap(invoiceList: any[]) {
+  const periods: Array<{
+    start: number
+    end: number
+    invoiceDate: number
+  }> = []
+
+  for (const item of invoiceList) {
+    const inv = item.invoice
+
+    const planLine = inv.line_items?.find(
+      (li: any) => li.entity_type === 'plan_item_price'
+    )
+
+    if (planLine?.date_from && planLine?.date_to) {
+      periods.push({
+        start: planLine.date_from,
+        end: planLine.date_to,
+        invoiceDate: inv.date,
+      })
+    }
+  }
+
+  return periods
+}
+
+
+// MATCH ADDON → BASE PLAN PERIOD
+function findMatchingBasePeriod(
+  addonInvoice: any,
+  basePeriods: any[]
+): { period_start?: number; period_end?: number } {
+
+  const addonDate = addonInvoice.date
+  const addonFrom = addonInvoice.line_items?.[0]?.date_from
+
+  //  OVERLAP SEARCH
+  for (const p of basePeriods) {
+    if (
+      (addonDate >= p.start && addonDate <= p.end) ||
+      (addonFrom && addonFrom >= p.start && addonFrom <= p.end)
+    ) {
+      return { period_start: p.start, period_end: p.end }
+    }
+  }
+
+  // CLOSEST PREVIOUS
+  let closest: any = null
+  let diff = Infinity
+
+  for (const p of basePeriods) {
+    const d = Math.abs(p.invoiceDate - addonDate)
+    if (p.invoiceDate <= addonDate && d < diff) {
+      diff = d
+      closest = p
+    }
+  }
+
+  return closest
+    ? { period_start: closest.start, period_end: closest.end }
+    : {}
+}
+
+export async function getCustomerInvoices(customerId: string, options?: { 
+  sort_by?: 'date' | 'updated_at'
+  sort_order?: 'asc' | 'desc'
+}) {
+  try {
+    const params: any = {
+      'customer_id[is]': customerId, 
+      'sort_by[desc]': options?.sort_by || 'date',
+    }
+
+    const result = await chargebee.invoice.list(params).request()
+
+    // PRE-INDEX BASE PLAN PERIODS (ONE TIME)
+    const basePeriods = buildBasePlanPeriodsMap(result.list)
+
+    const invoices = result.list.map((item: any) => {
+      const invoice = item.invoice
+      const amount = invoice.amount || calculateTotalFromLineItems(invoice.line_items)
+      const invoice_number = invoice.invoice_number || invoice.id
+      
+      // Get timezone from invoice - use site timezone for display
+      const timezone = invoice.site_details_at_creation?.timezone || 'America/Los_Angeles'
+      const invoiceDateUTC = dayjs.unix(invoice.date)
+      const invoiceDateInTz = invoiceDateUTC.tz(timezone)
+      const formattedInvoiceDate = invoiceDateInTz.format('MMM D, YYYY')
+
+      const addon = isAddonInvoice(invoice)
+
+      let bounds = addon
+        ? findMatchingBasePeriod(invoice, basePeriods)
+        : extractPeriodBounds(invoice)
+
+      const { period_start, period_end } = bounds
+      // Format billing period using timezone
+      let billingPeriod = null
+      let periodStartDate = null
+      let periodEndDate = null
+      
+      if (period_start && period_end) {
+        const formattedPeriod = formatPeriodWithTimezone(period_start, period_end, timezone)
+        billingPeriod = formattedPeriod.billing_period
+        periodStartDate = formattedPeriod.period_start_date
+        periodEndDate = formattedPeriod.period_end_date
+      }
+      
+      return {
+        id: invoice.id,
+        invoice_number: invoice_number,
+        date: invoice.date,
+        formatted_date: formattedInvoiceDate,
+        billing_period: billingPeriod,
+        status: invoice.status,
+        amount: amount,
+        amount_paid: invoice.amount_paid || 0,
+        credits_applied: invoice.credits_applied || 0,
+        amount_due: invoice.amount_due || 0,
+        currency_code: invoice.currency_code || 'USD',
+        line_items: invoice.line_items || [],
+        customer_id: invoice.customer_id,
+        subscription_id: invoice.subscription_id,
+        pdf_url: invoice.download?.download_url || null,
+        plan_name: extractPlanName(invoice.line_items),
+        timezone: timezone,
+      }
+    })
+
+    return {
+      status: 'Success',
+      statusCode: 200,
+      data: invoices,
+      next_offset: result.next_offset,
+    }
+  } catch (error: any) {
+    return handleError(error)
+  }
+}
+
+export async function getAllSubscriptionInvoices(subscriptionId: string) {
+  try {
+    let allInvoices: any[] = []
+    let offset: string | null = null
+    let hasMore = true
+    
+    while (hasMore) {
+      const params: any = {
+        'subscription_id[is]': subscriptionId,
+        'sort_by[desc]': 'date',
+        limit: 100,
+      }
+      
+      if (offset) {
+        params.offset = offset
+      }
+      
+      const result = await chargebee.invoice.list(params).request()
+      
+      const invoices = result.list.map((item: any) => {
+        const invoice = item.invoice
+        const amount = invoice.amount || calculateTotalFromLineItems(invoice.line_items)
+        const invoice_number = invoice.invoice_number || invoice.id
+        
+        return {
+          id: invoice.id,
+          invoice_number: invoice_number,
+          date: invoice.date,
+          due_date: invoice.due_date,
+          status: invoice.status,
+          amount: amount,
+          amount_paid: invoice.amount_paid || 0,
+          credits_applied: invoice.credits_applied || 0,
+          amount_due: invoice.amount_due || 0,
+          currency_code: invoice.currency_code || 'USD',
+          line_items: invoice.line_items || [],
+          customer_id: invoice.customer_id,
+          subscription_id: invoice.subscription_id,
+          pdf_url: invoice.download?.download_url || null,
+          plan_name: extractPlanName(invoice.line_items),
+        }
+      })
+      
+      allInvoices = [...allInvoices, ...invoices]
+      offset = result.next_offset
+      hasMore = result.next_offset ? true : false
+      
+      // Optional: Add a small delay to avoid rate limiting
+      if (hasMore) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+    }
+    
+    return {
+      status: 'Success',
+      statusCode: 200,
+      data: allInvoices,
+      total: allInvoices.length,
+    }
+  } catch (error: any) {
+    return handleError(error)
   }
 }

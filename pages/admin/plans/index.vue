@@ -153,6 +153,38 @@
             </UButton>
           </div>
 
+          <!-- Billing History Card -->
+          <div class="bg-dark-800 rounded-lg border border-dark-700 p-4 sm:p-6 mt-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 class="text-lg font-semibold text-white">Billing History</h3>
+                <p class="text-gray-400 text-sm mt-1">
+                  View your past invoices and payment details.
+                </p>
+              </div>
+              <UTooltip :text="disabledReason" :disabled="!isDisabled" :popper="{ placement: 'top' }">
+                <UButton
+                  tag="button"
+                  type="button"
+                  color="primary"
+                  :disabled="isDisabled"
+                  @click="handleBillingHistoryClick"
+                  :ui="{
+                    rounded: 'rounded-lg',
+                    font: 'font-medium',
+                    padding: { xs: 'px-4 py-2' }
+                  }"
+                  class="w-full sm:w-auto"
+                >
+                  <span>View Billing History</span>
+                  <template #trailing>
+                    <UIcon name="i-heroicons-chevron-right" class="w-4 h-4" />
+                  </template>
+                </UButton>
+              </UTooltip>
+            </div>
+          </div>
+
           <PlansModal
             v-model="modalOpen"
             :org-id="orgId"
@@ -191,7 +223,7 @@ useHead({ title: 'My Plan - provento.ai' })
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 
 import { onMounted, ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 import { useOrganizationStore } from '~/stores/organization/index'
 import { useProfileStore } from '~/stores/profile/index'
@@ -298,6 +330,7 @@ const renewalInfoText = computed(() => {
 })
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuth()
 const userTimeZone = ref('UTC')
 const config = useRuntimeConfig()
@@ -309,14 +342,17 @@ onMounted(async () => {
 
   // initialize/check auth
   await auth.checkAuth()
-  if (!auth.requireAdmin()) return
+  if (!auth.isAuthenticated) {
+    navigateTo('/login')
+    return
+  }
 
   // fetch org plan via store after timezone is set
   await orgStore.fetchOrgPlan(orgId)
 })
 
 const orgIdFromQuery = (route.query?.org || route.query?.org_id) as string | undefined
-const orgId = orgIdFromQuery || auth.user?.org_id || ''
+const orgId = orgIdFromQuery || auth.user.value?.org_id || ''
 
 const orgStore = useOrganizationStore()
 
@@ -350,11 +386,9 @@ const planDaysLeft = computed(() => {
   try {
     const plan = currentPlan.value?.plan
     const start = currentPlan.value?.plan_start_date
-    // console.log('Computing days left for plan:', plan, 'start date:', start)
     if (!plan || !start) return null
 
     const durRaw = (plan.duration || '').toString().trim().toLowerCase()
-    // console.log('Duration raw:', durRaw)
     let amount = 1
     let unit: dayjs.ManipulateType = 'month'
 
@@ -384,11 +418,76 @@ const planDaysLeft = computed(() => {
 
 const planEndsInText = computed(() => {
   const daysLeft = planDaysLeft.value
-  console.log('Plan days left:', daysLeft)
   if (daysLeft === null) return ''
   if (daysLeft < 0) return 'Plan has ended'
   if (daysLeft === 0) return 'Plan expires today'
   return `Current plan will end in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`
+})
+
+// Billing history check
+const hasBillingHistory = ref(false);
+const loadingBillingHistory = ref(true);
+const isUnlimitedPlanFlag = ref(false);
+
+onMounted(async () => {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      hasBillingHistory.value = false;
+      return;
+    }
+
+    const now = dayjs();
+    const twoYearsAgo = now.subtract(2, 'year').format('YYYY-MM-DD');
+    const today = now.format('YYYY-MM-DD');
+
+    const response: any = await $fetch('/api/billing/invoices', {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        startDate: twoYearsAgo,
+        endDate: today,
+      },
+    });
+
+    if (response?.success && response.data?.length > 0) {
+      hasBillingHistory.value = true;
+      isUnlimitedPlanFlag.value = response.data.some((invoice: any) => invoice.planName === 'Unlimited');
+    } else {
+      hasBillingHistory.value = false;
+    }
+  } catch (error) {
+    console.error('Failed to fetch billing history:', error);
+    hasBillingHistory.value = false;
+  } finally {
+    loadingBillingHistory.value = false;
+  }
+});
+
+const handleBillingHistoryClick = (e: Event) => {
+  if (isDisabled.value) {
+    e.preventDefault()
+    e.stopPropagation()
+    return
+  }
+
+  router.push('/admin/plans/billing-history')
+}
+
+const isDisabled = computed(() => {
+  return (
+    loadingBillingHistory.value ||
+    profileStore?.userProfile?.role_id !== 1 ||
+    (isUnlimitedPlanFlag.value && !hasBillingHistory.value) ||
+    !hasBillingHistory.value
+  )
+})
+
+const disabledReason = computed(() => {
+  if (loadingBillingHistory.value) return 'Loading billing history'
+  if (profileStore?.userProfile?.role_id !== 1) return 'Access to billing history is restricted to Company Admins.'
+  if (isUnlimitedPlanFlag.value && !hasBillingHistory.value) return 'Billing history not available for unlimited plan'
+  if (!hasBillingHistory.value) return 'No billing history available'
+  return ''
 })
 </script>
 
@@ -414,5 +513,9 @@ const planEndsInText = computed(() => {
 .plan-expired {
   background: #ef4444; /* red-500 */
   border-color: rgba(239, 68, 68, 0.35);
+}
+/* Ensure full width for the page content */
+.max-w-7xl {
+  max-width: 100%;
 }
 </style>

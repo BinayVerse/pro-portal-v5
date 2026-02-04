@@ -1,3 +1,4 @@
+<!-- /layouts/admin.vue -->
 <template>
   <div class="bg-black flex overflow-hidden h-screen max-md:min-h-[100dvh] max-md:h-auto">
     <!-- Mobile menu overlay -->
@@ -115,12 +116,12 @@
             <SidebarButton
               :to="makeOrgLink('/admin/plans')"
               :icon="'i-heroicons-currency-dollar'"
-              :active="$route.name === 'admin-plans' || pendingRoute === 'admin-plans'"
+              :active="isPlansActive"
               :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
               :tooltip="
                 isProfileComplete
-                  ? 'Plans & Billing History'
+                  ? 'Plans & Billing History' 
                   : 'Complete your profile to access this section'
               "
             />
@@ -357,10 +358,34 @@
         class="sidebar-edge-toggle"
         :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
       >
-        <UIcon
-          :name="isCollapsed ? 'heroicons:chevron-right' : 'heroicons:chevron-left'"
+        <svg
+          v-if="isCollapsed"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
           class="sidebar-edge-icon"
-        />
+        >
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+
+        <svg
+          v-else
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="sidebar-edge-icon"
+        >
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+
       </button>
     </aside>
 
@@ -645,6 +670,10 @@ const isPlanExpired = computed(() => {
   return expiryDate.getTime() < Date.now()
 })
 
+const isPlansActive = computed(() =>
+  route.path.startsWith('/admin/plans')
+)
+
 const updateIntegrationsDropdownPosition = () => {
   if (integrationsButtonRef.value && isCollapsed.value) {
     const rect = integrationsButtonRef.value.getBoundingClientRect()
@@ -709,19 +738,12 @@ const checkScreen = () => {
   } else {
     sidebarOpen.value = false
   }
-
-  // CHANGED: Don't collapse sidebar on mobile/tablet - show full sidebar
+  
+  // CHANGED: Always expanded on mobile/tablet
   if (isMobile.value || isTablet.value) {
-    isCollapsed.value = false // Changed from true to false
+    isCollapsed.value = false
   } else {
-    // Load saved state from localStorage for desktop
-    const savedState = localStorage.getItem('sidebar-collapsed')
-    if (savedState !== null) {
-      isCollapsed.value = savedState === 'true'
-    } else {
-      // Default to expanded on desktop
-      isCollapsed.value = false
-    }
+    isCollapsed.value = false // Always expanded after login
   }
 }
 
@@ -738,7 +760,7 @@ onMounted(async () => {
   await checkAndShowSubscriptionModal()
 })
 
-onMounted(() => {
+const setupRouterGuards = () => {
   router.beforeEach((to, from, next) => {
     pendingRoute.value = to.name as string
     next()
@@ -752,7 +774,11 @@ onMounted(() => {
       sidebarOpen.value = false
     }
   })
-})
+}
+
+// Set up router guards
+setupRouterGuards()
+
 // Cleanup resize listener on unmount
 onUnmounted(() => {
   if (typeof window !== 'undefined') {
@@ -761,12 +787,6 @@ onUnmounted(() => {
   }
 })
 
-// Save collapsed state to localStorage when it changes (desktop only)
-watch(isCollapsed, (newValue) => {
-  if (typeof window !== 'undefined' && !isMobile.value && !isTablet.value) {
-    localStorage.setItem('sidebar-collapsed', String(newValue))
-  }
-})
 
 // Watch route changes to check subscription on every page navigation
 watch(
