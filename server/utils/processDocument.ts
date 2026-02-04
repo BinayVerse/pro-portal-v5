@@ -27,7 +27,7 @@ export async function processDocument(
         departments,
     };
 
-    console.log('Process payload:', payload);
+    // console.log('Process payload:', payload);
 
     try {
         const response = await axios.post(apiUrl, payload, {
