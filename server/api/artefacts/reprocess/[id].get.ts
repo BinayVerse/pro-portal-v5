@@ -80,6 +80,14 @@ export default defineEventHandler(async (event) => {
       [artefactId, effectiveOrg]
     )
 
+    // Fetch document's departments
+    const departmentsResult = await query(
+      `SELECT dept_id FROM document_departments
+       WHERE document_id = $1`,
+      [artefactId]
+    )
+    const departments = departmentsResult.rows.map((row: any) => String(row.dept_id))
+
     // Prepare document data for reprocessing
     const documentData = [{
       id: artefact.id.toString(),
@@ -88,8 +96,8 @@ export default defineEventHandler(async (event) => {
       link: artefact.document_link,
     }]
 
-    // Trigger re-processing using the existing processDocument utility
-    await processDocument(bucketName, folderName, org_name, effectiveOrg, userId, documentData, token, [])
+    // Trigger re-processing using the existing processDocument utility with departments
+    await processDocument(bucketName, folderName, org_name, effectiveOrg, userId, documentData, token, departments)
 
     setResponseStatus(event, 200)
     return {

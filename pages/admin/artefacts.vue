@@ -48,7 +48,7 @@
         v-model:is-open="showUploadModal"
         :available-categories="availableCategories"
         :categories-loading="categoriesLoading"
-        :available-departments="allDepartmentsList"
+        :available-departments="departmentsList"
         :departments-loading="departmentsLoading"
         :department-name-map="departmentNameMap"
         @close="showUploadModal = false"

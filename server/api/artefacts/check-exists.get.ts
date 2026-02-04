@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
   // Handle both single file and multiple files
   // Parse fileNames if it's a comma-separated string or array
   let filesToCheck: string[] = []
-  
+
   if (fileName) {
     filesToCheck = [fileName]
   } else if (fileNamesParam) {
@@ -72,12 +72,15 @@ export default defineEventHandler(async (event) => {
     if (fileName) {
       const cleanedFileName = cleanedFileNames[0]
 
-      // Check if file exists and get category name
+      // Check if file exists and get category name and departments
       const existingFileQuery = await query(
-        `SELECT od.id, od.name, od.file_category, od.updated_at, dc.name as category_name
+        `SELECT od.id, od.name, od.file_category, od.updated_at, dc.name as category_name,
+                COALESCE(json_agg(DISTINCT odd.dept_id) FILTER (WHERE odd.dept_id IS NOT NULL), '[]'::json) as department_ids
          FROM organization_documents od
          LEFT JOIN document_category dc ON od.file_category IS NOT NULL AND od.file_category::text = dc.id::text
-         WHERE od.org_id = $1 AND od.name = $2`,
+         LEFT JOIN document_departments odd ON od.id = odd.document_id
+         WHERE od.org_id = $1 AND od.name = $2
+         GROUP BY od.id, od.name, od.file_category, od.updated_at, dc.name`,
         [org_id, cleanedFileName]
       )
 
@@ -92,6 +95,7 @@ export default defineEventHandler(async (event) => {
           id: existingFileQuery.rows[0].id,
           name: existingFileQuery.rows[0].name,
           category: existingFileQuery.rows[0].category_name || 'Uncategorized',
+          departments: existingFileQuery.rows[0].department_ids || [],
           lastUpdated: existingFileQuery.rows[0].updated_at
         } : null
       }
@@ -126,10 +130,13 @@ export default defineEventHandler(async (event) => {
     // Create parameterized query for multiple files
     const placeholders = validFileNames.map((_, index) => `$${index + 2}`).join(', ')
     const bulkExistsQuery = `
-      SELECT od.id, od.name, od.file_category, od.updated_at, dc.name as category_name
+      SELECT od.id, od.name, od.file_category, od.updated_at, dc.name as category_name,
+             COALESCE(json_agg(DISTINCT odd.dept_id) FILTER (WHERE odd.dept_id IS NOT NULL), '[]'::json) as department_ids
       FROM organization_documents od
       LEFT JOIN document_category dc ON od.file_category IS NOT NULL AND od.file_category::text = dc.id::text
+      LEFT JOIN document_departments odd ON od.id = odd.document_id
       WHERE od.org_id = $1 AND od.name IN (${placeholders})
+      GROUP BY od.id, od.name, od.file_category, od.updated_at, dc.name
     `
 
     const existingFilesResult = await query(
@@ -144,6 +151,7 @@ export default defineEventHandler(async (event) => {
         id: row.id,
         name: row.name,
         category: row.category_name || 'Uncategorized',
+        departments: row.department_ids || [],
         lastUpdated: row.updated_at
       })
     })

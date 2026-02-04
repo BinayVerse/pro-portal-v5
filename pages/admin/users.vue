@@ -26,7 +26,13 @@
             disableUserActions || isDepartmentAdmin ? 'opacity-50 cursor-not-allowed' : '',
             'flex-1 sm:flex-auto',
           ]"
-          :title="isDepartmentAdmin ? 'Department Admins cannot bulk upload users' : ''"
+          :title="
+            isDepartmentAdmin
+              ? 'You don’t have permission to bulk upload. This action is limited to Company Admins.'
+              : availableDepartmentsForForm.length === 0
+                ? 'No departments available'
+                : ''
+          "
         >
           <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4" />
           <span>Bulk Upload</span>

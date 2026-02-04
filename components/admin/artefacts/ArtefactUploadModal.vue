@@ -1029,44 +1029,16 @@ const selectedGoogleDepartmentsLabel = computed(() =>
 const currentUser = computed(() => authStore.getAuthUser)
 const isDepartmentAdmin = computed(() => currentUser.value?.role_id === 3)
 
-// Get current user's departments
-const currentUserDepartments = computed(() => {
-  if (!isDepartmentAdmin.value) return []
-  const depts = currentUser.value?.departments || []
-  // Ensure all dept IDs are strings for proper comparison
-  return depts.map(d => String(d))
-})
-
-// Create department name map for display
+// Use department name map from parent (built from all departments, not just filtered ones)
+// This allows displaying names for all departments, even ones not assigned to the user
 const departmentNameMap = computed(() => {
-  const map: Record<string, string> = {}
-  props.availableDepartments?.forEach((dept) => {
-    map[String(dept.dept_id)] = dept.name
-  })
-  return map
+  return props.departmentNameMap || {}
 })
 
-// Restrict department options for Department Admin
+// Use pre-filtered departments from parent
+// (Backend already filters departments based on user's role)
 const restrictedDepartmentOptions = computed(() => {
-  if (!isDepartmentAdmin.value) {
-    // Company Admin sees all departments
-    return props.availableDepartments || []
-  }
-
-  // 🔑 Department Admin sees only their own departments
-  const userDeptIds = currentUserDepartments.value
-
-  // If user departments aren't loaded yet, return all available departments
-  // (they should still be pre-filtered by the parent from the backend)
-  if (!userDeptIds || userDeptIds.length === 0) {
-    return props.availableDepartments || []
-  }
-
-  // Filter to only departments the user has access to
-  return (props.availableDepartments || []).filter((dept) => {
-    const deptId = String(dept.dept_id)
-    return userDeptIds.includes(deptId)
-  })
+  return props.availableDepartments || []
 })
 
 const onSubmit = async (event: FormSubmitEvent<Schema>) => {
@@ -1100,7 +1072,11 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
       pendingUpload.category = event.data.category
       pendingUpload.newDepartments = event.data.departments || []
       pendingUpload.existingCategory = existsResult.fileInfo?.category || 'Unknown'
-      pendingUpload.currentDepartments = existsResult.fileInfo?.departments || []
+      // Ensure department IDs are strings for proper mapping
+      const deptIds = existsResult.fileInfo?.departments || []
+      pendingUpload.currentDepartments = Array.isArray(deptIds)
+        ? deptIds.map(id => String(id))
+        : []
       pendingUpload.formData = formData
       showReplacementModal.value = true
       isUploading.value = false

@@ -81,11 +81,7 @@
         </UBadge>
 
         <!-- Department badges -->
-        <div
-          v-else
-          class="flex flex-wrap gap-1"
-          :title="getDepartmentTooltip(row.departments)"
-        >
+        <div v-else class="flex flex-wrap gap-1" :title="getDepartmentTooltip(row.departments)">
           <UBadge
             v-for="deptId in row.departments"
             :key="deptId"
@@ -94,7 +90,6 @@
             color="blue"
             class="font-medium"
             :ui="{ rounded: 'rounded-full' }"
-            :title="props.departmentNameMap[deptId] || 'Unknown'"
           >
             {{ props.departmentNameMap[deptId] || 'Unknown' }}
           </UBadge>
@@ -512,9 +507,7 @@ const getDepartmentTooltip = (deptIds?: string[]): string => {
   if (!deptIds || deptIds.length === 0) {
     return 'Common - Accessible to all users in the organization'
   }
-  const deptNames = deptIds
-    .map((id: string) => props.departmentNameMap[id] || 'Unknown')
-    .join(', ')
+  const deptNames = deptIds.map((id: string) => props.departmentNameMap[id] || 'Unknown').join(', ')
   return `Department-specific - Accessible only to: ${deptNames}`
 }
 </script>
