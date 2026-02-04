@@ -249,6 +249,39 @@ export default defineEventHandler(async (event) => {
         documentId = insertFileResult.rows[0].id
       }
 
+      // 🔑 Department Admin validation for document assignments
+      if (tokenUserRole === 3) {
+        // Department Admin cannot upload common documents
+        if (!departments || departments.length === 0) {
+          throw new CustomError(
+            'Department Admins cannot upload common documents. Please assign this document to at least one of your departments.',
+            403
+          )
+        }
+
+        // Validate Department Admin can only assign to their own departments
+        try {
+          const adminDeptResult = await query(
+            `SELECT dept_id FROM user_departments WHERE user_id = $1`,
+            [String(userId)]
+          )
+          const adminDeptIds = adminDeptResult.rows.map((row) => String(row.dept_id))
+
+          // Check if all requested departments are in admin's departments
+          const unauthorizedDepts = departments.filter((deptId) => !adminDeptIds.includes(String(deptId)))
+          if (unauthorizedDepts.length > 0) {
+            throw new CustomError(
+              `Cannot assign documents to departments outside your scope. Unauthorized departments: ${unauthorizedDepts.join(', ')}`,
+              403
+            )
+          }
+        } catch (e: any) {
+          if (e instanceof CustomError) throw e
+          console.error('Failed to validate Department Admin scope:', e)
+          throw new CustomError('Failed to validate department permissions', 500)
+        }
+      }
+
       // 🔑 Handle department assignments
       // Extra validation - ensure departments is an array of strings
       if (departments && Array.isArray(departments) && departments.length > 0) {
@@ -295,7 +328,7 @@ export default defineEventHandler(async (event) => {
       // Process the document
       await processDocument(bucketName, folderName, org_name, org_id, userId, [
         { id: String(documentId), name: fileName, type: 'document', link: publicUrl },
-      ], token)
+      ], token, departments)
 
       setResponseStatus(event, 201)
       return {

@@ -325,7 +325,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (documentData.length > 0) {
-      await processDocument(bucketName, folderName, org_name, org_id, userId, documentData, token)
+      await processDocument(bucketName, folderName, org_name, org_id, userId, documentData, token, departments)
     }
 
     setResponseStatus(event, 201)

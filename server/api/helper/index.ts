@@ -150,12 +150,16 @@ export const sendDepartmentAdminWelcomeMail = async (
 
     const resetPasswordSection = resetLink
       ? `
-        <p style="font-size: 16px; line-height: 1.5; margin: 0 0 20px;">
+        <p style="font-size: 16px; margin: 20px 0 10px;">
           Set your password by clicking the link below:
         </p>
         <p style="text-align: center; margin-bottom: 30px;">
-          <a href="${resetLink}" style="color: #13dcff; text-decoration: none; font-weight: bold;">
-            Set Password
+          <a href="${resetLink}"
+             style="display:inline-block;padding:10px 18px;
+                    background:#13dcff;color:#000;
+                    text-decoration:none;font-weight:bold;
+                    border-radius:6px;">
+            Reset Password
           </a>
         </p>
       `
@@ -167,47 +171,55 @@ export const sendDepartmentAdminWelcomeMail = async (
           ${departments.map(d => `<li>${d}</li>`).join('')}
         </ul>
       `
-      : `<p style="font-size: 15px;">Your departments will be visible after login.</p>`
+      : `<p style="font-size: 15px;">Department details will be visible after login.</p>`
 
     const htmlBody = `
       <!DOCTYPE html>
-      <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f9f9f9;">
-        <table align="center" width="600" style="background:#fff;border-radius:10px;padding:20px;">
-          ${EMAIL_HEADER('Welcome to provento.ai 🎉')}
+      <html lang="en">
+      <body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f9f9f9;">
+        <table align="center" width="600"
+               style="background:#ffffff;border-radius:10px;
+                      margin:20px auto;padding:20px;">
+          ${EMAIL_HEADER('Department Admin Role Assigned – Provento')}
           <tr>
-            <td>
-              <p style="font-size:16px;">Hi <strong>${name}</strong>,</p>
+            <td style="padding:10px 20px;">
+              <p style="font-size:16px;">Hello <strong>${name}</strong>,</p>
 
               <p style="font-size:16px;">
-                You’ve been added as a <strong>Department Admin</strong> on provento.ai.
-                This means you can manage and interact with artifacts for your assigned departments.
+                We’re pleased to inform you that you have been assigned the
+                <strong>Department Admin</strong> role on <strong>Provento</strong>.
               </p>
 
-              <h3 style="margin-top:20px;">Your responsibilities include:</h3>
+              <h3 style="margin-top:20px;">Your Role & Access</h3>
+              <p style="font-size:15px;">As a Department Admin, you now have access to:</p>
 
               <ul style="font-size:15px; line-height:1.6;">
-                <li>Managing artifacts within your departments</li>
-                <li>Helping users get answers from artifacts</li>
-                <li>Ensuring department knowledge stays up to date</li>
+                <li>Manage artifacts (artifacts, policies, and knowledge sources) for your department</li>
+                <li>Assign and unassign users within your department</li>
+                <li>Oversee and maintain department-specific information and configurations</li>
               </ul>
 
-              <h3 style="margin-top:20px;">Assigned Departments</h3>
+              <h3 style="margin-top:20px;">Assigned Department</h3>
+              <p style="font-size:15px;">You have been assigned as the Department Admin for:</p>
               ${departmentList}
 
               <p style="font-size:16px; margin-top:20px;">
                 You can log in to the portal here:
-                <a href="${portalLink}" style="color:#13dcff;">Access provento.ai</a>
+                <a href="${portalLink}" style="color:#13dcff;text-decoration:none;">
+                  ${portalLink}
+                </a>
               </p>
 
               ${resetPasswordSection}
 
-              <p style="font-size:14px; color:#666; margin-top:20px;">
-                Note: Organization-wide settings (billing, integrations, user limits)
-                are managed by your Organization Admin.
+              <p style="font-size:16px; margin-top:20px;">
+                Let's transform the way you work with artifacts! 🚀
               </p>
 
-              <p style="margin-top:20px;">Cheers,<br /><strong>The provento.ai Team</strong></p>
+              <p style="margin-top:20px;">
+                Cheers,<br />
+                <strong>The provento.ai Team</strong>
+              </p>
             </td>
           </tr>
           ${EMAIL_FOOTER}
@@ -219,9 +231,18 @@ export const sendDepartmentAdminWelcomeMail = async (
     await sendEmail({
       to: email,
       from: (config as any).sesFromEmailId,
-      subject: 'Welcome to provento.ai — Department Admin Access',
+      subject: 'Department Admin Role Assigned – Provento',
       html: htmlBody,
-      text: `Welcome to provento.ai! You’ve been added as a Department Admin.`,
+      text: `Hello ${name},
+
+        You have been assigned the Department Admin role on Provento.
+
+        Log in here: ${portalLink}
+
+        Set your password using this link:
+        ${resetLink || ''}
+
+        – The provento.ai Team`,
     })
   } catch (err: any) {
     console.error('Failed to send department admin welcome mail:', err)

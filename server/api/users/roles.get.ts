@@ -28,9 +28,9 @@ export default defineEventHandler(async (event) => {
 
   let rolesQuery = 'SELECT * FROM public.roles WHERE role_id != 0 ORDER BY role_id ASC'
 
-  // 🔑 Department Admin can only work with USER role (2)
+  // 🔑 Department Admin can work with USER role (2) and see their own DEPARTMENT ADMIN role (3)
   if (userRole === 3) {
-    rolesQuery = 'SELECT * FROM public.roles WHERE role_id = 2 ORDER BY role_id ASC'
+    rolesQuery = 'SELECT * FROM public.roles WHERE role_id IN (2, 3) ORDER BY role_id ASC'
   }
 
   const roles = await query(rolesQuery, [])

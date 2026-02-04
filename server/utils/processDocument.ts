@@ -8,7 +8,8 @@ export async function processDocument(
     orgId: string,
     userId: string,
     documents: { id: string; name: string; type: string; link: string }[],
-    authToken: string
+    authToken: string,
+    departments: string[],
 ): Promise<any> {
     const config = useRuntimeConfig();
     const botEndpoint = config.public.botEndpoint;
@@ -23,9 +24,10 @@ export async function processDocument(
         orgId,
         userId,
         documents,
+        departments,
     };
 
-    // console.log('Process payload:', payload);
+    console.log('Process payload:', payload);
 
     try {
         const response = await axios.post(apiUrl, payload, {

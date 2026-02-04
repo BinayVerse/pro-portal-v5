@@ -34,6 +34,7 @@
       :artefacts="filteredArtefacts"
       :summarizing-docs="artefactsStore.getSummarizingDocs"
       :loading="isLoadingArtefacts"
+      :department-name-map="departmentNameMap"
       @view-artefact="viewArtefact"
       @reprocess-artefact="reprocessArtefact"
       @delete-artefact="deleteArtefact"
@@ -47,8 +48,9 @@
         v-model:is-open="showUploadModal"
         :available-categories="availableCategories"
         :categories-loading="categoriesLoading"
-        :available-departments="departmentsList"
+        :available-departments="allDepartmentsList"
         :departments-loading="departmentsLoading"
+        :department-name-map="departmentNameMap"
         @close="showUploadModal = false"
         @file-uploaded="handleFileUploaded"
         @google-drive-uploaded="handleGoogleDriveUploaded"
@@ -179,7 +181,8 @@ const showSummaryModal = ref(false)
 const selectedArtefact = ref(null)
 const showViewModal = ref(false)
 const selectedViewArtefact = ref(null)
-const departmentsList = ref<any[]>([])
+const departmentsList = ref<any[]>([]) // Role-based filtered departments (for selection/filtering)
+const allDepartmentsList = ref<any[]>([]) // All departments (for name mapping/display)
 const departmentsLoading = ref(false)
 
 // Confirm popup state
@@ -240,6 +243,33 @@ const departmentFilterOptions = computed(() => [
     value: String(d.dept_id),
   })),
 ])
+
+// 🔑 Create department name map for displaying department names in table
+const departmentNameMap = computed(() => {
+  const map: Record<string, string> = {}
+
+  // 🔑 Build map from allDepartmentsList (ALL departments, no filtering)
+  // This ensures Department Admins can see names of all departments, even if they don't have access
+  if (allDepartmentsList.value && Array.isArray(allDepartmentsList.value)) {
+    allDepartmentsList.value.forEach((dept: any) => {
+      if (dept && dept.dept_id && dept.name) {
+        map[String(dept.dept_id)] = dept.name
+      }
+    })
+  }
+
+  // Fallback to store departments if allDepartmentsList is empty
+  const storeDepts = artefactsStore.getDepartments
+  if (storeDepts && Array.isArray(storeDepts)) {
+    storeDepts.forEach((dept: any) => {
+      if (dept && dept.dept_id && dept.name) {
+        map[String(dept.dept_id)] = dept.name
+      }
+    })
+  }
+
+  return map
+})
 
 // Computed properties for artefacts and stats from store
 const artefacts = computed(() => artefactsStore.getArtefacts)
@@ -664,19 +694,40 @@ const initializeCategories = async () => {
 
 // Load departments list for the organization
 const loadDepartments = async () => {
+  // Load two sets of departments:
+  // 1. Role-based filtered departments for selection/filtering (Department Admins see only their departments)
+  // 2. All departments for name mapping (so Department Admins can see names of all departments in documents)
   await artefactsStore.fetchDepartments(orgId.value)
-  departmentsList.value = artefactsStore.getDepartments
+  departmentsList.value = artefactsStore.getDepartments // For selection/filtering
+
+  // 🔑 Load ALL departments for name mapping (no role-based filtering)
+  const allDepts = await artefactsStore.fetchAllDepartments(orgId.value)
+  allDepartmentsList.value = allDepts // For display mapping
+
   departmentsLoading.value = artefactsStore.isDepartmentsLoading
 }
 
 // Fetch departments for all artifacts (now part of list API response)
 const fetchArtifactDepartments = async () => {
   // Departments are now already included in the artefacts list API response
-  // Just map the department IDs to names for display
+  // Keep both IDs and names for proper display
   artefacts.value.forEach((artefact) => {
     const deptIds = artefact.departments || [] // Already populated from list API
-    artefact.rawDepartmentIds = deptIds.map(String) // 🔑 important - keep array of dept IDs for filtering
-    artefact.departments = artefactsStore.getDepartmentNames(deptIds)
+
+    // Ensure dept IDs are strings and filter out any undefined/null values
+    const cleanDeptIds = deptIds
+      .map((id: any) => {
+        if (typeof id === 'object' && id !== null && 'dept_id' in id) {
+          // Handle case where departments might be objects with dept_id
+          return String(id.dept_id)
+        }
+        return String(id)
+      })
+      .filter((id: string) => id && id.length > 0 && id !== 'null' && id !== 'undefined')
+
+    artefact.rawDepartmentIds = cleanDeptIds // 🔑 important - keep array of dept IDs for filtering
+    // Store cleaned dept IDs for the table to use with departmentNameMap
+    artefact.departments = cleanDeptIds
   })
 }
 
@@ -694,13 +745,16 @@ const initializePage = async () => {
       // Ensure token is available before fetching data
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
-        // Fetch categories, artefacts, and departments in parallel
+        // 🔑 Load departments FIRST so departmentNameMap is populated
+        await loadDepartments()
+
+        // Then fetch categories and artefacts in parallel
         await Promise.all([
           initializeCategories(),
           artefactsStore.fetchArtefacts(orgId.value),
-          loadDepartments(),
         ])
-        // After fetching artefacts, fetch their departments
+
+        // After fetching artefacts, map their departments
         await fetchArtifactDepartments()
       }
     }
@@ -792,11 +846,16 @@ watch(
     if (newOrgId && authStore.isLoggedIn) {
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
+        // 🔑 Load departments FIRST so departmentNameMap is populated before artifacts are displayed
+        await loadDepartments()
+
+        // Then fetch categories and artifacts in parallel
         await Promise.all([
           initializeCategories(),
           artefactsStore.fetchArtefacts(orgId.value),
-          loadDepartments(),
         ])
+
+        // After fetching artifacts, map their departments
         await fetchArtifactDepartments()
       }
     }
@@ -830,6 +889,19 @@ watch(
   () => artefactsStore.artefacts,
   (newArtefacts, oldArtefacts) => {
     // Silent monitoring of artefacts changes for UI updates
+  },
+  { deep: true },
+)
+
+// 🔑 Watch for departments list changes and re-map artifact departments
+watch(
+  () => [departmentsList.value, allDepartmentsList.value],
+  () => {
+    // When departments load, ensure artifacts have proper dept IDs (not names)
+    artefacts.value.forEach((artefact) => {
+      const deptIds = artefact.rawDepartmentIds || artefact.departments || []
+      artefact.departments = deptIds.map(String)
+    })
   },
   { deep: true },
 )

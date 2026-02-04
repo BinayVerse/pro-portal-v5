@@ -32,16 +32,31 @@
           <span>Bulk Upload</span>
         </button>
         <button
-          @click="!disableUserActions && availableDepartmentsForForm.length > 0 && openAddUserModal()"
-          :disabled="disableUserActions || availableDepartmentsForForm.length === 0"
+          @click="
+            !disableUserActions &&
+            availableDepartmentsForForm.length > 0 &&
+            !isDepartmentAdmin &&
+            openAddUserModal()
+          "
+          :disabled="
+            disableUserActions || isDepartmentAdmin || availableDepartmentsForForm.length === 0
+          "
           :class="[
             baseButtonClass,
             'bg-blue-600 hover:bg-blue-700 text-white',
             'flex items-center justify-center sm:justify-start space-x-2',
-            disableUserActions || availableDepartmentsForForm.length === 0 ? 'opacity-50 cursor-not-allowed' : '',
+            disableUserActions || isDepartmentAdmin || availableDepartmentsForForm.length === 0
+              ? 'opacity-50 cursor-not-allowed'
+              : '',
             'flex-1 sm:flex-auto',
           ]"
-          :title="availableDepartmentsForForm.length === 0 ? 'No departments available' : ''"
+          :title="
+            isDepartmentAdmin
+              ? 'You don’t have permission to add users. This action is limited to Company Admins.'
+              : availableDepartmentsForForm.length === 0
+                ? 'No departments available'
+                : ''
+          "
         >
           <UIcon name="i-heroicons-plus" class="w-4 h-4" />
           <span class="truncate">Add User</span>
@@ -254,17 +269,37 @@
           </template>
 
           <template #departments-data="{ row }">
-            <div v-if="row.departments && row.departments.length > 0" class="flex flex-wrap gap-1">
+            <!-- Admin: All departments -->
+            <UBadge
+              v-if="row.role_id === 1"
+              size="xs"
+              color="emerald"
+              class="font-medium"
+              title="Access to all departments"
+              :ui="{ rounded: 'rounded-full' }"
+            >
+              All
+            </UBadge>
+
+            <!-- Scoped departments -->
+            <div
+              v-else-if="row.departments && row.departments.length > 0"
+              class="flex flex-wrap gap-1"
+            >
               <UBadge
                 v-for="dept in row.departments"
                 :key="dept"
-                size="sm"
-                class="bg-blue-500/20 text-blue-400"
+                size="xs"
+                variant="solid"
+                color="blue"
+                class="font-medium"
                 :ui="{ rounded: 'rounded-full' }"
               >
                 {{ dept }}
               </UBadge>
             </div>
+
+            <!-- Unassigned -->
             <span v-else class="text-gray-400 text-xs">—</span>
           </template>
 
@@ -301,7 +336,9 @@
                     ? 'text-blue-400 hover:text-blue-300'
                     : 'text-gray-500 cursor-not-allowed opacity-50'
                 }`"
-                :title="canEditUser(row) ? 'Edit user' : 'You can only edit users in your departments'"
+                :title="
+                  canEditUser(row) ? 'Edit user' : 'You can only edit users in your departments'
+                "
               >
                 <UIcon name="i-heroicons-pencil" class="w-4 h-4" />
               </button>
@@ -422,18 +459,20 @@
             name="role_id"
             required
             :area-disabled="
-              usersStore.users.find((u) => u.user_id === userForm.user_id)?.primary_contact || isDepartmentAdmin
+              usersStore.users.find((u) => u.user_id === userForm.user_id)?.primary_contact ||
+              isDepartmentAdmin
             "
           >
             <USelect
               v-model="userForm.role_id"
-              :options="roleOptions"
+              :options="roleOptionsForForm"
               option-attribute="label"
               value-attribute="value"
               placeholder="Select Role"
               selectClass="custom-select"
               :disabled="
-                usersStore.users.find((u) => u.user_id === userForm.user_id)?.primary_contact || isDepartmentAdmin
+                usersStore.users.find((u) => u.user_id === userForm.user_id)?.primary_contact ||
+                isDepartmentAdmin
               "
               :ui="{
                 base: 'w-full px-3 py-3 border border-dark-700 rounded-lg bg-dark-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500',
@@ -442,13 +481,22 @@
               icon="i-heroicons-cursor-arrow-ripple"
             />
             <p v-if="isDepartmentAdmin" class="text-xs text-gray-400 mt-2">
-              {{ isEditMode ? 'Department Admins cannot change user roles' : 'Department Admins can only create users with USER role' }}
+              {{
+                isEditMode
+                  ? 'Department Admins cannot change user roles'
+                  : 'Department Admins can only create users with USER role'
+              }}
             </p>
           </UFormGroup>
 
           <!-- Departments (Required for USER and DEPARTMENT ADMIN) -->
           <UFormGroup
-            v-if="userForm.role_id === 2 || userForm.role_id === 3 || String(userForm.role_id) === '2' || String(userForm.role_id) === '3'"
+            v-if="
+              userForm.role_id === 2 ||
+              userForm.role_id === 3 ||
+              String(userForm.role_id) === '2' ||
+              String(userForm.role_id) === '3'
+            "
             label="Departments"
             name="departments"
             required
@@ -464,7 +512,7 @@
               icon="i-heroicons-building-office"
               class="w-full"
               selectClass="custom-select"
-              :disabled="isDepartmentAdmin && isEditMode"
+              :disabled="isUserOutsideDepartmentAdminScope"
             >
               <!-- Custom selected value display -->
               <template #label>
@@ -477,8 +525,20 @@
                 </span>
               </template>
             </USelectMenu>
-            <p v-if="isDepartmentAdmin && availableDepartmentsForForm.length > 0" class="text-xs text-gray-400 mt-2">
-              {{ isEditMode ? 'Limited to your department(s)' : 'You can only assign from your department(s)' }}
+            <p
+              v-if="isDepartmentAdmin && availableDepartmentsForForm.length > 0"
+              class="text-xs text-gray-400 mt-2"
+            >
+              <template v-if="isEditMode && isUserOutsideDepartmentAdminScope">
+                You can only edit users in your department(s)
+              </template>
+              <template v-else>
+                {{
+                  isEditMode
+                    ? 'Limited to your department(s)'
+                    : 'You can only assign from your department(s)'
+                }}
+              </template>
             </p>
           </UFormGroup>
 
@@ -487,9 +547,13 @@
             <UCheckbox
               v-model="userForm.primaryContact"
               label="Make Primary Contact"
+              :disabled="isDepartmentAdmin"
               :ui="{ base: 'rounded bg-dark-900 border-dark-700' }"
               @click="handlePrimaryContactToggle"
             />
+            <p v-if="isDepartmentAdmin" class="text-xs text-gray-400 mt-2">
+              Department Admins cannot change the primary contact
+            </p>
           </UFormGroup>
 
           <!-- Active Status -->
@@ -823,7 +887,7 @@ interface UserForm {
   name: string
   email: string
   phone: string
-  role_id?: number
+  role_id?: number | string // Can be string from USelect or number from defaults
   primaryContact: boolean
   isActive: boolean
   departments?: string[] // for Department Admin role (dept_id array)
@@ -869,7 +933,7 @@ const availableDepartmentsForForm = computed(() => {
 
   // Department Admin can only select their own departments
   return departmentsList.value.filter(
-    (d) => d.id !== 'ALL' && currentUserDepartments.value.includes(String(d.dept_id))
+    (d) => d.id !== 'ALL' && currentUserDepartments.value.includes(String(d.dept_id)),
   )
 })
 
@@ -899,6 +963,11 @@ const canEditUser = (user: MappedUser): boolean => {
   // Non-Department Admin can edit anyone (except primary contact restrictions handled elsewhere)
   if (!isDepartmentAdmin.value) return true
 
+  // 🔑 Department Admin cannot edit other Department Admins or Org Admins
+  if (user.role_id === 3 || user.role_id === 1) {
+    return false
+  }
+
   // Department Admin can only edit users who:
   // 1. Are in their department(s), OR
   // 2. Are unassigned (no departments)
@@ -910,6 +979,29 @@ const canEditUser = (user: MappedUser): boolean => {
   // User is unassigned - Department Admin can edit
   return true
 }
+
+// 🔑 Get the departments of the user currently being edited
+const currentEditingUserAssignedDepartments = computed(() => {
+  if (!isEditMode.value || !userForm.user_id) return []
+  const user = usersList.value.find((u) => u.id === userForm.user_id)
+  return user?.rawDepartmentIds || []
+})
+
+// 🔑 Check if user being edited is outside Department Admin's scope
+const isUserOutsideDepartmentAdminScope = computed(() => {
+  if (!isDepartmentAdmin.value || !isEditMode.value) return false
+
+  // Check if user has any departments
+  if (currentEditingUserAssignedDepartments.value.length === 0) return false // unassigned user - can edit
+
+  // Check if user has ANY department that overlaps with Department Admin's departments
+  const hasOverlap = currentEditingUserAssignedDepartments.value.some((deptId) =>
+    currentUserDepartments.value.includes(deptId),
+  )
+
+  // Return true (disable) only if user has NO overlap with Department Admin's departments
+  return !hasOverlap
+})
 
 // WhatsApp connection status
 const isWhatsAppConnected = computed(() => {
@@ -1044,7 +1136,7 @@ const columns = [
   { key: 'name', label: 'User', sortable: true },
   { key: 'contact', label: 'Contact', sortable: false },
   { key: 'role', label: 'Role', sortable: true },
-  { key: 'departments', label: 'Departments', sortable: false },
+  { key: 'departments', label: 'Department', sortable: false },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'lastActive', label: 'Last Active', sortable: true },
   { key: 'created', label: 'Created', sortable: true },
@@ -1171,6 +1263,33 @@ const roleOptions = computed(() => {
   const others = allRoles.filter((r) => r.value !== '2')
 
   return [...others, ...(userRole ? [userRole] : [])]
+})
+
+// 🔑 For form: Include current user's role even if not in available roleOptions
+// This ensures Department Admins can see their own role when editing themselves
+const roleOptionsForForm = computed(() => {
+  const baseOptions = roleOptions.value
+
+  // If we're editing a user and their current role is not in the available options, add it
+  if (isEditMode.value && userForm.role_id) {
+    const currentRoleId = String(userForm.role_id)
+    const roleExists = baseOptions.some((r) => r.value === currentRoleId)
+
+    if (!roleExists) {
+      // Find the role from all available roles (including restricted ones)
+      const allRoles = usersStore.roles.map((role: any) => ({
+        label: role.role_name,
+        value: String(role.role_id),
+      }))
+      const currentRole = allRoles.find((r) => r.value === currentRoleId)
+
+      if (currentRole) {
+        return [...baseOptions, currentRole]
+      }
+    }
+  }
+
+  return baseOptions
 })
 
 watch([selectedRole, selectedStatus, searchQuery, selectedDepartment], () => {
@@ -1418,13 +1537,18 @@ const saveUser = async () => {
     name: userForm.name,
     email: userForm.email,
     contact_number: phoneNumberWithCountryCode,
-    role_id: userForm.role_id,
+    role_id: Number(userForm.role_id), // Ensure role_id is sent as number to API
     primary_contact: userForm.primaryContact || false,
     status: userForm.isActive ? 'active' : 'inactive',
   }
 
   // 🔑 Include departments for both USER (2) and DEPARTMENT ADMIN (3) roles
-  if (userForm.role_id === 2 || userForm.role_id === 3 || String(userForm.role_id) === '2' || String(userForm.role_id) === '3') {
+  if (
+    userForm.role_id === 2 ||
+    userForm.role_id === 3 ||
+    String(userForm.role_id) === '2' ||
+    String(userForm.role_id) === '3'
+  ) {
     payload.departments = userForm.departments || []
   }
 
@@ -1506,6 +1630,11 @@ const openAddUserModal = () => {
     userForm.role_id = 2
   }
 
+  // Ensure role_id is a string for USelect
+  if (userForm.role_id !== undefined && userForm.role_id !== null) {
+    userForm.role_id = String(userForm.role_id)
+  }
+
   showUserModal.value = true
 }
 
@@ -1519,7 +1648,7 @@ const openEditUserModal = async (user: any) => {
     user_id: user.id,
     name: user.name,
     email: user.email,
-    role_id: user.role_id,
+    role_id: String(user.role_id), // Convert to string to match USelect option values
     phone: user.phone,
     primaryContact: user.primaryContact || false,
     isActive: user.status === 'active',

@@ -3,7 +3,6 @@ import { CustomError } from '../../utils/custom.error'
 import { createUserValidation } from '../../utils/validations'
 import { query } from '../../utils/db'
 import jwt from 'jsonwebtoken'
-import bcrypt from 'bcrypt'
 import {
   generateRandomPassword,
   generateResetLink,
@@ -11,8 +10,6 @@ import {
   sendUserAdditionMail,
   sendWelcomeMail,
 } from '../helper'
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { checkUserLimitExceeded } from '../../utils/usageLimits'
 
 export default defineEventHandler(async (event) => {
@@ -205,10 +202,10 @@ export default defineEventHandler(async (event) => {
 
       // OPTIONAL: fetch department names for nicer email
       const deptRows = await query(
-        `SELECT dept_name FROM departments WHERE dept_id = ANY($1)`,
+        `SELECT name FROM organization_departments WHERE dept_id = ANY($1)`,
         [userDetails.departments || []],
       )
-      const deptNames = deptRows.rows.map(r => r.dept_name)
+      const deptNames = deptRows.rows.map(r => r.name)
 
       await sendDepartmentAdminWelcomeMail(
         name,

@@ -89,7 +89,7 @@ export default defineEventHandler(async (event) => {
     }]
 
     // Trigger re-processing using the existing processDocument utility
-    await processDocument(bucketName, folderName, org_name, effectiveOrg, userId, documentData, token)
+    await processDocument(bucketName, folderName, org_name, effectiveOrg, userId, documentData, token, [])
 
     setResponseStatus(event, 200)
     return {

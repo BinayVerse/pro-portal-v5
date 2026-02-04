@@ -66,21 +66,38 @@
         </span>
       </template>
 
-      <!-- Departments column -->
+      <!-- Department column -->
       <template #departments-data="{ row }">
-        <div class="max-w-[10rem]">
-          <div v-if="row.departments?.length" class="flex flex-col gap-1">
-            <UBadge
-              v-for="dept in row.departments"
-              :key="dept"
-              size="sm"
-              class="bg-blue-500/20 text-blue-400 truncate w-full"
-              :title="dept"
-            >
-              {{ dept }}
-            </UBadge>
-          </div>
-          <span v-else class="text-gray-400 text-xs">—</span>
+        <!-- Common badge -->
+        <UBadge
+          v-if="!row.departments || row.departments.length === 0"
+          size="xs"
+          color="gray"
+          class="font-medium"
+          :ui="{ rounded: 'rounded-full' }"
+          :title="getDepartmentTooltip(row.departments)"
+        >
+          Common
+        </UBadge>
+
+        <!-- Department badges -->
+        <div
+          v-else
+          class="flex flex-wrap gap-1"
+          :title="getDepartmentTooltip(row.departments)"
+        >
+          <UBadge
+            v-for="deptId in row.departments"
+            :key="deptId"
+            size="xs"
+            variant="solid"
+            color="blue"
+            class="font-medium"
+            :ui="{ rounded: 'rounded-full' }"
+            :title="props.departmentNameMap[deptId] || 'Unknown'"
+          >
+            {{ props.departmentNameMap[deptId] || 'Unknown' }}
+          </UBadge>
         </div>
       </template>
 
@@ -244,17 +261,19 @@ interface Artefact {
   summarized: string
   summary?: string
   isSummarizing?: boolean
-  departments?: string[] // department names assigned to this artifact
+  departments?: string[] // department IDs assigned to this artifact (will be looked up in departmentNameMap)
 }
 
 interface Props {
   artefacts: Artefact[]
   summarizingDocs?: Set<number>
   loading?: boolean
+  departmentNameMap?: Record<string, string> // dept_id -> dept_name
 }
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
+  departmentNameMap: () => ({}),
 })
 
 // Pagination state
@@ -306,7 +325,7 @@ const columns = [
   },
   {
     key: 'departments',
-    label: 'Departments',
+    label: 'Department',
     sortable: false,
     class: 'w-40 max-w-40',
   },
@@ -486,5 +505,16 @@ const getStatusDotColor = (status: string) => {
 
 const capitalizeStatus = (status: string) => {
   return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
+// Helper function to get tooltip text for departments
+const getDepartmentTooltip = (deptIds?: string[]): string => {
+  if (!deptIds || deptIds.length === 0) {
+    return 'Common - Accessible to all users in the organization'
+  }
+  const deptNames = deptIds
+    .map((id: string) => props.departmentNameMap[id] || 'Unknown')
+    .join(', ')
+  return `Department-specific - Accessible only to: ${deptNames}`
 }
 </script>

@@ -1047,6 +1047,33 @@ export const useArtefactsStore = defineStore('artefacts', {
       }
     },
 
+    // 🔑 Fetch ALL departments without role-based filtering
+    // Used for display/mapping purposes so Department Admins can see all department names
+    async fetchAllDepartments(orgId?: string | null) {
+      try {
+        const token = process.client ? localStorage.getItem('authToken') : null
+        if (!token) {
+          console.warn('No auth token available for loading all departments')
+          return []
+        }
+
+        const url = orgId
+          ? `/api/organizations/all-departments?org_id=${encodeURIComponent(String(orgId))}`
+          : '/api/organizations/all-departments'
+
+        const result = await $fetch<{ data: any[] }>(url, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        return result?.data || []
+      } catch (err: any) {
+        console.error('Failed to load all departments:', err)
+        return []
+      }
+    },
+
     async fetchArtefactDepartments(artefactIds?: number[]) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null

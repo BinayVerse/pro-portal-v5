@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const result = await query(
-      'SELECT user_id, name, role_id FROM users WHERE email = $1 AND role_id IN (0, 1)',
+      'SELECT user_id, name, role_id FROM users WHERE email = $1 AND role_id IN (0, 1, 3)',
       [email]
     );
 

@@ -3,7 +3,11 @@
   <FileReplacementModal
     v-model:isOpen="showReplacementModal"
     :fileName="pendingUpload.fileName"
-    :category="pendingUpload.existingCategory"
+    :currentCategory="pendingUpload.existingCategory"
+    :currentDepartments="pendingUpload.currentDepartments"
+    :newCategory="pendingUpload.category"
+    :newDepartments="pendingUpload.newDepartments"
+    :departmentNameMap="departmentNameMap"
     @replace="proceedWithUpload"
     @cancel="cancelUpload"
   />
@@ -191,26 +195,32 @@
                 </p>
               </UFormGroup>
 
-              <!-- Departments (Optional) -->
-              <UFormGroup label="Departments (Optional)" name="departments">
+              <!-- Departments -->
+              <UFormGroup
+                :label="isDepartmentAdmin ? 'Department (Required)' : 'Departments (Optional)'"
+                name="departments"
+              >
                 <USelectMenu
                   v-model="state.departments"
-                  :options="props.availableDepartments"
+                  :options="restrictedDepartmentOptions"
                   option-attribute="name"
                   value-attribute="dept_id"
                   multiple
                   searchable
-                  placeholder="Select departments"
+                  :placeholder="isDepartmentAdmin ? 'Select at least one department' : 'Select departments or leave empty for Common'"
                 >
                   <template #label>
                     <span v-if="!state.departments.length" class="text-gray-400">
-                      Select departments
+                      {{ isDepartmentAdmin ? 'Select at least one department' : 'Select departments' }}
                     </span>
                     <span v-else>
                       {{ selectedDepartmentsLabel }}
                     </span>
                   </template>
                 </USelectMenu>
+                <p v-if="isDepartmentAdmin" class="text-xs text-amber-400 mt-2">
+                  ⚠️ Department Admins must assign documents to at least one department. You cannot upload Common documents.
+                </p>
               </UFormGroup>
 
               <div class="flex justify-end space-x-3 pt-6 border-t border-dark-600 mt-6">
@@ -507,26 +517,32 @@
                 </div>
               </div>
 
-              <!-- Departments (Optional) -->
-              <UFormGroup label="Departments (Optional)" name="departments">
+              <!-- Departments -->
+              <UFormGroup
+                :label="isDepartmentAdmin ? 'Department (Required)' : 'Departments (Optional)'"
+                name="departments"
+              >
                 <USelectMenu
                   v-model="googleDriveState.departments"
-                  :options="props.availableDepartments"
+                  :options="restrictedDepartmentOptions"
                   option-attribute="name"
                   value-attribute="dept_id"
                   multiple
                   searchable
-                  placeholder="Select departments"
+                  :placeholder="isDepartmentAdmin ? 'Select at least one department' : 'Select departments or leave empty for Common'"
                 >
                   <template #label>
                     <span v-if="!googleDriveState.departments.length" class="text-gray-400">
-                      Select departments
+                      {{ isDepartmentAdmin ? 'Select at least one department' : 'Select departments' }}
                     </span>
                     <span v-else>
                       {{ selectedGoogleDepartmentsLabel }}
                     </span>
                   </template>
                 </USelectMenu>
+                <p v-if="isDepartmentAdmin" class="text-xs text-amber-400 mt-2">
+                  ⚠️ Department Admins must assign documents to at least one department. You cannot upload Common documents.
+                </p>
               </UFormGroup>
 
               <!-- Bottom Actions -->
@@ -598,12 +614,14 @@ interface Props {
   categoriesLoading?: boolean
   availableDepartments?: Array<{ dept_id: string; name: string }>
   departmentsLoading?: boolean
+  departmentNameMap?: Record<string, string> // dept_id -> dept_name
 }
 
 const props = withDefaults(defineProps<Props>(), {
   categoriesLoading: false,
   departmentsLoading: false,
   availableDepartments: () => [],
+  departmentNameMap: () => ({}),
 })
 
 // Initialize artefacts store
@@ -1007,9 +1025,60 @@ const selectedGoogleDepartmentsLabel = computed(() =>
   buildDepartmentsLabel(googleDriveState.departments),
 )
 
+// 🔑 Department Admin role check and restrictions
+const currentUser = computed(() => authStore.getAuthUser)
+const isDepartmentAdmin = computed(() => currentUser.value?.role_id === 3)
+
+// Get current user's departments
+const currentUserDepartments = computed(() => {
+  if (!isDepartmentAdmin.value) return []
+  const depts = currentUser.value?.departments || []
+  // Ensure all dept IDs are strings for proper comparison
+  return depts.map(d => String(d))
+})
+
+// Create department name map for display
+const departmentNameMap = computed(() => {
+  const map: Record<string, string> = {}
+  props.availableDepartments?.forEach((dept) => {
+    map[String(dept.dept_id)] = dept.name
+  })
+  return map
+})
+
+// Restrict department options for Department Admin
+const restrictedDepartmentOptions = computed(() => {
+  if (!isDepartmentAdmin.value) {
+    // Company Admin sees all departments
+    return props.availableDepartments || []
+  }
+
+  // 🔑 Department Admin sees only their own departments
+  const userDeptIds = currentUserDepartments.value
+
+  // If user departments aren't loaded yet, return all available departments
+  // (they should still be pre-filtered by the parent from the backend)
+  if (!userDeptIds || userDeptIds.length === 0) {
+    return props.availableDepartments || []
+  }
+
+  // Filter to only departments the user has access to
+  return (props.availableDepartments || []).filter((dept) => {
+    const deptId = String(dept.dept_id)
+    return userDeptIds.includes(deptId)
+  })
+})
+
 const onSubmit = async (event: FormSubmitEvent<Schema>) => {
   try {
     isUploading.value = true
+
+    // 🔑 Validate Department Admin is not uploading as Common document
+    if (isDepartmentAdmin.value && (!event.data.departments || event.data.departments.length === 0)) {
+      showError('Department Admins must assign documents to at least one department.')
+      isUploading.value = false
+      return
+    }
 
     // Create FormData for the upload
     const formData = new FormData()
@@ -1026,10 +1095,12 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
     const existsResult = await artefactsStore.checkFileExists(fileName, modalOrgId.value)
 
     if (existsResult.success && existsResult.exists) {
-      // Show replacement modal with existing file's category
+      // Show replacement modal with existing file's category and departments
       pendingUpload.fileName = fileName
       pendingUpload.category = event.data.category
+      pendingUpload.newDepartments = event.data.departments || []
       pendingUpload.existingCategory = existsResult.fileInfo?.category || 'Unknown'
+      pendingUpload.currentDepartments = existsResult.fileInfo?.departments || []
       pendingUpload.formData = formData
       showReplacementModal.value = true
       isUploading.value = false
@@ -1148,6 +1219,12 @@ const uploadFromGoogleDrive = async () => {
     return
   }
 
+  // 🔑 Validate Department Admin is not uploading as Common document
+  if (isDepartmentAdmin.value && (!googleDriveState.departments || googleDriveState.departments.length === 0)) {
+    showError('Department Admins must assign documents to at least one department.')
+    return
+  }
+
   try {
     // Check for existing files and show notification
     const fileNames = selectedGoogleDriveFiles.value.map((file) => file.name)
@@ -1226,6 +1303,12 @@ const uploadFromGoogleDrive = async () => {
 const handleGoogleOAuthSignIn = async () => {
   if (!googleDriveState.category) {
     showWarning('Please select a category first')
+    return
+  }
+
+  // 🔑 Validate Department Admin is not uploading as Common document
+  if (isDepartmentAdmin.value && (!googleDriveState.departments || googleDriveState.departments.length === 0)) {
+    showError('Department Admins must assign documents to at least one department.')
     return
   }
 
