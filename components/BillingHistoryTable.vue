@@ -67,25 +67,25 @@
       <!-- Invoice Number column -->
       <template #invoiceNumber-data="{ row }">
         <div v-if="row.isFree" class="text-gray-500">NA</div>
-        <button
-          v-else
-          @click="$emit('downloadInvoice', row)"
-          class="text-blue-400 hover:text-blue-300 hover:underline transition-colors font-medium"
-          :title="`Download ${row.invoiceNumber}`"
-        >
-          #{{ row.invoiceNumber }}
-        </button>
+        <AppTooltip v-else :text="`Download ${row.invoiceNumber}`">
+          <button
+            @click="$emit('downloadInvoice', row)"
+            class="text-blue-400 hover:text-blue-300 hover:underline transition-colors font-medium"
+          >
+            #{{ row.invoiceNumber }}
+          </button>
+        </AppTooltip>
       </template>
 
       <!-- Plan Name column with icon -->
       <template #planName-data="{ row }">
   <div class="flex items-center space-x-2">
-    <UTooltip
+    <AppTooltip
       v-if="!row.isFree"
       :text="['small add-on'].includes(row.frequency?.toLowerCase())
         ? row.frequency
         : `Billed ${row.frequency}`"
-      :popper="{ placement: 'top' }"
+      placement="top"
     >
       <div class="flex items-center">
         <img
@@ -104,8 +104,10 @@
 
         <span class="font-medium ml-2">{{ row.planName }}</span>
       </div>
-    </UTooltip>
-    
+    </AppTooltip>
+    <div v-else class="flex items-center">
+      <span class="font-medium ml-2">{{ row.planName }}</span>
+    </div>
   </div>
 </template>
 

@@ -35,20 +35,21 @@
           </div>
         </transition>
 
-        <button
-          @click.stop="open = true"
-          aria-label="Open chat"
-          :disabled="!hasArtefacts"
-          :title="!hasArtefacts ? 'Upload artifacts to enable chat' : 'Open chat'"
-          :class="[
-            'w-14 h-14 rounded-full shadow-lg flex items-center justify-center',
-            !hasArtefacts
-              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              : 'bg-primary-600 text-white',
-          ]"
-        >
-          <UIcon name="heroicons:chat-bubble-left-ellipsis" class="w-6 h-6" />
-        </button>
+        <AppTooltip :text="!hasArtefacts ? 'Upload artifacts to enable chat' : 'Open chat'">
+          <button
+            @click.stop="open = true"
+            aria-label="Open chat"
+            :disabled="!hasArtefacts"
+            :class="[
+              'w-14 h-14 rounded-full shadow-lg flex items-center justify-center',
+              !hasArtefacts
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                : 'bg-primary-600 text-white',
+            ]"
+          >
+            <UIcon name="heroicons:chat-bubble-left-ellipsis" class="w-6 h-6" />
+          </button>
+        </AppTooltip>
       </div>
     </div>
     <div
@@ -70,28 +71,29 @@
         </div>
 
         <div class="flex items-center space-x-1 sm:space-x-2">
-          <button
-            @click="onToggleHistory"
-            :aria-pressed="showHistory"
-            class="flex items-center gap-2 px-2 sm:px-3 md:px-4 py-1 md:py-2 rounded-md bg-dark-800 hover:bg-dark-700 text-xs sm:text-sm md:text-base text-gray-200 border border-transparent focus:outline-none"
-            :title="historyLabel"
-          >
-            <UIcon
-              :name="historyIcon"
-              class="w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5 text-primary-400 flex-shrink-0"
-            />
-            <span class="hidden sm:inline">{{ historyLabel }}</span>
-          </button>
+          <AppTooltip :text="historyLabel">
+            <button
+              @click="onToggleHistory"
+              :aria-pressed="showHistory"
+              class="flex items-center gap-2 px-2 sm:px-3 md:px-4 py-1 md:py-2 rounded-md bg-dark-800 hover:bg-dark-700 text-xs sm:text-sm md:text-base text-gray-200 border border-transparent focus:outline-none"
+            >
+              <UIcon
+                :name="historyIcon"
+                class="w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5 text-primary-400 flex-shrink-0"
+              />
+              <span class="hidden sm:inline">{{ historyLabel }}</span>
+            </button>
+          </AppTooltip>
 
-          <button
-            v-if="!showHistory"
-            @click="clearConversation"
-            class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-md text-gray-300 hover:bg-dark-800 border border-dark-700"
-            title="Clear conversation"
-            aria-label="Clear conversation"
-          >
-            <UIcon name="heroicons:trash" class="w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5" />
-          </button>
+          <AppTooltip v-if="!showHistory" text="Clear conversation">
+            <button
+              @click="clearConversation"
+              class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-md text-gray-300 hover:bg-dark-800 border border-dark-700"
+              aria-label="Clear conversation"
+            >
+              <UIcon name="heroicons:trash" class="w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5" />
+            </button>
+          </AppTooltip>
 
           <button
             @click="close"
@@ -142,26 +144,28 @@
                     />
                   </div>
                   <div class="flex-1 min-w-0">
-                    <div
-                      class="text-sm sm:text-base text-gray-200 font-medium truncate"
-                      :title="c.header"
-                    >
-                      {{ c.header }}
-                    </div>
-                    <div
-                      class="mt-1 sm:mt-2 text-xs sm:text-sm md:text-base text-gray-400"
-                      :title="formatPreview(c.body, 200, true)"
-                      style="
-                        display: -webkit-box;
-                        -webkit-line-clamp: 2;
-                        line-clamp: 2;
-                        -webkit-box-orient: vertical;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                      "
-                    >
-                      {{ formatPreview(c.body) }}
-                    </div>
+                    <AppTooltip :text="c.header">
+                      <div
+                        class="text-sm sm:text-base text-gray-200 font-medium truncate"
+                      >
+                        {{ c.header }}
+                      </div>
+                    </AppTooltip>
+                    <AppTooltip :text="formatPreview(c.body, 200, true)">
+                      <div
+                        class="mt-1 sm:mt-2 text-xs sm:text-sm md:text-base text-gray-400"
+                        style="
+                          display: -webkit-box;
+                          -webkit-line-clamp: 2;
+                          line-clamp: 2;
+                          -webkit-box-orient: vertical;
+                          overflow: hidden;
+                          text-overflow: ellipsis;
+                        "
+                      >
+                        {{ formatPreview(c.body) }}
+                      </div>
+                    </AppTooltip>
                     <div
                       class="mt-1 sm:mt-2 text-xs sm:text-sm md:text-base text-gray-400 text-right"
                     >
@@ -393,9 +397,20 @@
             placeholder="Ask me..."
             class="flex-1 bg-dark-800 text-gray-200 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 rounded-md text-sm sm:text-base outline-none focus:ring-2 focus:ring-primary-500"
           />
-          <button
+          <AppTooltip v-if="usageLimitReached" text="Plan usage limit reached — upgrade required">
+            <button
+              :disabled="!canSend || loading || usageLimitReached"
+              type="submit"
+              :class="[
+                'btn-primary px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-xs sm:text-sm md:text-base flex-shrink-0 whitespace-nowrap',
+                !canSend || loading ? 'opacity-50 cursor-not-allowed' : '',
+              ]"
+            >
+              {{ loading ? '...' : 'Send' }}
+            </button>
+          </AppTooltip>
+          <button v-else
             :disabled="!canSend || loading || usageLimitReached"
-            :title="usageLimitReached ? 'Plan usage limit reached — upgrade required' : ''"
             type="submit"
             :class="[
               'btn-primary px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-xs sm:text-sm md:text-base flex-shrink-0 whitespace-nowrap',

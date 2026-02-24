@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
   const orgId = userRole === 0 && requestedOrg ? String(requestedOrg) : userOrgId
 
   try {
-    // 🔑 Department Admin: restrict to assigned departments
+    // 🔑 Department Admin: restrict to assigned departments (for management operations)
     if (userRole === 3) {
       const deptIdsResult = await query(
         `SELECT dept_id FROM user_departments WHERE user_id = $1`,

@@ -94,6 +94,24 @@ export default defineEventHandler(async (event) => {
     const documentLink = docResult.rows[0].document_link
     const documentDeleteAction = docResult.rows[0].status === 'processed'
 
+    // 🔑 PERMISSION CHECK: Check if document is a common document (no department restrictions)
+    const deptCheckQuery = `
+      SELECT COUNT(*) as dept_count FROM document_departments
+      WHERE document_id = $1
+    `
+    const deptCheckResult = await query(deptCheckQuery, [documentId])
+    const deptCount = Number(deptCheckResult.rows[0].dept_count)
+    const isCommonDocument = deptCount === 0
+
+    // 🔑 PERMISSION ENFORCEMENT: Department Admins (role_id = 3) cannot delete common artifacts
+    if (tokenUserRole === 3 && isCommonDocument) {
+      setResponseStatus(event, 403)
+      throw new CustomError(
+        'Department Admins cannot delete common artifacts. Only Company Admins can delete common artifacts.',
+        403
+      )
+    }
+
     const s3 = new S3Client({
       region: config.awsRegion,
       credentials: {

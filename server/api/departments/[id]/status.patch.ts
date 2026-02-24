@@ -34,6 +34,49 @@ export default defineEventHandler(async (event) => {
 
     const orgId = user.rows[0].org_id
 
+    // 🔑 VALIDATION: Prevent deactivation if department has active users or artifacts
+    if (status === 'inactive') {
+      // Check for active users mapped to this department
+      const activeUsersResult = await query(
+        `
+          SELECT COUNT(*) as user_count FROM user_departments ud
+          INNER JOIN users u ON ud.user_id = u.user_id
+          WHERE ud.dept_id = $1 AND u.org_id = $2 AND u.is_active = true
+        `,
+        [deptId, orgId]
+      )
+
+      const activeUserCount = Number(activeUsersResult.rows[0].user_count)
+
+      if (activeUserCount > 0) {
+        setResponseStatus(event, 400)
+        throw new CustomError(
+          'Department cannot be deactivated as it is assigned to active users/artifact.',
+          400
+        )
+      }
+
+      // Check for artifacts mapped to this department
+      const artifactsResult = await query(
+        `
+          SELECT COUNT(*) as artifact_count FROM document_departments dd
+          INNER JOIN organization_documents od ON dd.document_id = od.id
+          WHERE dd.dept_id = $1 AND od.org_id = $2
+        `,
+        [deptId, orgId]
+      )
+
+      const artifactCount = Number(artifactsResult.rows[0].artifact_count)
+
+      if (artifactCount > 0) {
+        setResponseStatus(event, 400)
+        throw new CustomError(
+          'Department cannot be deactivated as it is assigned to active users/artifact.',
+          400
+        )
+      }
+    }
+
     await query(
         `
             UPDATE organization_departments

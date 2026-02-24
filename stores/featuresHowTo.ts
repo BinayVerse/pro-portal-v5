@@ -10,7 +10,7 @@ export interface FeatureHowToVideo {
 
 export const useFeaturesHowToStore = defineStore('features-how-to', () => {
   const videos = ref<FeatureHowToVideo[]>([])
-  const isLoading = ref(false)
+  const isLoading = ref(true)
   const error = ref<string | null>(null)
   const fetchedAt = ref(0)
 
@@ -19,7 +19,8 @@ export const useFeaturesHowToStore = defineStore('features-how-to', () => {
     error.value = null
 
     try {
-      const response = await fetch('/api/features/signed-urls', { method: 'GET'
+      const response = await fetch('/api/features/signed-urls', {
+        method: 'GET'
       })
 
       const text = await response.text()

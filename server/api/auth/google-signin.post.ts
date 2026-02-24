@@ -82,7 +82,7 @@ export default defineEventHandler(async (event) => {
 
       // Prevent sign-in for deactivated accounts
       if (typeof user.is_active !== 'undefined' && user.is_active === false) {
-        throw new CustomError('This account has been deactivated. Please contact your administrator.', 401);
+        throw new CustomError('Your account has been deactivated. Please contact your Company Admin.', 401);
       }
     }
 

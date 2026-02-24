@@ -250,17 +250,50 @@
                       </p>
 
                       <div class="flex justify-center mt-4 mb-6">
+                        <AppTooltip
+                          v-if="!isUnlimitedPlanGroup(plan) && isFreePlanGroup(plan) && isFreePlanDisabled"
+                          :text="
+                            hasAvailedFreePlan
+                              ? 'You have already used the Free plan. Please choose a paid plan to continue.'
+                              : 'You are already on a paid plan. The Free plan is no longer available.'
+                          "
+                        >
+                          <button
+                            v-if="!isUnlimitedPlanGroup(plan)"
+                            class="btn-primary px-8 py-3 disabled:opacity-60 disabled:cursor-not-allowed"
+                            :disabled="
+                              (period === 'year' && isFreePlanGroup(plan)) ||
+                              (isFreePlanGroup(plan) && isFreePlanDisabled)
+                            "
+                            @click.prevent="
+                              isFreePlanGroup(plan) && isFreePlanDisabled
+                                ? null
+                                : period === 'year' && isFreePlanGroup(plan)
+                                  ? null
+                                  : isEnterpriseContactSalesPlan(plan)
+                                    ? openBookMeeting()
+                                    : select(plan)
+                            "
+                          >
+                            {{
+                              isFreePlanGroup(plan) && isFreePlanDisabled
+                                ? 'Start Now'
+                                : isFreePlanGroup(plan) && period === 'year'
+                                  ? 'Start Now'
+                                  : isFreePlanGroup(plan)
+                                    ? 'Start Now'
+                                    : isEnterpriseContactSalesPlan(plan)
+                                      ? 'Contact Sales'
+                                      : 'Buy Now'
+                            }}
+                          </button>
+                        </AppTooltip>
                         <button
-                          v-if="!isUnlimitedPlanGroup(plan)"
+                          v-else-if="!isUnlimitedPlanGroup(plan)"
                           class="btn-primary px-8 py-3 disabled:opacity-60 disabled:cursor-not-allowed"
                           :disabled="
                             (period === 'year' && isFreePlanGroup(plan)) ||
                             (isFreePlanGroup(plan) && isFreePlanDisabled)
-                          "
-                          :title="
-                            isFreePlanGroup(plan) && hasAvailedFreePlan
-                              ? 'You’ve already used the Free plan. Please choose a paid plan to continue.'
-                              : 'You’re already on a paid plan. The Free plan is no longer available.'
                           "
                           @click.prevent="
                             isFreePlanGroup(plan) && isFreePlanDisabled

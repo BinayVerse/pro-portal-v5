@@ -333,8 +333,15 @@ const formatGB = (gb: number): string => {
 
 const filteredArtefacts = computed(() => {
   return artefacts.value.filter((artefact) => {
+    const searchLower = searchQuery.value.toLowerCase()
+
+    // Search by document name OR department name
     const matchesSearch =
-      !searchQuery.value || artefact.name?.toLowerCase().includes(searchQuery.value.toLowerCase())
+      !searchQuery.value ||
+      artefact.name?.toLowerCase().includes(searchLower) ||
+      (artefact.rawDepartmentIds || []).some((deptId) =>
+        departmentNameMap.value[deptId]?.toLowerCase().includes(searchLower),
+      )
 
     const matchesCategory = !selectedCategory.value || artefact.category === selectedCategory.value
 
@@ -359,7 +366,6 @@ const viewArtefact = (artefact: any) => {
 const reprocessArtefact = async (artefact: any) => {
   // Check if artifact can be reprocessed
   if (!artefact.id) {
-    const { showError } = useNotification()
     showError('Cannot reprocess artifact - invalid artifact data')
     return
   }
@@ -389,13 +395,13 @@ const isReprocessingArtefact = ref(false)
 const showConfirmSummarizeArtefact = ref(false)
 const artefactToSummarize = ref<any>(null)
 const isSummarizingArtefact = ref(false)
+const { showError, showSuccess, showInfo, showWarning } = useNotification()
 
 // Confirm delete handler
 const confirmDeleteArtefact = async () => {
   if (!artefactToDelete.value) return
 
   isDeletingArtefact.value = true
-  const { showError, showSuccess } = useNotification()
 
   try {
     const result = await artefactsStore.deleteArtefact(
@@ -405,15 +411,15 @@ const confirmDeleteArtefact = async () => {
     )
 
     if (result.success) {
-      showSuccess(result.message)
+      // showSuccess(result.message)
       // Refresh the artefacts list
       await artefactsStore.fetchArtefacts(orgId.value)
       await fetchArtifactDepartments()
     } else {
-      showError(result.message)
+      // showError(result.message)
     }
   } catch (error: any) {
-    showError(error.message || 'Failed to delete artifact')
+    // showError(error.message || 'Failed to delete artifact')
   } finally {
     isDeletingArtefact.value = false
     showConfirmDeleteArtefact.value = false
@@ -433,7 +439,6 @@ const confirmReprocessArtefact = async () => {
   if (!artefactToReprocess.value) return
 
   isReprocessingArtefact.value = true
-  const { showError, showSuccess } = useNotification()
 
   try {
     const result = await artefactsStore.reprocessArtefact(artefactToReprocess.value.id, orgId.value)
@@ -466,26 +471,22 @@ const cancelReprocessArtefact = () => {
 const summarizeArtefact = async (artefact: any) => {
   // Check if artifact can be summarized
   if (!artefact.id) {
-    const { showError } = useNotification()
     showError('Cannot summarize artifact - invalid artifact data')
     return
   }
 
   if (artefact.status !== 'processed') {
-    const { showError } = useNotification()
     showError('Document must be processed before summarization')
     return
   }
 
   if (artefact.summarized === 'Yes') {
-    const { showInfo } = useNotification()
     showInfo('Document is already summarized. Use "View Summary" to see the existing summary.')
     return
   }
 
   // Check if document is already being auto-processed
   if (artefactsStore.isDocumentBeingSummarized(artefact.id)) {
-    const { showInfo } = useNotification()
     showInfo('This document is already being processed automatically. Please wait for completion.')
     return
   }
@@ -500,7 +501,6 @@ const confirmSummarizeArtefact = async () => {
   if (!artefactToSummarize.value) return
 
   isSummarizingArtefact.value = true
-  const { showError, showSuccess, showInfo } = useNotification()
 
   try {
     showInfo('Document summarization started! This may take a few moments...')
@@ -546,12 +546,9 @@ const viewSummary = (artefact: any) => {
 
 const downloadArtefact = async (artefact: any) => {
   if (!artefact || !artefact.id) {
-    const { showError } = useNotification()
     showError('Cannot download artifact - invalid artifact data')
     return
   }
-
-  const { showError, showSuccess, showInfo } = useNotification()
 
   try {
     showInfo('Preparing download...')
@@ -608,12 +605,10 @@ const addCategory = async (category: string) => {
       await fetchArtifactDepartments()
     } catch (error) {
       // Show error message to user
-      const { showError } = useNotification()
       showError('Failed to add category. Please try again.')
     }
   } else {
     // Fallback to local management if no orgId
-    const { showWarning } = useNotification()
     showWarning('Category added locally only. Changes will not be saved.')
   }
 }
@@ -643,11 +638,9 @@ const confirmDeleteCategory = async () => {
       }
     } else {
       // Fallback to local management if no orgId
-      const { showWarning } = useNotification()
       showWarning('Category deleted locally only. Changes will not be saved.')
     }
   } catch (error) {
-    const { showError } = useNotification()
     showError('Failed to delete category. Please try again.')
   } finally {
     isDeletingCategory.value = false
@@ -682,11 +675,9 @@ const initializeCategories = async () => {
   } catch (error: any) {
     // Handle specific error types
     if (await handleAuthError(error)) {
-      const { showError } = useNotification()
       showError('Session expired. Please sign in again.')
       return
     } else {
-      const { showError } = useNotification()
       showError('Failed to load categories. Please refresh the page.')
     }
   }
@@ -749,10 +740,7 @@ const initializePage = async () => {
         await loadDepartments()
 
         // Then fetch categories and artefacts in parallel
-        await Promise.all([
-          initializeCategories(),
-          artefactsStore.fetchArtefacts(orgId.value),
-        ])
+        await Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
 
         // After fetching artefacts, map their departments
         await fetchArtifactDepartments()
@@ -850,10 +838,7 @@ watch(
         await loadDepartments()
 
         // Then fetch categories and artifacts in parallel
-        await Promise.all([
-          initializeCategories(),
-          artefactsStore.fetchArtefacts(orgId.value),
-        ])
+        await Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
 
         // After fetching artifacts, map their departments
         await fetchArtifactDepartments()
@@ -920,7 +905,6 @@ onMounted(async () => {
     if (pending && pending.length > 0) {
       // Show a single notification listing files being summarized
       try {
-        const { showInfo } = useNotification()
         const names = pending
           .map((d: any) => d.name)
           .slice(0, 10)

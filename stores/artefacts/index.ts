@@ -151,8 +151,8 @@ export const useArtefactsStore = defineStore('artefacts', {
 
         return {
           success: true,
-          files: data.files || [],
-          message: data.message || 'Files uploaded successfully'
+          files: (data as any).files || [],
+          message: (data as any).message || 'Files uploaded successfully'
         }
       } catch (error: any) {
         // Handle authentication errors using shared handler
@@ -192,8 +192,8 @@ export const useArtefactsStore = defineStore('artefacts', {
 
         return {
           success: true,
-          files: data.files || [],
-          message: data.message || 'Files uploaded successfully'
+          files: (data as any).files || [],
+          message: (data as any).message || 'Files uploaded successfully'
         }
       } catch (error: any) {
         // Handle authentication errors using shared handler
@@ -445,6 +445,7 @@ export const useArtefactsStore = defineStore('artefacts', {
               totalArtefacts: number
               processedArtefacts: number
               totalCategories: number
+              totalSizeBytes: number
               totalSize: string
             }
           }
@@ -468,6 +469,7 @@ export const useArtefactsStore = defineStore('artefacts', {
           totalArtefacts: 0,
           processedArtefacts: 0,
           totalCategories: 0,
+          totalSizeBytes: 0,
           totalSize: '0 Bytes'
         }
 
@@ -506,6 +508,7 @@ export const useArtefactsStore = defineStore('artefacts', {
         totalArtefacts: 0,
         processedArtefacts: 0,
         totalCategories: 0,
+        totalSizeBytes: 0,
         totalSize: '0 Bytes'
       }
       this.artefactsError = null
@@ -685,10 +688,13 @@ export const useArtefactsStore = defineStore('artefacts', {
           throw new Error(response.message)
         }
 
+        handleSuccess(response.message || 'Artifact deleted successfully')
+
         return {
           success: true,
           message: response.message || 'Artifact deleted successfully'
         }
+
       } catch (error: any) {
         // Handle authentication errors using shared handler
         if (await handleAuthErrorShared(error)) {

@@ -199,7 +199,7 @@ export const useChatStore = defineStore('chat', () => {
           body = (body || '').toString().trim()
           if (body.length > 300) body = body.slice(0, 297) + '...'
 
-          const formatted = r.created_at ? dayjs(r.created_at).format('DD/MM/YYYY hh:mm A') : ''
+          const formatted = r.created_at ? dayjs(r.created_at).format('MM/DD/YYYY hh:mm A') : ''
           map.set(cid, { chat_id: cid, header, body, last_at: r.created_at, last_at_formatted: formatted })
         }
       }

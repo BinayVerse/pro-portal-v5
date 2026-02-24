@@ -66,12 +66,12 @@ export function isPersonalEmail(email: string, domains: string[]): boolean {
 }
 
 /**
- * Format date in DD/MM/YYYY HH:MM AM/PM format
+ * Format date in MM/DD/YYYY HH:MM AM/PM format
  * @param date - Date to format (can be Date object, string, or timestamp)
- * @returns Formatted date string in DD/MM/YYYY HH:MM AM/PM format
- * DD/MM/YYYY, hh:mm A
+ * @returns Formatted date string in MM/DD/YYYY HH:MM AM/PM format
+ * MM/DD/YYYY, hh:mm A
  */
-export function formatDateTime(date: Date | string | number, userTimezone?: string, format = 'DD/MM/YYYY') {
+export function formatDateTime(date: Date | string | number, userTimezone?: string, format = 'MM/DD/YYYY') {
   if (!date) return 'Unknown';
 
   const dateObj = dayjs.utc(date).tz(userTimezone);
@@ -82,9 +82,9 @@ export function formatDateTime(date: Date | string | number, userTimezone?: stri
 }
 
 /**
- * Format date only in DD/MM/YYYY format
+ * Format date only in MM/DD/YYYY format
  * @param date - Date to format (can be Date object, string, or timestamp)
- * @returns Formatted date string in DD/MM/YYYY format
+ * @returns Formatted date string in MM/DD/YYYY format
  */
 export function formatDate(date: Date | string | number): string {
   if (!date) return '';
@@ -98,7 +98,7 @@ export function formatDate(date: Date | string | number): string {
     year: 'numeric'
   };
 
-  return dateObj.toLocaleDateString('en-GB', options);
+  return dateObj.toLocaleDateString('en-US', options);
 }
 
 /**

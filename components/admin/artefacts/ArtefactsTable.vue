@@ -46,9 +46,11 @@
       <template #artefact-data="{ row }">
         <div class="flex items-center">
           <div class="min-w-[8rem] sm:min-w-[20rem] max-w-[16rem] sm:max-w-[32rem]">
-            <div class="text-xs sm:text-sm font-medium text-white truncate" :title="row.name">
-              {{ row.name }}
-            </div>
+            <AppTooltip :text="row.name">
+              <div class="text-xs sm:text-sm font-medium text-white truncate">
+                {{ row.name }}
+              </div>
+            </AppTooltip>
             <div class="text-xs sm:text-sm text-gray-400 truncate hidden sm:block">
               {{ row.description }}
             </div>
@@ -69,31 +71,37 @@
       <!-- Department column -->
       <template #departments-data="{ row }">
         <!-- Common badge -->
-        <UBadge
+        <AppTooltip
           v-if="!row.departments || row.departments.length === 0"
-          size="xs"
-          color="gray"
-          class="font-medium"
-          :ui="{ rounded: 'rounded-full' }"
-          :title="getDepartmentTooltip(row.departments)"
+          :text="getDepartmentTooltip(row.departments)"
         >
-          Common
-        </UBadge>
-
-        <!-- Department badges -->
-        <div v-else class="flex flex-wrap gap-1" :title="getDepartmentTooltip(row.departments)">
           <UBadge
-            v-for="deptId in row.departments"
-            :key="deptId"
+            v-if="!row.departments || row.departments.length === 0"
             size="xs"
-            variant="solid"
-            color="blue"
+            color="gray"
             class="font-medium"
             :ui="{ rounded: 'rounded-full' }"
           >
-            {{ props.departmentNameMap[deptId] || 'Unknown' }}
+            Common
           </UBadge>
-        </div>
+        </AppTooltip>
+
+        <!-- Department badges -->
+        <AppTooltip v-else :text="getDepartmentTooltip(row.departments)">
+          <div class="flex flex-wrap gap-1">
+            <UBadge
+              v-for="deptId in row.departments"
+              :key="deptId"
+              size="xs"
+              variant="solid"
+              color="blue"
+              class="font-medium"
+              :ui="{ rounded: 'rounded-full' }"
+            >
+              {{ props.departmentNameMap[deptId] || 'Unknown' }}
+            </UBadge>
+          </div>
+        </AppTooltip>
       </template>
 
       <!-- Status column with badge and dot -->
@@ -159,24 +167,26 @@
       <!-- Actions column with action buttons -->
       <template #uploadedOn-data="{ row }">
         <div class="flex flex-col">
-          <div class="text-sm font-medium text-white truncate" :title="row.uploadedBy">
-            {{ row.uploadedBy }}
-          </div>
+          <AppTooltip :text="`Uploaded by ${row.uploadedBy}`">
+            <div class="text-sm font-medium text-white truncate">
+              {{ row.uploadedBy }}
+            </div>
+          </AppTooltip>
           <div class="text-xs text-gray-400 mt-1">{{ row.lastUpdated }}</div>
         </div>
       </template>
 
       <template #actions-data="{ row }">
         <div class="flex items-center space-x-2">
-          <UTooltip text="View Artifact">
+          <AppTooltip text="View Artifact">
             <button
               @click="$emit('viewArtefact', row)"
               class="text-blue-400 hover:text-blue-300 transition-colors"
             >
               <UIcon name="heroicons:eye" class="w-4 h-4" />
             </button>
-          </UTooltip>
-          <UTooltip
+          </AppTooltip>
+          <AppTooltip
             :text="
               row.status === 'processing'
                 ? 'Document is processing'
@@ -201,15 +211,15 @@
             >
               <UIcon name="heroicons:arrow-path-rounded-square" class="w-4 h-4" />
             </button>
-          </UTooltip>
-          <UTooltip text="Delete Artifact">
+          </AppTooltip>
+          <AppTooltip text="Delete Artifact">
             <button
               @click="$emit('deleteArtefact', row)"
               class="text-red-400 hover:text-red-300 transition-colors"
             >
               <UIcon name="heroicons:trash" class="w-4 h-4" />
             </button>
-          </UTooltip>
+          </AppTooltip>
         </div>
       </template>
     </UTable>
@@ -405,17 +415,17 @@ const sortedRows = computed(() => {
         if (!dateStr) return new Date(0).getTime()
         // If already a number (timestamp), return as-is
         if (typeof dateStr === 'number' && !Number.isNaN(dateStr)) return dateStr
-        // Accept 'DD/MM/YYYY' or 'DD-MM-YYYY' or ISO strings
+        // Accept 'MM/DD/YYYY' or 'MM-DD-YYYY' or ISO strings
         if (typeof dateStr === 'string') {
-          // Try DD/MM/YYYY or DD-MM-YYYY
+          // Try MM/DD/YYYY or MM-DD-YYYY
           const parts = dateStr.includes('/')
             ? dateStr.split('/')
             : dateStr.includes('-')
               ? dateStr.split('-')
               : null
           if (parts && parts.length === 3) {
-            const [day, month, year] = parts.map((p: string) => Number(p))
-            if (!Number.isNaN(day) && !Number.isNaN(month) && !Number.isNaN(year)) {
+            const [month, day, year] = parts.map((p: string) => Number(p))
+            if (!Number.isNaN(month) && !Number.isNaN(day) && !Number.isNaN(year)) {
               return new Date(year, month - 1, day).getTime()
             }
           }

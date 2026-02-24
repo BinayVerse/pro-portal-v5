@@ -121,6 +121,47 @@
                 </UInputMenu>
               </UFormGroup>
 
+              <!-- Departments -->
+              <UFormGroup name="departments">
+                <template #label>
+                  <span class="text-sm font-medium text-gray-300">
+                    Departments
+                    <span v-if="isDepartmentAdmin" class="text-red-500 dark:text-red-400 ml-[-2px]"
+                      >*</span
+                    >
+                    <span v-else>(Optional)</span>
+                  </span>
+                </template>
+                <USelectMenu
+                  v-model="state.departments"
+                  :options="restrictedDepartmentOptions"
+                  option-attribute="name"
+                  value-attribute="dept_id"
+                  multiple
+                  searchable
+                  :placeholder="
+                    isDepartmentAdmin
+                      ? 'Select at least one department'
+                      : 'Select departments or leave empty for Common'
+                  "
+                >
+                  <template #label>
+                    <span v-if="!state.departments.length" class="text-gray-400">
+                      {{
+                        isDepartmentAdmin ? 'Select at least one department' : 'Select departments'
+                      }}
+                    </span>
+                    <span v-else>
+                      {{ selectedDepartmentsLabel }}
+                    </span>
+                  </template>
+                </USelectMenu>
+                <p v-if="isDepartmentAdmin" class="text-xs text-amber-400 mt-2">
+                  ⚠️ Department Admins must assign documents to at least one department. You cannot
+                  upload Common documents.
+                </p>
+              </UFormGroup>
+
               <!-- Drag and Drop File Upload -->
               <UFormGroup label="File" name="file" required>
                 <div
@@ -192,34 +233,6 @@
                 />
                 <p class="text-xs text-gray-400 mt-1">
                   {{ state.description?.length || 0 }}/100 characters
-                </p>
-              </UFormGroup>
-
-              <!-- Departments -->
-              <UFormGroup
-                :label="isDepartmentAdmin ? 'Department (Required)' : 'Departments (Optional)'"
-                name="departments"
-              >
-                <USelectMenu
-                  v-model="state.departments"
-                  :options="restrictedDepartmentOptions"
-                  option-attribute="name"
-                  value-attribute="dept_id"
-                  multiple
-                  searchable
-                  :placeholder="isDepartmentAdmin ? 'Select at least one department' : 'Select departments or leave empty for Common'"
-                >
-                  <template #label>
-                    <span v-if="!state.departments.length" class="text-gray-400">
-                      {{ isDepartmentAdmin ? 'Select at least one department' : 'Select departments' }}
-                    </span>
-                    <span v-else>
-                      {{ selectedDepartmentsLabel }}
-                    </span>
-                  </template>
-                </USelectMenu>
-                <p v-if="isDepartmentAdmin" class="text-xs text-amber-400 mt-2">
-                  ⚠️ Department Admins must assign documents to at least one department. You cannot upload Common documents.
                 </p>
               </UFormGroup>
 
@@ -309,6 +322,47 @@
                   </template>
                   <template #empty> No categories found </template>
                 </UInputMenu>
+              </UFormGroup>
+
+              <!-- Departments -->
+              <UFormGroup name="departments">
+                <template #label>
+                  <span class="text-sm font-medium text-gray-300">
+                    Departments
+                    <span v-if="isDepartmentAdmin" class="text-red-500 dark:text-red-400 ml-[-2px]"
+                      >*</span
+                    >
+                    <span v-else>(Optional)</span>
+                  </span>
+                </template>
+                <USelectMenu
+                  v-model="googleDriveState.departments"
+                  :options="restrictedDepartmentOptions"
+                  option-attribute="name"
+                  value-attribute="dept_id"
+                  multiple
+                  searchable
+                  :placeholder="
+                    isDepartmentAdmin
+                      ? 'Select at least one department'
+                      : 'Select departments or leave empty for Common'
+                  "
+                >
+                  <template #label>
+                    <span v-if="!googleDriveState.departments.length" class="text-gray-400">
+                      {{
+                        isDepartmentAdmin ? 'Select at least one department' : 'Select departments'
+                      }}
+                    </span>
+                    <span v-else>
+                      {{ selectedGoogleDepartmentsLabel }}
+                    </span>
+                  </template>
+                </USelectMenu>
+                <p v-if="isDepartmentAdmin" class="text-xs text-amber-400 mt-2">
+                  ⚠️ Department Admins must assign documents to at least one department. You cannot
+                  upload Common documents.
+                </p>
               </UFormGroup>
 
               <!-- Method 1: Google Drive URL -->
@@ -516,34 +570,6 @@
                   </UTable>
                 </div>
               </div>
-
-              <!-- Departments -->
-              <UFormGroup
-                :label="isDepartmentAdmin ? 'Department (Required)' : 'Departments (Optional)'"
-                name="departments"
-              >
-                <USelectMenu
-                  v-model="googleDriveState.departments"
-                  :options="restrictedDepartmentOptions"
-                  option-attribute="name"
-                  value-attribute="dept_id"
-                  multiple
-                  searchable
-                  :placeholder="isDepartmentAdmin ? 'Select at least one department' : 'Select departments or leave empty for Common'"
-                >
-                  <template #label>
-                    <span v-if="!googleDriveState.departments.length" class="text-gray-400">
-                      {{ isDepartmentAdmin ? 'Select at least one department' : 'Select departments' }}
-                    </span>
-                    <span v-else>
-                      {{ selectedGoogleDepartmentsLabel }}
-                    </span>
-                  </template>
-                </USelectMenu>
-                <p v-if="isDepartmentAdmin" class="text-xs text-amber-400 mt-2">
-                  ⚠️ Department Admins must assign documents to at least one department. You cannot upload Common documents.
-                </p>
-              </UFormGroup>
 
               <!-- Bottom Actions -->
               <div class="flex justify-end space-x-3 pt-6 border-t border-dark-600 mt-6">
@@ -1046,7 +1072,10 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
     isUploading.value = true
 
     // 🔑 Validate Department Admin is not uploading as Common document
-    if (isDepartmentAdmin.value && (!event.data.departments || event.data.departments.length === 0)) {
+    if (
+      isDepartmentAdmin.value &&
+      (!event.data.departments || event.data.departments.length === 0)
+    ) {
       showError('Department Admins must assign documents to at least one department.')
       isUploading.value = false
       return
@@ -1075,7 +1104,7 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
       // Ensure department IDs are strings for proper mapping
       const deptIds = existsResult.fileInfo?.departments || []
       pendingUpload.currentDepartments = Array.isArray(deptIds)
-        ? deptIds.map(id => String(id))
+        ? deptIds.map((id) => String(id))
         : []
       pendingUpload.formData = formData
       showReplacementModal.value = true
@@ -1109,6 +1138,7 @@ const performUpload = async (formData: FormData, orgId?: string | null) => {
     state.file = null
     state.category = ''
     state.description = ''
+    state.departments = []
 
     // Reset file input
     if (fileInput.value) {
@@ -1196,7 +1226,10 @@ const uploadFromGoogleDrive = async () => {
   }
 
   // 🔑 Validate Department Admin is not uploading as Common document
-  if (isDepartmentAdmin.value && (!googleDriveState.departments || googleDriveState.departments.length === 0)) {
+  if (
+    isDepartmentAdmin.value &&
+    (!googleDriveState.departments || googleDriveState.departments.length === 0)
+  ) {
     showError('Department Admins must assign documents to at least one department.')
     return
   }
@@ -1229,9 +1262,10 @@ const uploadFromGoogleDrive = async () => {
     const uploadPayload = {
       files: selectedGoogleDriveFiles.value,
       category: googleDriveState.category,
-      departments: googleDriveState.departments && googleDriveState.departments.length > 0
-        ? googleDriveState.departments
-        : [],
+      departments:
+        googleDriveState.departments && googleDriveState.departments.length > 0
+          ? googleDriveState.departments
+          : [],
     }
 
     // Call the store method to upload files
@@ -1264,6 +1298,7 @@ const uploadFromGoogleDrive = async () => {
     // Reset Google Drive state
     googleDriveState.category = ''
     googleDriveState.url = ''
+    googleDriveState.departments = []
     selectedGoogleDriveFiles.value = []
     artefactsStore.clearGoogleDriveFiles()
 
@@ -1283,7 +1318,10 @@ const handleGoogleOAuthSignIn = async () => {
   }
 
   // 🔑 Validate Department Admin is not uploading as Common document
-  if (isDepartmentAdmin.value && (!googleDriveState.departments || googleDriveState.departments.length === 0)) {
+  if (
+    isDepartmentAdmin.value &&
+    (!googleDriveState.departments || googleDriveState.departments.length === 0)
+  ) {
     showError('Department Admins must assign documents to at least one department.')
     return
   }
@@ -1340,9 +1378,10 @@ const handleGoogleOAuthSignIn = async () => {
         const uploadPayload = {
           files: convertedFiles,
           category: googleDriveState.category,
-          departments: googleDriveState.departments && googleDriveState.departments.length > 0
-            ? googleDriveState.departments
-            : [],
+          departments:
+            googleDriveState.departments && googleDriveState.departments.length > 0
+              ? googleDriveState.departments
+              : [],
         }
 
         // Upload the files
@@ -1371,6 +1410,7 @@ const handleGoogleOAuthSignIn = async () => {
           // Reset state
           googleDriveState.category = ''
           googleDriveState.url = ''
+          googleDriveState.departments = []
           selectedGoogleDriveFiles.value = []
           artefactsStore.clearGoogleDriveFiles()
           googleDrive.cleanup()
@@ -1492,8 +1532,10 @@ const resetAllFields = () => {
     state.file = null
     state.category = ''
     state.description = ''
+    state.departments = []
     googleDriveState.category = ''
     googleDriveState.url = ''
+    googleDriveState.departments = []
     selectedGoogleDriveFiles.value = []
 
     // Reset replacement modal state
@@ -1545,8 +1587,10 @@ watch(uploadType, () => {
     state.file = null
     state.category = ''
     state.description = ''
+    state.departments = []
     googleDriveState.category = ''
     googleDriveState.url = ''
+    googleDriveState.departments = []
     selectedGoogleDriveFiles.value = []
 
     // Perform comprehensive cleanup

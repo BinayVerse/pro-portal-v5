@@ -82,13 +82,14 @@
           :empty-state="{ icon: 'i-heroicons-circle-stack-20-solid', label: 'No data to display' }"
         >
           <template #org_name-data="{ row }">
-            <NuxtLink
-              :to="{ path: '/admin/dashboard', query: { org: String(row.org_id) } }"
-              class="text-white font-bold hover:underline text-left block"
-              :title="`Open dashboard for ${row.org_name}`"
-            >
-              {{ row.org_name }}
-            </NuxtLink>
+            <AppTooltip :text="`Open dashboard for ${row.org_name}`">
+              <NuxtLink
+                :to="{ path: '/admin/dashboard', query: { org: String(row.org_id) } }"
+                class="text-white font-bold hover:underline text-left block"
+              >
+                {{ row.org_name }}
+              </NuxtLink>
+            </AppTooltip>
           </template>
         </UTable>
         <div class="p-4 flex items-center justify-between border-t border-dark-700">
@@ -225,20 +226,20 @@ const perPageOptions = [
 const computedPageCount = computed(() => (perPage.value === 'all' ? Math.max(sortedRows.value.length, 1) : (perPage.value as number)))
 watch(perPage, () => { page.value = 1 })
 
-// Helper to format dates as DD/MM/YYYY for display
+// Helper to format dates as MM/DD/YYYY for display
 const formatDate = (val: any) => {
   if (!val) return '-'
   // If server returned a plain date string (YYYY-MM-DD), format directly to avoid timezone shifts
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(val))) {
     const [y, m, d] = String(val).split('-')
-    return `${d}/${m}/${y}`
+    return `${m}/${d}/${y}`
   }
   const d = new Date(val)
   if (isNaN(d.getTime())) return String(val)
   const day = String(d.getDate()).padStart(2, '0')
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const year = d.getFullYear()
-  return `${day}/${month}/${year}`
+  return `${month}/${day}/${year}`
 }
 
 const paginatedRows = computed(() => {

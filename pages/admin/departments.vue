@@ -194,42 +194,40 @@
           <template #actions-data="{ row }">
             <div class="flex items-center space-x-2">
               <!-- Edit (disabled for ALL) -->
-              <button
-                v-if="row.id !== 'ALL'"
-                @click="editDepartment(row)"
-                class="text-blue-400 hover:text-blue-300 transition-colors"
-                title="Edit department"
-              >
-                <UIcon name="i-heroicons-pencil" class="w-4 h-4" />
-              </button>
+              <AppTooltip v-if="row.id !== 'ALL'" text="Edit department">
+                <button
+                  @click="editDepartment(row)"
+                  class="text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  <UIcon name="i-heroicons-pencil" class="w-4 h-4" />
+                </button>
+              </AppTooltip>
 
               <!-- Disabled actions for ALL -->
-              <div
-                v-if="row.id === 'ALL'"
-                class="flex items-center text-gray-500 cursor-not-allowed"
-                title="The All department cannot be modified or disabled"
-              >
-                <UIcon name="i-heroicons-lock-closed" class="w-4 h-4" />
-              </div>
+              <AppTooltip v-if="row.id === 'ALL'" text="The All department cannot be modified or disabled">
+                <div class="flex items-center text-gray-500 cursor-not-allowed">
+                  <UIcon name="i-heroicons-lock-closed" class="w-4 h-4" />
+                </div>
+              </AppTooltip>
 
               <!-- Activate / Deactivate (normal departments only) -->
-              <button
-                v-else
-                @click="
-                  row.status === 'active' ? showDeactivateConfirm(row) : showActivateConfirm(row)
-                "
-                :class="`transition-colors ${
-                  row.status === 'active'
-                    ? 'text-red-400 hover:text-red-300'
-                    : 'text-green-400 hover:text-green-300'
-                }`"
-                :title="row.status === 'active' ? 'Deactivate department' : 'Activate department'"
-              >
-                <UIcon
-                  :name="row.status === 'active' ? 'heroicons:no-symbol' : 'heroicons:check-circle'"
-                  class="w-4 h-4"
-                />
-              </button>
+              <AppTooltip v-else :text="row.status === 'active' ? 'Deactivate department' : 'Activate department'">
+                <button
+                  @click="
+                    row.status === 'active' ? showDeactivateConfirm(row) : showActivateConfirm(row)
+                  "
+                  :class="`transition-colors ${
+                    row.status === 'active'
+                      ? 'text-red-400 hover:text-red-300'
+                      : 'text-green-400 hover:text-green-300'
+                  }`"
+                >
+                  <UIcon
+                    :name="row.status === 'active' ? 'heroicons:no-symbol' : 'heroicons:check-circle'"
+                    class="w-4 h-4"
+                  />
+                </button>
+              </AppTooltip>
             </div>
           </template>
         </UTable>

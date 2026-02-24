@@ -4,15 +4,16 @@
       <!-- Header with Date Range -->
       <div class="flex justify-between items-center">
         <div class="flex items-center space-x-4">
-          <UButton
-            to="/admin/superadmin"
-            variant="ghost"
-            color="gray"
-            icon="heroicons:arrow-left"
-            class="!px-2 !py-1"
-            title="Back to Dashboard"
-            aria-label="Back to Dashboard"
-          />
+          <AppTooltip text="Back to Dashboard">
+            <UButton
+              to="/admin/superadmin"
+              variant="ghost"
+              color="gray"
+              icon="heroicons:arrow-left"
+              class="!px-2 !py-1"
+              aria-label="Back to Dashboard"
+            />
+          </AppTooltip>
           <div>
             <h1 class="text-2xl font-bold text-white">Analytics of {{ orgName }}</h1>
             <p class="text-gray-400">Organizations comprehensive usage report</p>

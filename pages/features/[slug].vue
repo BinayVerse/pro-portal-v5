@@ -300,7 +300,44 @@
             <div>
               <h2 class="text-3xl font-bold text-white text-center mb-12">Feature Videos</h2>
 
-              <div class="grid md:grid-cols-3 gap-8">
+              <!-- Loading State -->
+              <div v-if="howToStore.isLoading" class="text-center py-12">
+                <div class="flex justify-center mb-4">
+                  <div
+                    class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"
+                  ></div>
+                </div>
+                <p class="text-gray-300">Loading videos...</p>
+              </div>
+
+              <!-- Error State -->
+              <div
+                v-else-if="howToStore.error"
+                class="bg-red-900/20 border border-red-500 rounded-xl p-6 mb-8"
+              >
+                <h3 class="text-lg font-bold text-red-400 mb-2">Unable to Load Videos</h3>
+                <p class="text-red-300 text-sm mb-4">{{ howToStore.error }}</p>
+                <!-- <button
+                  @click="howToStore.fetchHowToVideos()"
+                  class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors text-sm"
+                >
+                  Retry
+                </button> -->
+              </div>
+
+              <!-- Empty State -->
+              <div v-else-if="howToStore.videos.length === 0" class="text-center py-12">
+                <p class="text-gray-300 mb-4">No videos available</p>
+                <!-- <button
+                  @click="howToStore.fetchHowToVideos()"
+                  class="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded transition-colors text-sm"
+                >
+                  Load Videos
+                </button> -->
+              </div>
+
+              <!-- Videos Grid -->
+              <div v-else class="grid md:grid-cols-3 gap-8">
                 <div
                   v-for="video in howToStore.videos"
                   :key="video.id"
@@ -313,6 +350,8 @@
                       preload="metadata"
                       playsinline
                       class="absolute inset-0 w-full h-full object-contain rounded-xl"
+                      @error="handleVideoError"
+                      @canplay="handleVideoCanPlay"
                     />
                   </div>
 
@@ -470,6 +509,16 @@
 const route = useRoute()
 
 const howToStore = useFeaturesHowToStore()
+
+const handleVideoError = (event: Event) => {
+  const video = event.target as HTMLVideoElement
+  console.error('Video error:', video.error?.message, 'for src:', video.src)
+}
+
+const handleVideoCanPlay = (event: Event) => {
+  const video = event.target as HTMLVideoElement
+  // console.log('Video can play:', video.src)
+}
 
 onMounted(() => {
   howToStore.fetchHowToVideos()

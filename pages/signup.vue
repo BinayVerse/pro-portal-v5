@@ -15,6 +15,22 @@
         <p class="mt-2 text-gray-400">Join thousands of teams managing their artifacts</p>
       </div>
 
+      <!-- AWS Session Expiry Message -->
+      <div
+        v-if="isFromAws"
+        class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 space-y-2"
+      >
+        <div class="flex items-start space-x-3">
+          <UIcon name="i-heroicons-information-circle" class="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+          <div class="text-sm text-blue-300">
+            <p class="font-medium mb-2">AWS Session Expiry Notice</p>
+            <p>Your AWS session is valid for 2 hours.</p>
+            <p>Please complete your organization registration within this time.</p>
+            <p>If the session expires, you will need to restart the setup from the AWS flow.</p>
+          </div>
+        </div>
+      </div>
+
       <AuthSignInWithOAuth authView="signup" />
 
       <div class="relative">
@@ -418,6 +434,11 @@ watch(
     registrationToken.value = token ? String(token) : null
   },
 )
+
+// Check if user is coming from AWS flow
+const isFromAws = computed(() => {
+  return route.query.from === 'aws'
+})
 
 // Form reference
 const formRef = ref()

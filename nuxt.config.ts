@@ -52,6 +52,10 @@ export default defineNuxtConfig({
     braintreeMerchantId: process.env.NUXT_BRAINTREE_MERCHANT_ID,
     braintreePublicKey: process.env.NUXT_BRAINTREE_PUBLIC_KEY,
     braintreePrivateKey: process.env.NUXT_BRAINTREE_PRIVATE_KEY,
+    // Cloudflare
+    cloudfrontDomain: process.env.NUXT_CF_DOMAIN,
+    cloudfrontKeyPairId: process.env.NUXT_CF_KEY_PAIR_ID,
+    cloudfrontPrivateKey: process.env.NUXT_CF_PRIVATE_KEY
   },
   hooks: {
     listen: () => validateEnvs(),

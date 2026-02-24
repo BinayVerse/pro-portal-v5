@@ -62,6 +62,7 @@ export default defineEventHandler(async (event) => {
       SELECT 
         o.org_id,
         o.org_name,
+        o.source,
         o.plan_id,
         o.plan_start_date,
 
@@ -96,6 +97,30 @@ export default defineEventHandler(async (event) => {
     if (!row) {
       return { success: true, data: null }
     }
+
+    /* --------------------------------
+     * AWS AUTO-RENEWAL STATUS (IF APPLICABLE)
+     * -------------------------------- */
+
+    let awsAutoRenewalStatus: boolean | null = null
+
+    if (row.source === 'aws') {
+      const awsRes = await query(
+        `
+      SELECT auto_renewal_status
+      FROM aws_marketplace_subscriptions
+      WHERE org_id = $1
+      AND active = true
+      LIMIT 1
+    `,
+        [orgId]
+      )
+
+      const rawAwsRenewal = awsRes.rows[0]?.auto_renewal_status ?? null
+      awsAutoRenewalStatus =
+        rawAwsRenewal === true
+    }
+
 
     /* --------------------------------
      * BASE PLAN DATE WINDOW
@@ -251,6 +276,8 @@ export default defineEventHandler(async (event) => {
         org_id: row.org_id,
         org_name: row.org_name,
         plan: basePlan,
+        source: row.source,
+        aws_auto_renewal_status: awsAutoRenewalStatus,
         plan_start_date: hasActiveBasePlan ? row.plan_start_date : null,
         addons,
         subscription_details: subscriptionDetails

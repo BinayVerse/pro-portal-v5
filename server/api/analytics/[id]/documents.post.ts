@@ -66,7 +66,7 @@ export default defineEventHandler(async (event) => {
             contentType: doc.content_type,
             updatedAt: doc.updated_at,
             formattedUpdatedAt: doc.updated_at
-                ? dayjs(doc.updated_at).tz(userTimezone).format('DD/MM/YYYY hh:mm A')
+                ? dayjs(doc.updated_at).tz(userTimezone).format('MM/DD/YYYY hh:mm A')
                 : 'Unknown',
             fileCategory: doc.file_category,
         }));

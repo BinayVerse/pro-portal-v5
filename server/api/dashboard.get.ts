@@ -141,7 +141,7 @@ export default defineEventHandler(async (event) => {
       email: u.email,
       role: u.role,
       status: u.status,
-      updated_at: formatDateTime(u.updated_at || u.created_at, 'UTC', 'DD/MM/YYYY'),
+      updated_at: formatDateTime(u.updated_at || u.created_at, 'UTC', 'MM/DD/YYYY'),
       raw_updated_at: u.updated_at || u.created_at,
     }))
 
@@ -160,7 +160,7 @@ export default defineEventHandler(async (event) => {
       fileName: d.name,
       fileSize: formatFileSize(d.file_size || 0),
       status: d.status,
-      updatedAt: formatDateTime(d.updated_at, 'UTC', 'DD/MM/YYYY'),
+      updatedAt: formatDateTime(d.updated_at, 'UTC', 'MM/DD/YYYY'),
       raw_updated_at: d.updated_at,
       category: d.category_name,
       uploadedBy: d.uploaded_by_name,

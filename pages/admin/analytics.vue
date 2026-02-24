@@ -189,13 +189,52 @@
         </div>
       </div>
 
-      <!-- Bottom Grid -->
+      <!-- Department Analytics Section -->
       <div class="grid xl:grid-cols-2 gap-6">
-        <!-- Category-wise Document Distribution -->
+        <!-- Chart 1: Users vs Artifacts by Department (Bar Chart) -->
         <div class="bg-dark-800 rounded-lg border border-dark-700 flex flex-col">
           <div class="p-6 border-b border-dark-700">
-            <h2 class="text-lg font-semibold text-white">Category-wise Document Distribution</h2>
-            <p class="text-gray-400 text-sm">Document usage distribution by category</p>
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-white">Users vs Artifacts by Department</h2>
+                <p class="text-gray-400 text-sm">Department-wise user adoption and content usage</p>
+              </div>
+              <!-- In future will uncomment this for Department admin role -->
+              <!-- <div v-if="authUser?.role_id === 3" class="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-xs">
+                Department Admin View
+              </div> -->
+            </div>
+          </div>
+          <div class="flex-1 p-6 relative min-h-[450px]">
+            <DepartmentBarChart 
+              :chart-data="analyticsStore.getDepartmentBarChartData"
+              :loading="loadingStates.departmentBarChart"
+            />
+          </div>
+        </div>
+
+        <!-- Chart 2: Department Distribution (Pie Chart - User Percentage) -->
+        <div class="bg-dark-800 rounded-lg border border-dark-700 flex flex-col">
+          <div class="p-6 border-b border-dark-700">
+            <h2 class="text-lg font-semibold text-white">Department Distribution</h2>
+            <p class="text-gray-400 text-sm">User percentage distribution across departments</p>
+          </div>
+          <div class="flex-1 flex items-center justify-center p-6 relative min-h-80">
+            <DepartmentPieChart 
+              :data="analyticsStore.getDepartmentPieChartData"
+              :loading="loadingStates.departmentPieChart"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Grid -->
+      <div class="grid xl:grid-cols-2 gap-6">
+        <!-- Category-wise Artifacts Distribution -->
+        <div class="bg-dark-800 rounded-lg border border-dark-700 flex flex-col">
+          <div class="p-6 border-b border-dark-700">
+            <h2 class="text-lg font-semibold text-white">Category-wise Artifacts Distribution</h2>
+            <p class="text-gray-400 text-sm">Artifacts usage distribution by category</p>
           </div>
           <div class="flex-1 flex items-center justify-center p-6 relative min-h-80">
             <div
@@ -214,11 +253,11 @@
           </div>
         </div>
 
-        <!-- Top 5 Queried Documents -->
+        <!-- Top 5 Queried Artifacts -->
         <div class="bg-dark-800 rounded-lg border border-dark-700 flex flex-col">
           <div class="p-6 border-b border-dark-700">
-            <h2 class="text-lg font-semibold text-white">Top 5 Queried Documents</h2>
-            <p class="text-gray-400 text-sm">Most frequently accessed documents</p>
+            <h2 class="text-lg font-semibold text-white">Top 5 Queried Artifacts</h2>
+            <p class="text-gray-400 text-sm">Most frequently accessed artifacts</p>
           </div>
           <div class="p-6 relative min-h-60">
             <div
@@ -246,7 +285,7 @@
                 </div>
               </div>
               <div v-if="topDocuments.length === 0" class="text-center text-gray-400 py-4">
-                No document data available
+                No artifacts data available
               </div>
             </template>
           </div>
@@ -333,7 +372,7 @@
 
       <!-- Document Modal -->
       <UModal
-        key="analytics-document-table"
+        key="analytics-artifacts-table"
         v-model="documentModalIsOpen"
         prevent-close
         :ui="{ width: 'custom-width' }"
@@ -347,7 +386,7 @@
           <template #header>
             <div class="flex items-center justify-between">
               <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-                Document List
+                Artifacts List
               </h3>
               <UButton
                 color="gray"
@@ -360,7 +399,7 @@
           </template>
 
           <CustomTable
-            key="analytics-document-table"
+            key="analytics-artifacts-table"
             :columns="docColumns"
             :rows="analyticsStore.orgDocList"
             :loading="documentLoading"
@@ -429,6 +468,8 @@ import PieChart from '@/components/charts/PieChart.vue'
 import StackedAreaChart from '@/components/charts/StackedAreaChart.vue'
 import DonutChart from '@/components/charts/DonutChart.vue'
 import PlanUpgradeAlert from '@/components/ui/PlanUpgradeAlert.vue'
+import DepartmentBarChart from '@/components/charts/DepartmentBarChart.vue'
+import DepartmentPieChart from '@/components/charts/DepartmentPieChart.vue'
 import { getColorsForLabels, orderLabels } from '@/utils/chartColors'
 import { useRoute } from 'vue-router'
 import { navigateTo } from '#app'
@@ -706,6 +747,8 @@ const loadingStates = ref({
   donutChart: true,
   topDocuments: true,
   frequentQuestions: true,
+  departmentBarChart: true,
+  departmentPieChart: true,
 })
 
 // Time range options
@@ -990,6 +1033,31 @@ const splitFrequentQuestions = computed(() => {
   return [firstColumn, secondColumn]
 })
 
+const forceFetchDepartmentData = async () => {
+  if (organizationId.value) {
+    const { startDate, endDate, timeZone: userTimeZone } = dateRange.value;
+    console.log('Force fetching department data with:', { startDate, endDate, userTimeZone });
+    await analyticsStore.fetchDepartmentAnalytics(organizationId.value, userTimeZone);
+  }
+};
+
+// Call this in onMounted after the main fetch
+onMounted(async () => {
+  isMounted.value = true
+  await nextTick()
+
+  await fetchUserProfile()
+  await fetchData()
+  
+  // Double-check department data is loaded
+  setTimeout(() => {
+    if (analyticsStore.departmentBarChartData.length === 0) {
+      console.log('Department data still empty, forcing refetch...');
+      forceFetchDepartmentData();
+    }
+  }, 1000);
+})
+
 // Actions
 const showOrganizationUsers = async () => {
   try {
@@ -1010,8 +1078,8 @@ const showOrganizationDocuments = async () => {
     documentModalIsOpen.value = true
     await analyticsStore.fetchOrganizationDocuments(organizationId.value!)
   } catch (error) {
-    console.error('Error fetching organization documents:', error)
-    showNotification('Failed to load document', 'error')
+    console.error('Error fetching organization artifacts:', error)
+    showNotification('Failed to load artifacts', 'error')
   } finally {
     documentLoading.value = false
   }
@@ -1061,6 +1129,13 @@ const fetchData = async () => {
         .finally(() => {
           loadingStates.value.topDocuments = false
           loadingStates.value.frequentQuestions = false
+        }),
+      // Add department analytics fetch
+      analyticsStore
+        .fetchDepartmentAnalytics(organizationId.value, userTimeZone)
+        .finally(() => {
+          loadingStates.value.departmentBarChart = false
+          loadingStates.value.departmentPieChart = false
         }),
     ])
   } catch (error) {
@@ -1118,14 +1193,41 @@ const exportReport = () => {
       rows.push([date, user, String(tokens)])
     })
 
-    // Category-wise Document Distribution
-    rows.push([], ['--- Category-wise Document Distribution ---'], ['Category', 'Count'])
+      // Add Department Analytics section
+    rows.push([], ['--- Department Analytics ---'])
+
+    // Users & Artifacts by Department
+    rows.push([], ['--- Users & Artifacts by Department ---'])
+    rows.push(['Department', 'Users', 'Artifacts'])
+
+    analyticsStore.departmentBarChartData.forEach((dept: any) => {
+      rows.push([
+        dept.department_name,
+        String(dept.user_count || 0),
+        String(dept.artifact_count || 0)
+      ])
+    })
+
+    // Department Distribution (User Percentage)
+    rows.push([], ['--- Department Distribution (User %) ---'])
+    rows.push(['Department', 'Users', 'Percentage'])
+
+    analyticsStore.departmentPieChartData.forEach((dept: any) => {
+      rows.push([
+        dept.name || dept.department_name || 'Unknown',
+        String(dept.users || dept.value || 0),
+        `${dept.percentage || 0}%`
+      ])
+    })
+
+    // Category-wise Artifacts Distribution
+    rows.push([], ['--- Category-wise Artifacts Distribution ---'], ['Category', 'Count'])
     donutChartLabels.value.forEach((label, index) => {
       rows.push([label, String(donutChartData.value[index] || 0)])
     })
 
-    // Top Documents
-    rows.push([], ['--- Top Documents ---'], ['Name', 'Queries'])
+    // Top Artifacts by Queries
+    rows.push([], ['--- Top Artifacts ---'], ['Name', 'Queries'])
     topDocuments.value.forEach((doc: any) => {
       rows.push([doc.name, String(doc.queries || 0)])
     })
@@ -1135,6 +1237,7 @@ const exportReport = () => {
     frequentQuestions.value.slice(0, 10).forEach((faq: any) => {
       rows.push([`"${faq.question.replace(/"/g, '""')}"`, String(faq.count || 0)])
     })
+
 
     const csvContent = rows.map((r) => r.join(',')).join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })

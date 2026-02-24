@@ -22,6 +22,9 @@ export const useUsersStore = defineStore('usersStore', {
     departments: [] as any[],
     departmentsLoading: false,
     departmentsError: null as string | null,
+    allDepartments: [] as any[], // All departments for display purposes
+    allDepartmentsLoading: false,
+    allDepartmentsError: null as string | null,
     userDepartments: {} as Record<string, string[]>,
   }),
 
@@ -35,6 +38,9 @@ export const useUsersStore = defineStore('usersStore', {
     getDepartments: (state) => state.departments,
     isDepartmentsLoading: (state) => state.departmentsLoading,
     getDepartmentsError: (state): string | null => state.departmentsError,
+    getAllDepartments: (state) => state.allDepartments,
+    isAllDepartmentsLoading: (state) => state.allDepartmentsLoading,
+    getAllDepartmentsError: (state): string | null => state.allDepartmentsError,
     getUserDepartments: (state) => state.userDepartments,
   },
 
@@ -88,7 +94,7 @@ export const useUsersStore = defineStore('usersStore', {
       } catch (err: any) {
         console.error('Fetch roles error:', err)
 
-        if (!this.handleAuthError(err)) {
+        if (!(await this.handleAuthError(err))) {
           this.userError = handleError(err, 'Failed to fetch roles')
         }
       } finally {
@@ -106,7 +112,7 @@ export const useUsersStore = defineStore('usersStore', {
         this.users = data.data || []
       } catch (err: any) {
         console.error('Fetch users error:', err)
-        if (!this.handleAuthError(err)) {
+        if (!(await this.handleAuthError(err))) {
           this.userError = handleError(err, 'Failed to fetch users')
         }
       } finally {
@@ -127,7 +133,7 @@ export const useUsersStore = defineStore('usersStore', {
         )
 
         // If API explicitly returns failure (like status: 'error' or status === false)
-        if (response?.status === false || response?.status === 'error') {
+        if (response?.status === false) {
           const message = response.message || 'Error creating user'
           this.userError = message
           // Show the API message directly
@@ -169,7 +175,7 @@ export const useUsersStore = defineStore('usersStore', {
         )
 
         // If API explicitly returns failure (e.g., status: 'error' or status === false)
-        if (response?.status === false || response?.status === 'error') {
+        if (response?.status === false) {
           const message = response.message || 'Error editing user'
           this.userError = message
           handleError({ response: { _data: { message } } }, message)
@@ -204,7 +210,7 @@ export const useUsersStore = defineStore('usersStore', {
 
         handleSuccess('User deleted successfully!')
       } catch (err: any) {
-        if (!this.handleAuthError(err)) {
+        if (!(await this.handleAuthError(err))) {
           this.userError = handleError(err, 'Error deleting user')
         }
       }
@@ -272,7 +278,7 @@ export const useUsersStore = defineStore('usersStore', {
 
         return { status: data.status, message: data.message, errors: data.errors || [] }
       } catch (err: any) {
-        if (!this.handleAuthError(err)) {
+        if (!(await this.handleAuthError(err))) {
           const message = handleError(err, 'Error uploading bulk users')
           return { status: false, message, errors: extractErrors(err) }
         }
@@ -360,12 +366,46 @@ export const useUsersStore = defineStore('usersStore', {
         this.departments = result?.data || []
       } catch (err: any) {
         console.error('Failed to load departments:', err)
-        if (!this.handleAuthError(err)) {
+        if (!(await this.handleAuthError(err))) {
           this.departmentsError = handleError(err, 'Failed to load departments')
         }
         this.departments = []
       } finally {
         this.departmentsLoading = false
+      }
+    },
+
+    // 🔑 Fetch ALL departments for display purposes (no role-based filtering)
+    // Used to map department IDs to names in the UI, regardless of DA permissions
+    async fetchAllDepartments(orgId?: string | null) {
+      this.allDepartmentsLoading = true
+      this.allDepartmentsError = null
+      try {
+        const token = process.client ? localStorage.getItem('authToken') : null
+        if (!token) {
+          this.allDepartmentsError = 'No auth token available'
+          return
+        }
+
+        const url = orgId
+          ? `/api/organizations/all-departments?org_id=${encodeURIComponent(String(orgId))}`
+          : '/api/organizations/all-departments'
+
+        const result = await $fetch<{ data: any[] }>(url, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        this.allDepartments = result?.data || []
+      } catch (err: any) {
+        console.error('Failed to load all departments:', err)
+        if (!(await this.handleAuthError(err))) {
+          this.allDepartmentsError = handleError(err, 'Failed to load all departments')
+        }
+        this.allDepartments = []
+      } finally {
+        this.allDepartmentsLoading = false
       }
     },
 
@@ -413,6 +453,78 @@ export const useUsersStore = defineStore('usersStore', {
           return dept?.name || ''
         })
         .filter(Boolean)
+    },
+
+    // Bulk assign users to departments
+    async bulkAssignDepartments(userIds: string[], departments: string[]) {
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: {
+            userIds: string[]
+            departments: string[]
+            succeeded: number
+            failed: number
+            errors: any[]
+          }
+        }>('/api/users/bulk-assign-departments', {
+          method: 'POST',
+          body: {
+            userIds,
+            departments,
+          },
+          headers: this.getAuthHeaders(),
+        })
+
+        if (response.success) {
+          handleSuccess(response.message)
+          // Refresh user departments
+          // await this.fetchAllUserDepartments(userIds)
+          return response
+        }
+      } catch (err: any) {
+        if (!(await this.handleAuthError(err))) {
+          const errorMsg = handleError(err, 'Failed to assign departments')
+          throw new Error(errorMsg)
+        }
+      }
+    },
+
+    // Bulk unassign users from departments
+    async bulkUnassignDepartments(userIds: string[], departments: string[]) {
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: {
+            userIds: string[]
+            departments: string[]
+            succeeded: number
+            failed: number
+            errors: any[]
+          }
+        }>('/api/users/bulk-unassign-departments', {
+          method: 'POST',
+          body: {
+            userIds,
+            departments,
+          },
+          headers: this.getAuthHeaders(),
+        })
+
+        if (response.success) {
+          handleSuccess(response.message)
+          // Refresh user departments
+          // await this.fetchAllUserDepartments(userIds)
+          return response
+        }
+      } catch (err: any) {
+        if (!(await this.handleAuthError(err))) {
+          const errorMsg = handleError(err, 'Failed to unassign departments')
+          throw new Error(errorMsg)
+        }
+      }
     },
   },
 })

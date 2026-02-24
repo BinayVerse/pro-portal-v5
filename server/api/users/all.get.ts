@@ -70,23 +70,11 @@ export default defineEventHandler(async (event) => {
   `
   }
 
-  // 🔵 Department Admin (role_id = 3): scoped view
+  // 🔵 Department Admin (role_id = 3): see all REGULAR users (not admins)
   else if (tokenUserRole === 3) {
     whereClause += `
     AND u.role_id NOT IN (0, 1)
-    AND (
-      EXISTS (
-        SELECT 1 FROM user_departments ud
-        WHERE ud.user_id = u.user_id
-          AND ud.dept_id = ANY($2)
-      )
-      OR NOT EXISTS (
-        SELECT 1 FROM user_departments ud2
-        WHERE ud2.user_id = u.user_id
-      )
-    )
   `
-    queryParams.push(adminDepartmentIds)
   }
 
   // 🔑 Super Admin (role_id = 0): no additional filter

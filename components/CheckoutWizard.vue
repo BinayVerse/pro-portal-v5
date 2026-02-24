@@ -243,12 +243,20 @@
         <button v-if="step > 1" class="btn-outline mr-3" @click="prevStep">Back</button>
       </div>
       <div class="flex items-center">
+        <AppTooltip v-if="step < 4 && !canProceed" text="Please fill address line 1, city and country to proceed.">
+          <button
+            :class="['btn-primary', { 'btn-disabled': !canProceed }]"
+            :disabled="!canProceed"
+            @click="nextStep"
+          >
+            Next
+          </button>
+        </AppTooltip>
         <button
-          v-if="step < 4"
+          v-else-if="step < 4"
           :class="['btn-primary', { 'btn-disabled': !canProceed }]"
           :disabled="!canProceed"
           @click="nextStep"
-          :title="!canProceed ? 'Please fill address line 1, city and country to proceed.' : ''"
         >
           Next
         </button>

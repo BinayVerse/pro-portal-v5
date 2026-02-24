@@ -214,15 +214,12 @@
               <template #label>
                 <div class="flex items-center space-x-2">
                   <span>Webhook URL</span>
-                  <UTooltip
-                    text="Copy this Webhook URL and add it to your Meta Developer Account under 'WhatsApp > Configuration > Webhook'"
-                    :popper="{ placement: 'top' }"
-                  >
+                  <AppTooltip text="Copy this Webhook URL and add it to your Meta Developer Account under WhatsApp > Configuration > Webhook" placement="top">
                     <UIcon
                       name="heroicons:information-circle"
                       class="w-4 h-4 text-blue-400 cursor-help"
                     />
-                  </UTooltip>
+                  </AppTooltip>
                 </div>
               </template>
               <div class="relative">

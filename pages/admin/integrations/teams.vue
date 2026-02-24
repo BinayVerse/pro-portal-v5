@@ -217,14 +217,14 @@
             >
               Download Package
             </UButton>
-            <UTooltip
+            <AppTooltip
               v-else
               text="After giving consent, the Teams app package will be available for download."
             >
               <UButton disabled color="gray" icon="heroicons:arrow-down-tray">
                 Download Package
               </UButton>
-            </UTooltip>
+            </AppTooltip>
           </div>
         </div>
 

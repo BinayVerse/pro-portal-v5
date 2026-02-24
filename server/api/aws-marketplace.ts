@@ -76,6 +76,6 @@ export default defineEventHandler(async (event: H3Event) => {
         maxAge: 60 * 60 * 2 // 2 hours
     })
 
-    // 5️⃣ Redirect WITHOUT token
-    return sendRedirect(event, '/signup', 302)
+    // 5️⃣ Redirect WITHOUT token, but add AWS flow indicator
+    return sendRedirect(event, '/signup?from=aws', 302)
 })
