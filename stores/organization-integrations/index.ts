@@ -414,7 +414,7 @@ export const useOrganizationIntegrationsStore = defineStore('organizationIntegra
     },
 
     // Update integration status only
-    async updateIntegrationStatus(id: string, status: 'active' | 'inactive' | 'pending') {
+    async updateIntegrationStatus(id: string, status: 'active' | 'inactive' | 'expired' | 'failed') {
       return this.updateIntegration(id, { status })
     },
 

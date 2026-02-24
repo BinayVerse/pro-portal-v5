@@ -30,6 +30,7 @@ export interface OrganizationIntegration {
   module_id: string
   connection_name: string
   client_id: string
+  client_secret?: string
   api_key?: string
   access_token?: string
   refresh_token?: string

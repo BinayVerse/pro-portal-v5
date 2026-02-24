@@ -58,7 +58,7 @@ export const useOrganizationIntegrations = () => {
     createIntegration: (payload: CreateIntegrationPayload) => store.createIntegration(payload),
     updateIntegration: (id: string, payload: UpdateIntegrationPayload) =>
       store.updateIntegration(id, payload),
-    updateIntegrationStatus: (id: string, status: 'active' | 'inactive' | 'pending') =>
+    updateIntegrationStatus: (id: string, status: 'active' | 'inactive' | 'expired' | 'failed') =>
       store.updateIntegrationStatus(id, status),
     deleteIntegration: (id: string) => store.deleteIntegration(id),
     clearMessages: () => store.clearMessages(),
