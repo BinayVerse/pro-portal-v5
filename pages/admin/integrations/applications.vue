@@ -1,16 +1,5 @@
 <template>
   <div class="space-y-4 sm:space-y-6">
-    <!-- Error Alert -->
-    <UAlert
-      v-if="error"
-      icon="i-heroicons-exclamation-triangle"
-      color="red"
-      title="Error"
-      :description="error"
-      :closable="true"
-      @close="clearMessages"
-    />
-
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
       <div>
@@ -37,19 +26,27 @@
       v-if="!loadingIntegrations"
       class="flex gap-2 border-b border-dark-700 overflow-x-auto pb-3 -mx-4 px-4 sm:mx-0 sm:px-0"
     >
-      <button
+      <AppTooltip
         v-for="tab in tabs"
         :key="tab.value"
-        @click="selectedTab = tab.value"
-        :class="[
-          'px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-          selectedTab === tab.value
-            ? 'text-primary-400 border-b-2 border-primary-400'
-            : 'text-gray-400 hover:text-gray-300 border-b-2 border-transparent',
-        ]"
+        :text="!tab.isActive && tab.value !== 'all' ? 'Coming Soon' : ''"
       >
-        {{ tab.label }}
-      </button>
+        <button
+          @click="selectedTab = tab.value"
+          :disabled="!tab.isActive && tab.value !== 'all'"
+          :class="[
+            'px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2',
+            !tab.isActive && tab.value !== 'all'
+              ? 'opacity-50 cursor-not-allowed'
+              : 'cursor-pointer',
+            selectedTab === tab.value
+              ? 'text-primary-400 border-b-2 border-primary-400'
+              : 'text-gray-400 hover:text-gray-300 border-b-2 border-transparent',
+          ]"
+        >
+          <span>{{ tab.label }}</span>
+        </button>
+      </AppTooltip>
     </div>
 
     <!-- Tabs Loading Skeleton -->
@@ -88,7 +85,8 @@
       >
         <!-- Integration Header -->
         <div
-          class="px-4 sm:px-6 py-4 flex items-center justify-between bg-dark-800 hover:bg-dark-700/30 transition-colors border-b border-dark-700"
+          class="px-4 sm:px-6 py-4 flex items-center justify-between bg-dark-800 hover:bg-dark-700/30 transition-colors border-dark-700 cursor-pointer"
+          @click="toggleExpandedRow(group.id)"
         >
           <!-- Left: Icon + Integration Info -->
           <div class="flex items-center gap-4 flex-1 min-w-0">
@@ -107,15 +105,32 @@
 
             <!-- Integration Details -->
             <div class="min-w-0 flex-1">
-              <h3 class="text-base sm:text-lg font-semibold text-white break-words">
+              <h3
+                class="text-base sm:text-lg font-semibold text-white break-words hover:text-primary-400 transition-colors"
+              >
                 {{ group.provider }} Integration
               </h3>
               <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm text-gray-400 mt-1">
                 <span v-if="group.agent">{{ group.agent }}</span>
-                <span v-if="group.module" class="hidden sm:inline">•</span>
-                <span v-if="group.module" class="hidden sm:inline text-gray-500">{{
-                  group.module
-                }}</span>
+                <span v-if="group.connections?.length" class="hidden sm:inline">•</span>
+
+                <div class="flex flex-wrap items-center">
+                  <template
+                    v-for="(conn, index) in getSortedConnections(group.connections)"
+                    :key="conn.id"
+                  >
+                    <span class="sm:inline text-gray-500">
+                      {{ conn.module_name }}
+                    </span>
+
+                    <span
+                      v-if="index !== getSortedConnections(group.connections).length - 1"
+                      class="hidden sm:inline mx-2"
+                    >
+                      •
+                    </span>
+                  </template>
+                </div>
               </div>
             </div>
           </div>
@@ -149,6 +164,21 @@
               />
               {{ getAggregateStatus(group.connections) }}
             </span>
+
+            <!-- Eye Icon Toggle -->
+            <AppTooltip
+              :text="
+                expandedRows.includes(group.id) ? 'Collapse connections' : 'Expand connections'
+              "
+            >
+              <UButton
+                @click="toggleExpandedRow(group.id)"
+                variant="ghost"
+                :color="expandedRows.includes(group.id) ? 'primary' : 'gray'"
+                :icon="expandedRows.includes(group.id) ? 'heroicons:eye-slash' : 'heroicons:eye'"
+                size="sm"
+              />
+            </AppTooltip>
 
             <!-- Status Change Dropdown -->
             <div class="relative" @click.stop>
@@ -207,17 +237,13 @@
               </Teleport>
             </div>
 
-            <!-- Eye Icon Toggle -->
-            <AppTooltip
-              :text="
-                expandedRows.includes(group.id) ? 'Collapse connections' : 'Expand connections'
-              "
-            >
+            <!-- Edit Icon -->
+            <AppTooltip text="Edit integration">
               <UButton
-                @click="toggleExpandedRow(group.id)"
+                @click.stop="editGroup(group)"
                 variant="ghost"
-                :color="expandedRows.includes(group.id) ? 'primary' : 'gray'"
-                :icon="expandedRows.includes(group.id) ? 'heroicons:eye-slash' : 'heroicons:eye'"
+                color="gray"
+                icon="heroicons:pencil-square"
                 size="sm"
               />
             </AppTooltip>
@@ -240,172 +266,64 @@
           v-if="expandedRows.includes(group.id)"
           class="border-t border-dark-700 bg-dark-900/50 px-4 sm:px-6 py-4"
         >
-          <!-- Connections Header with Count and Add Button -->
-          <div class="flex items-center justify-between mb-4">
+          <!-- Connections Header with Count -->
+          <!-- <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-2">
               <UIcon name="heroicons:link" class="w-4 h-4 text-gray-400" />
               <h4 class="text-sm font-semibold text-gray-300">
                 Connection ({{ group.connections.length }})
               </h4>
             </div>
-            <UButton
-              @click="openAddConnectionModal(group)"
-              icon="heroicons:plus"
-              color="primary"
-              variant="outline"
-              size="sm"
-            >
-              Add Connection
-            </UButton>
-          </div>
+          </div> -->
 
           <!-- Connection Cards -->
-          <div class="space-y-3">
+          <div class="space-y-4">
+            <!-- Created Info -->
+            <div>
+              <h4 class="text-sm font-semibold text-white mb-1.5">API Credentials</h4>
+              <div class="text-xs text-gray-400">
+                Connected on
+                {{ formatDate(group.connections[0]?.created_at) }}
+              </div>
+            </div>
+
+            <!-- API Credentials -->
             <div
-              v-for="connection in group.connections"
-              :key="connection.id"
-              class="bg-dark-800 border border-dark-700 rounded-lg p-4 space-y-3"
+              class="text-xs text-gray-400 space-y-2 bg-dark-800 rounded-lg p-4 border border-dark-700"
             >
-              <!-- Connection Header -->
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <h4 class="text-sm font-semibold text-white">{{ connection.connection_name }}</h4>
-                  <p class="text-xs text-gray-400 mt-1">
-                    Created {{ formatDate(connection.created_at) }}
-                  </p>
-                </div>
-
-                <!-- Status Badge + Actions -->
-                <div class="flex items-center gap-2 flex-shrink-0 ml-4">
-                  <!-- Status Badge -->
-                  <span
-                    :class="[
-                      'px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 whitespace-nowrap',
-                      connection.status === 'Active'
-                        ? 'bg-green-500/20 text-green-400'
-                        : connection.status === 'Inactive'
-                          ? 'bg-gray-500/20 text-gray-400'
-                          : connection.status === 'Expired'
-                            ? 'bg-yellow-500/20 text-yellow-400'
-                            : 'bg-red-500/20 text-red-400',
-                    ]"
-                  >
-                    <span
-                      class="w-2 h-2 rounded-full"
-                      :class="
-                        connection.status === 'Active'
-                          ? 'bg-green-400'
-                          : connection.status === 'Inactive'
-                            ? 'bg-gray-400'
-                            : connection.status === 'Expired'
-                              ? 'bg-yellow-400'
-                              : 'bg-red-400'
-                      "
-                    />
-                    {{ connection.status }}
-                  </span>
-
-                  <!-- Status Change Dropdown -->
-                  <div class="relative" @click.stop>
-                    <AppTooltip text="Change status">
-                      <UButton
-                        color="gray"
-                        variant="ghost"
-                        icon="heroicons:cog-6-tooth"
-                        size="sm"
-                        data-menu-trigger
-                        @click.stop="toggleAppStatusMenu(connection.id)"
-                      />
-                    </AppTooltip>
-                    <div
-                      v-if="activeAppStatusMenu === connection.id"
-                      class="absolute right-0 mt-1 w-48 bg-dark-800 border border-dark-700 rounded-lg shadow-lg py-1 z-50 top-full"
-                      data-menu-dropdown
-                      @click.stop
-                    >
-                      <button
-                        @click="
-                          () => {
-                            updateStatus(connection.id, 'Active')
-                            activeAppStatusMenu = null
-                          }
-                        "
-                        :class="[
-                          'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
-                          connection.status === 'Active' ? 'text-primary-400' : 'text-gray-300',
-                        ]"
-                      >
-                        <UIcon name="heroicons:check-circle" class="w-4 h-4" />
-                        Active
-                      </button>
-                      <button
-                        @click="
-                          () => {
-                            updateStatus(connection.id, 'Inactive')
-                            activeAppStatusMenu = null
-                          }
-                        "
-                        :class="[
-                          'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
-                          connection.status === 'Inactive' ? 'text-primary-400' : 'text-gray-300',
-                        ]"
-                      >
-                        <UIcon name="heroicons:minus-circle" class="w-4 h-4" />
-                        Inactive
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Edit Icon -->
-                  <AppTooltip text="Edit connection">
-                    <UButton
-                      @click="editConnection(connection)"
-                      variant="ghost"
-                      color="gray"
-                      icon="heroicons:pencil-square"
-                      size="sm"
-                    />
-                  </AppTooltip>
-
-                  <!-- Delete Icon -->
-                  <AppTooltip text="Delete connection">
-                    <UButton
-                      @click="deleteApplication(connection.id)"
-                      variant="ghost"
-                      color="red"
-                      icon="heroicons:trash-20-solid"
-                      size="sm"
-                    />
-                  </AppTooltip>
-                </div>
+              <div class="flex justify-between items-start">
+                <span class="text-gray-500 font-medium">Client ID:</span>
+                <span class="font-mono text-gray-300 break-all text-right ml-4">
+                  {{ maskSensitiveData(group.connections[0]?.client_id) }}
+                </span>
               </div>
 
-              <!-- Connection Details -->
-              <div class="text-xs text-gray-400 space-y-2 bg-dark-700/50 rounded-lg p-3">
-                <div class="flex justify-between items-start">
-                  <span class="text-gray-500 font-medium">Client ID:</span>
-                  <span class="font-mono text-gray-300 break-all text-right ml-4">{{
-                    maskSensitiveData(connection.client_id)
-                  }}</span>
-                </div>
-                <div class="flex justify-between items-start">
-                  <span class="text-gray-500 font-medium">Client Secret:</span>
-                  <span class="font-mono text-gray-300 break-all text-right ml-4">{{
-                    maskSensitiveData(connection.client_secret)
-                  }}</span>
-                </div>
-                <div v-if="connection.api_key" class="flex justify-between items-start">
-                  <span class="text-gray-500 font-medium">API Key:</span>
-                  <span class="font-mono text-gray-300 break-all text-right ml-4">{{
-                    maskSensitiveData(connection.api_key)
-                  }}</span>
-                </div>
-                <div v-if="connection.login_url" class="flex justify-between items-start">
-                  <span class="text-gray-500 font-medium">Login URL:</span>
-                  <span class="font-mono text-gray-300 break-all text-right ml-4">{{
-                    connection.login_url
-                  }}</span>
-                </div>
+              <div class="flex justify-between items-start">
+                <span class="text-gray-500 font-medium">Client Secret:</span>
+                <span class="font-mono text-gray-300 break-all text-right ml-4">
+                  {{ maskSensitiveData(group.connections[0]?.client_secret) }}
+                </span>
+              </div>
+
+              <div v-if="group.connections[0]?.api_key" class="flex justify-between items-start">
+                <span class="text-gray-500 font-medium">API Key:</span>
+                <span class="font-mono text-gray-300 break-all text-right ml-4">
+                  {{ maskSensitiveData(group.connections[0]?.api_key) }}
+                </span>
+              </div>
+
+              <div v-if="group.connections[0]?.login_url" class="flex justify-between items-start">
+                <span class="text-gray-500 font-medium">Login URL:</span>
+                <span class="font-mono text-gray-300 break-all text-right ml-4">
+                  {{ group.connections[0]?.login_url }}
+                </span>
+              </div>
+
+              <div v-if="group.connections[0]?.base_url" class="flex justify-between items-start">
+                <span class="text-gray-500 font-medium">Base URL:</span>
+                <span class="font-mono text-gray-300 break-all text-right ml-4">
+                  {{ group.connections[0]?.base_url }}
+                </span>
               </div>
             </div>
           </div>
@@ -426,6 +344,27 @@
       <UButton @click="openAddApplicationModal" icon="heroicons:plus"> Add Application </UButton>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <ConfirmPopup
+      :is-open="showDeleteConfirmModal"
+      type="danger"
+      title="Delete Integration"
+      :message="`Are you sure you want to delete this integration and all its ${groupToDelete?.connections?.length || 0} connection(s)?`"
+      :details="`${groupToDelete?.provider} - ${groupToDelete?.agent}`"
+      :confirm-text="isDeletingGroup ? 'Deleting...' : 'Delete'"
+      cancel-text="Cancel"
+      :loading="isDeletingGroup"
+      @confirm="confirmDeleteGroup"
+      @update:isOpen="
+        (value) => {
+          if (!value) {
+            showDeleteConfirmModal = false
+            groupToDelete = null
+          }
+        }
+      "
+    />
+
     <!-- Add/Edit Application Modal -->
     <UModal v-model="showApplicationModal" size="lg" prevent-close>
       <div class="p-6 space-y-4">
@@ -445,33 +384,168 @@
         </div>
         <!-- Select Agent -->
         <div>
-          <label class="block text-sm font-medium text-white mb-2">Select Agent *</label>
-          <USelect
-            v-model="applicationForm.agent_id"
-            :options="agents.map((a) => ({ value: a.id, label: a.name }))"
-            placeholder="Select an agent"
-            value-attribute="value"
-            option-attribute="label"
-            class="w-full"
-          />
+          <div class="flex items-center gap-2 mb-2">
+            <label class="block text-sm font-medium text-white leading-none"
+              >Select Agent <span class="text-red-500">*</span></label
+            >
+            <AppTooltip v-if="areFieldsLocked" text="Agent is locked to this integration group">
+              <UIcon
+                name="heroicons:information-circle"
+                class="w-4 h-4 text-gray-400 flex-shrink-0"
+              />
+            </AppTooltip>
+          </div>
+          <div class="relative">
+            <select
+              v-model="applicationForm.agent_id"
+              :disabled="areFieldsLocked"
+              class="w-full appearance-none bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:opacity-30 disabled:text-gray-500 disabled:cursor-not-allowed"
+            >
+              <option disabled value="">Select an agent</option>
+
+              <option
+                v-for="agent in agentOptions"
+                :key="agent.value"
+                :value="agent.value"
+                :disabled="agent.disabled"
+                class="bg-dark-900 text-white"
+              >
+                {{ agent.label }}{{ agent.disabled ? ' (Coming Soon)' : '' }}
+              </option>
+            </select>
+
+            <!-- Dropdown Icon -->
+            <div
+              class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400"
+            >
+              <UIcon name="heroicons:chevron-down" class="w-4 h-4" />
+            </div>
+          </div>
         </div>
 
-        <!-- Select Module -->
+        <!-- Select Provider -->
         <div>
-          <label class="block text-sm font-medium text-white mb-2">Select Module *</label>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div class="flex items-center gap-2 mb-2">
+            <label class="block text-sm font-medium text-white leading-none">
+              Select Provider <span class="text-red-500">*</span>
+            </label>
+
+            <AppTooltip v-if="areFieldsLocked" text="Provider is locked to this integration group">
+              <UIcon
+                name="heroicons:information-circle"
+                class="w-4 h-4 text-gray-400 flex-shrink-0"
+              />
+            </AppTooltip>
+
+            <AppTooltip v-if="!applicationForm.agent_id" text="Please select an Agent first">
+              <UIcon
+                name="heroicons:information-circle"
+                class="w-4 h-4 text-gray-400 flex-shrink-0"
+              />
+            </AppTooltip>
+          </div>
+
+          <div
+            :class="[
+              'grid grid-cols-3 gap-4 auto-rows-fr',
+              !applicationForm.agent_id ? 'opacity-50 pointer-events-none' : '',
+            ]"
+          >
+            <div v-for="provider in filteredProviders" :key="provider.id">
+              <AppTooltip
+                :text="!provider.is_active ? provider.name + ' (Coming Soon) ' : provider.name"
+              >
+                <button
+                  @click="toggleProvider(provider)"
+                  :disabled="areFieldsLocked || !applicationForm.agent_id || !provider.is_active"
+                  :class="[
+                    'w-full h-24 rounded-lg border transition-all flex items-center justify-center',
+                    areFieldsLocked || !applicationForm.agent_id
+                      ? 'opacity-50 cursor-not-allowed'
+                      : '',
+                    !provider.is_active ? 'opacity-30 cursor-not-allowed' : '',
+                    applicationForm.provider_id === provider.id && provider.is_active
+                      ? 'border-primary-500 bg-primary-500/20'
+                      : provider.is_active
+                        ? 'border-dark-700 bg-dark-900 hover:border-dark-600'
+                        : 'border-dark-700 bg-black',
+                  ]"
+                >
+                  <img
+                    v-if="provider.logo_url"
+                    :src="provider.logo_url"
+                    alt="provider logo"
+                    class="w-16 h-16 object-contain"
+                  />
+
+                  <UIcon v-else :name="getProviderIcon(provider.name)" class="w-6 h-6 text-white" />
+                </button>
+              </AppTooltip>
+            </div>
+          </div>
+        </div>
+        <!-- Request Provider CTA -->
+        <div class="mt-3 text-left">
+          <button
+            type="button"
+            class="text-sm text-primary-400 hover:text-primary-300 underline"
+            @click="openRequestProviderModal"
+          >
+            Don’t see your provider?
+          </button>
+        </div>
+
+        <!-- Select Module (Multi-select) -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <label class="block text-sm font-medium text-white leading-none"
+              >Select Modules <span class="text-red-500">*</span></label
+            >
+            <!-- <span v-if="applicationForm.module_ids.length > 0" class="text-xs text-gray-400">
+              ({{ applicationForm.module_ids.length }} selected)
+            </span> -->
+            <!-- <AppTooltip v-if="areFieldsLocked" text="Modules are locked to this integration group">
+              <UIcon
+                name="heroicons:information-circle"
+                class="w-4 h-4 text-gray-400 flex-shrink-0"
+              />
+            </AppTooltip> -->
+            <AppTooltip v-if="!applicationForm.agent_id" text="Please select an Agent first">
+              <UIcon
+                name="heroicons:information-circle"
+                class="w-4 h-4 text-gray-400 flex-shrink-0"
+              />
+            </AppTooltip>
+
+            <AppTooltip
+              v-if="applicationForm.agent_id && !applicationForm.provider_id"
+              text="Please select a Provider first"
+            >
+              <UIcon
+                name="heroicons:information-circle"
+                class="w-4 h-4 text-gray-400 flex-shrink-0"
+              />
+            </AppTooltip>
+          </div>
+          <div
+            :class="[
+              'grid grid-cols-2 sm:grid-cols-3 gap-2',
+              !applicationForm.agent_id || !applicationForm.provider_id
+                ? 'opacity-50 pointer-events-none'
+                : '',
+            ]"
+          >
             <button
               v-for="module in filteredModules"
               :key="module.id"
-              @click="
-                () => {
-                  applicationForm.module_id = module.id
-                  applicationForm.module = module.name
-                }
-              "
+              @click="toggleModule(module)"
+              :disabled="!applicationForm.agent_id || !applicationForm.provider_id"
               :class="[
                 'p-3 rounded-lg border transition-all text-sm font-medium flex flex-col items-center justify-center gap-2',
-                applicationForm.module_id === module.id
+                !applicationForm.agent_id || !applicationForm.provider_id
+                  ? 'opacity-50 cursor-not-allowed'
+                  : '',
+                applicationForm.module_ids.includes(module.id)
                   ? 'border-primary-500 bg-primary-500/20 text-primary-400'
                   : 'border-dark-700 bg-dark-900 text-gray-400 hover:border-dark-600',
               ]"
@@ -482,49 +556,20 @@
           </div>
         </div>
 
-        <!-- Select Provider -->
-        <div>
-          <label class="block text-sm font-medium text-white mb-2">Select Provider *</label>
-          <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            <button
-              v-for="provider in filteredProviders"
-              :key="provider.id"
-              @click="
-                () => {
-                  applicationForm.provider_id = provider.id
-                  applicationForm.provider = provider.name
-                }
-              "
-              :class="[
-                'p-3 rounded-lg border transition-all flex flex-col items-center justify-center gap-2',
-                applicationForm.provider_id === provider.id
-                  ? 'border-primary-500 bg-primary-500/20 text-primary-400'
-                  : 'border-dark-700 bg-dark-900 hover:border-dark-600 text-gray-400',
-              ]"
-            >
-              <UIcon :name="getProviderIcon(provider.name)" class="w-6 h-6 text-white" />
-              <span class="text-xs text-center">{{ provider.name }}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Connection Name -->
-        <div>
-          <label class="block text-sm font-medium text-white mb-2">Connection Name *</label>
-          <input
-            v-model="applicationForm.connection_name"
-            placeholder="e.g., Main Payroll"
-            class="input-field w-full"
-            autocomplete="new-password"
-          />
-        </div>
-
         <!-- API Credentials -->
         <div class="space-y-4 p-4 bg-dark-900 rounded-lg border border-dark-700">
-          <h3 class="text-sm font-semibold text-white">API Credentials</h3>
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-white whitespace-nowrap">
+              API Credentials <span class="text-red-500">*</span>
+            </h3>
+
+            <ProviderCredentialHelp :provider="applicationForm.provider" />
+          </div>
 
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Client ID</label>
+            <label class="block text-xs text-gray-400 mb-1"
+              >Client ID <span class="text-red-500">*</span></label
+            >
             <input
               v-model="applicationForm.client_id"
               placeholder="Enter client ID"
@@ -534,7 +579,9 @@
           </div>
 
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Client Secret</label>
+            <label class="block text-xs text-gray-400 mb-1"
+              >Client Secret <span class="text-red-500">*</span></label
+            >
             <div class="relative">
               <input
                 v-model="applicationForm.client_secret"
@@ -557,7 +604,9 @@
           </div>
 
           <div>
-            <label class="block text-xs text-gray-400 mb-1">API Key</label>
+            <label class="block text-xs text-gray-400 mb-1"
+              >API Key <span class="text-red-500">*</span></label
+            >
             <div class="relative">
               <input
                 v-model="applicationForm.api_key"
@@ -580,7 +629,9 @@
           </div>
 
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Access Token</label>
+            <label class="block text-xs text-gray-400 mb-1"
+              >Access Token <span class="text-red-500">*</span></label
+            >
             <input
               v-model="applicationForm.access_token"
               placeholder="Enter access token"
@@ -590,10 +641,24 @@
           </div>
 
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Login URL</label>
+            <label class="block text-xs text-gray-400 mb-1"
+              >Login URL <span class="text-red-500">*</span></label
+            >
             <input
               v-model="applicationForm.login_url"
               placeholder="https://example.com/login"
+              class="input-field w-full"
+              autocomplete="off"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1"
+              >Base URL <span class="text-red-500">*</span></label
+            >
+            <input
+              v-model="applicationForm.base_url"
+              placeholder="https://example.com"
               class="input-field w-full"
               autocomplete="off"
             />
@@ -611,7 +676,87 @@
             Cancel
           </UButton>
           <UButton @click="saveApplication" :loading="isSavingApplication">
-            {{ editingAppId ? 'Update' : 'Create' }} Integration
+            {{ editingAppId ? 'Update' : 'Add' }}
+            {{ 'Application' }}
+          </UButton>
+        </div>
+      </div>
+    </UModal>
+    <UModal v-model="showRequestProviderModal" size="md" prevent-close>
+      <div class="p-6 space-y-4">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold text-white">Request New Application</h2>
+          <button
+            @click="closeRequestProviderModal"
+            class="text-gray-400 hover:text-white transition-colors"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Application Name -->
+        <div>
+          <label class="text-sm text-gray-400">
+            Application Name <span class="text-red-500">*</span>
+          </label>
+          <input
+            v-model="requestProviderForm.provider_name"
+            placeholder="e.g. BambooHR"
+            class="input-field w-full"
+          />
+        </div>
+
+        <!-- Website -->
+        <div>
+          <label class="text-sm text-gray-400">
+            Application Website URL <span class="text-red-500">*</span>
+          </label>
+          <input
+            v-model="requestProviderForm.website_url"
+            placeholder="https://example.com"
+            class="input-field w-full"
+          />
+        </div>
+
+        <!-- Notes -->
+        <div>
+          <label class="text-sm text-gray-400">Additional Notes</label>
+          <textarea
+            v-model="requestProviderForm.notes"
+            placeholder="Any specific requirement..."
+            class="input-field w-full"
+          />
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label class="text-sm text-gray-400">Contact Email</label>
+          <input
+            v-model="requestProviderForm.contact_email"
+            disabled
+            class="input-field w-full opacity-70"
+          />
+        </div>
+
+        <!-- Actions -->
+        <div class="flex justify-end gap-2 pt-4 border-t border-dark-700">
+          <UButton variant="outline" color="gray" @click="closeRequestProviderModal">
+            Cancel
+          </UButton>
+
+          <UButton
+            @click="submitProviderRequest"
+            :loading="integrationsStore.loadingProviderRequest"
+            :disabled="!requestProviderForm.provider_name || !requestProviderForm.website_url"
+          >
+            Submit Request
           </UButton>
         </div>
       </div>
@@ -623,6 +768,10 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useOrganizationIntegrations } from '~/composables/useOrganizationIntegrations'
 import { useNotification } from '~/composables/useNotification'
+import ConfirmPopup from '~/components/ui/ConfirmPopup.vue'
+import ProviderCredentialHelp from '~/components/integrations/ProviderCredentialHelp.vue'
+import { useOrganizationIntegrationsStore } from '~/stores/organization-integrations'
+import { useErrorStore } from '~/stores/error'
 
 definePageMeta({
   layout: 'admin',
@@ -630,10 +779,13 @@ definePageMeta({
 })
 
 useHead({
-  title: 'Applications - Admin',
+  title: 'Applications - Admin Dashboard - provento.ai',
 })
 
-const { showSuccess, showError } = useNotification()
+const { showSuccess, showInfo } = useNotification()
+const errorStore = useErrorStore()
+const authStore = useAuthStore()
+const integrationsStore = useOrganizationIntegrationsStore()
 
 // Use the organization integrations composable
 const {
@@ -647,13 +799,17 @@ const {
   fetchIntegrations,
   fetchMasterData,
   createIntegration,
+  createIntegrationsBatch,
   updateIntegration,
   updateIntegrationStatus,
   deleteIntegration,
+  syncIntegrationModules,
   clearMessages,
   getModulesForAgent,
   getProvidersForAgent,
   getProvidersForAgentAndModule,
+  getModulesForAgentAndProvider,
+  decryptIntegrationForDisplay,
 } = useOrganizationIntegrations()
 
 // Form state
@@ -665,23 +821,46 @@ const expandedRows = ref<string[]>([])
 const activeAppStatusMenu = ref<string | null>(null)
 const showApplicationClientSecret = ref(false)
 const showApplicationApiKey = ref(false)
+const originalEditSnapshot = ref<any>(null)
+const showDeleteConfirmModal = ref(false)
+const groupToDelete = ref<any>(null)
+const isDeletingGroup = ref(false)
+const showRequestProviderModal = ref(false)
 
 // Form data
 const applicationForm = ref({
   agent: '',
   agent_id: '',
-  module: '',
-  module_id: '',
+  module_ids: [] as string[],
+  modules: [] as any[],
+  moduleConnectionNames: {} as Record<string, string>,
   provider: '',
   provider_id: '',
   name: '',
-  connection_name: '',
   client_id: '',
   client_secret: '',
   api_key: '',
   access_token: '',
   login_url: '',
+  base_url: '',
 })
+
+const agentOptions = computed(() =>
+  agents.value.map((a) => ({
+    label: a.name,
+    value: a.id,
+    disabled: !a.is_active,
+  })),
+)
+
+const getDefaultRequestProviderForm = () => ({
+  provider_name: '',
+  website_url: '',
+  notes: '',
+  contact_email: authStore.user?.email || '',
+})
+
+const requestProviderForm = ref(getDefaultRequestProviderForm())
 
 // Transform grouped integrations for UI display
 const applicationsList = computed(() => {
@@ -689,13 +868,14 @@ const applicationsList = computed(() => {
   const grouped = store.getGroupedIntegrations
 
   return grouped.map((group) => ({
-    id: `${group.provider_id}-${group.agent_id}-${group.module_id}`,
+    id: `${group.provider_id}-${group.agent_id}`,
     provider: group.provider_name,
     agent: group.agent_name,
-    module: group.module_name,
+    module: group.modules?.[0]?.name, // For backward compatibility, show first module
+    modules: group.modules || [], // All modules for this provider-agent combo
     provider_id: group.provider_id,
     agent_id: group.agent_id,
-    module_id: group.module_id,
+    module_id: group.modules?.[0]?.id, // For backward compatibility
     connections: group.connections.map((conn) => ({
       ...conn,
       status:
@@ -710,13 +890,17 @@ const applicationsList = computed(() => {
   }))
 })
 
+const getSortedConnections = (connections: any[]) => {
+  return [...connections].sort((a, b) => a.module_name.localeCompare(b.module_name))
+}
+
 // Dynamic tabs based on available agents (already sorted with HRMS first in store)
 const tabs = computed(() => {
-  const baseTabs = [{ label: 'All', value: 'all' }]
+  const baseTabs = [{ label: 'All', value: 'all', isActive: true }]
 
   // Agents are already sorted in the store with HRMS first
   agents.value.forEach((agent) => {
-    baseTabs.push({ label: agent.name, value: agent.id })
+    baseTabs.push({ label: agent.name, value: agent.id, isActive: agent.is_active })
   })
   return baseTabs
 })
@@ -731,44 +915,110 @@ const filteredApplications = computed(() => {
   return applicationsList.value.filter((group) => group.agent_id === selectedTab.value)
 })
 
-// Filter modules based on selected agent
-const filteredModules = computed(() => {
-  if (!applicationForm.value.agent_id) {
-    return modules.value
-  }
+// Check if fields should be disabled (locked to integration group)
+const areFieldsLocked = computed(() => !!editingAppId.value)
 
-  // Use store getter for client-side filtering
-  return getModulesForAgent(applicationForm.value.agent_id)
-})
-
-// Filter providers based on selected agent and optionally module
+// Filter providers based on selected agent only
 const filteredProviders = computed(() => {
   if (!applicationForm.value.agent_id) {
     return providers.value
   }
 
-  // If module is selected, filter providers for both agent and module
-  if (applicationForm.value.module_id) {
-    return getProvidersForAgentAndModule(
+  // Providers depend only on agent (no module dependency)
+  return getProvidersForAgent(applicationForm.value.agent_id)
+})
+
+// Filter modules based on selected agent and optionally provider
+const filteredModules = computed(() => {
+  if (!applicationForm.value.agent_id) {
+    return modules.value
+  }
+
+  // If provider is selected, filter modules for both agent and provider
+  if (applicationForm.value.provider_id) {
+    return getModulesForAgentAndProvider(
       applicationForm.value.agent_id,
-      applicationForm.value.module_id,
+      applicationForm.value.provider_id,
     )
   }
 
   // Otherwise, just filter for agent
-  return getProvidersForAgent(applicationForm.value.agent_id)
+  return getModulesForAgent(applicationForm.value.agent_id)
 })
 
 // Functions
 const toggleExpandedRow = (appId: string) => {
   const idx = expandedRows.value.indexOf(appId)
   if (idx >= 0) {
+    // If clicking the same row, collapse it
     expandedRows.value.splice(idx, 1)
   } else {
-    expandedRows.value.push(appId)
+    // Clear all other expanded rows and open the clicked one (accordion behavior)
+    expandedRows.value = [appId]
   }
   // Close any open menus when toggling expanded row
   activeAppStatusMenu.value = null
+}
+
+const editGroup = async (group: any) => {
+  editingAppId.value = group.id
+
+  const firstConnection = group.connections[0]
+  const decrypted = await decryptIntegrationForDisplay(firstConnection)
+
+  const moduleIds = group.connections.map((c: any) => c.module_id)
+
+  applicationForm.value = {
+    agent: group.agent,
+    agent_id: group.agent_id,
+    provider: group.provider,
+    provider_id: group.provider_id,
+    module_ids: [...moduleIds],
+    modules: group.connections.map((c: any) => ({
+      id: c.module_id,
+      name: c.module_name,
+    })),
+    moduleConnectionNames: {},
+    name: '',
+    client_id: decrypted.client_id || '',
+    client_secret: decrypted.client_secret || '',
+    api_key: decrypted.api_key || '',
+    access_token: decrypted.access_token || '',
+    login_url: decrypted.login_url || '',
+    base_url: decrypted.base_url || '',
+  }
+
+  // 🔥 Save original snapshot
+  originalEditSnapshot.value = {
+    module_ids: [...moduleIds].sort(),
+    client_id: decrypted.client_id || '',
+    client_secret: decrypted.client_secret || '',
+    api_key: decrypted.api_key || '',
+    access_token: decrypted.access_token || '',
+    login_url: decrypted.login_url || '',
+    base_url: decrypted.base_url || '',
+  }
+
+  showApplicationModal.value = true
+}
+
+const hasChanges = () => {
+  if (!originalEditSnapshot.value) return true
+
+  const currentModules = [...applicationForm.value.module_ids].sort()
+
+  const sameModules =
+    JSON.stringify(currentModules) === JSON.stringify(originalEditSnapshot.value.module_ids)
+
+  const sameCredentials =
+    applicationForm.value.client_id === originalEditSnapshot.value.client_id &&
+    applicationForm.value.client_secret === originalEditSnapshot.value.client_secret &&
+    applicationForm.value.api_key === originalEditSnapshot.value.api_key &&
+    applicationForm.value.access_token === originalEditSnapshot.value.access_token &&
+    applicationForm.value.login_url === originalEditSnapshot.value.login_url &&
+    applicationForm.value.base_url === originalEditSnapshot.value.base_url
+
+  return !(sameModules && sameCredentials)
 }
 
 const getAggregateStatus = (connections: any[]) => {
@@ -783,6 +1033,56 @@ const getAggregateStatus = (connections: any[]) => {
 
   // If mixed, return the first one
   return statuses[0]
+}
+
+const toggleProvider = (provider: any) => {
+  if (areFieldsLocked.value || !applicationForm.value.agent_id || !provider.is_active) {
+    return
+  }
+
+  // If clicking the same provider → unselect
+  if (applicationForm.value.provider_id === provider.id) {
+    applicationForm.value.provider_id = ''
+    applicationForm.value.provider = ''
+
+    // Reset dependent selections
+    applicationForm.value.module_ids = []
+    applicationForm.value.modules = []
+    applicationForm.value.moduleConnectionNames = {}
+  } else {
+    // Select new provider
+    applicationForm.value.provider_id = provider.id
+    applicationForm.value.provider = provider.name
+  }
+}
+
+const toggleModule = (module: any) => {
+  if (!applicationForm.value.agent_id) return
+
+  const exists = applicationForm.value.module_ids.includes(module.id)
+
+  if (exists) {
+    // 🔴 REMOVE
+    applicationForm.value.module_ids = applicationForm.value.module_ids.filter(
+      (id) => id !== module.id,
+    )
+
+    applicationForm.value.modules = applicationForm.value.modules.filter((m) => m.id !== module.id)
+
+    const { [module.id]: _, ...rest } = applicationForm.value.moduleConnectionNames
+
+    applicationForm.value.moduleConnectionNames = rest
+  } else {
+    // 🟢 ADD
+    applicationForm.value.module_ids = [...applicationForm.value.module_ids, module.id]
+
+    applicationForm.value.modules = [...applicationForm.value.modules, module]
+
+    applicationForm.value.moduleConnectionNames = {
+      ...applicationForm.value.moduleConnectionNames,
+      [module.id]: '',
+    }
+  }
 }
 
 const getAppIcon = (app: any) => {
@@ -846,17 +1146,18 @@ const openAddApplicationModal = () => {
   applicationForm.value = {
     agent: '',
     agent_id: '',
-    module: '',
-    module_id: '',
+    module_ids: [],
+    modules: [],
+    moduleConnectionNames: {},
     provider: '',
     provider_id: '',
     name: '',
-    connection_name: '',
     client_id: '',
     client_secret: '',
     api_key: '',
     access_token: '',
     login_url: '',
+    base_url: '',
   }
   showApplicationModal.value = true
 }
@@ -868,6 +1169,22 @@ const closeApplicationModal = () => {
   showApplicationApiKey.value = false
 }
 
+const isProviderAlreadyAdded = (): boolean => {
+  // Only check for duplicates when creating new (not editing)
+  if (editingAppId.value) {
+    return false
+  }
+
+  // Check if this provider + agent combination already exists
+  const existingGroup = applicationsList.value.find(
+    (group) =>
+      group.provider_id === applicationForm.value.provider_id &&
+      group.agent_id === applicationForm.value.agent_id,
+  )
+
+  return !!existingGroup
+}
+
 const saveApplication = async () => {
   isSavingApplication.value = true
   clearMessages()
@@ -876,167 +1193,132 @@ const saveApplication = async () => {
     // Validate required fields
     if (
       !applicationForm.value.agent_id ||
-      !applicationForm.value.module_id ||
+      applicationForm.value.module_ids.length === 0 ||
       !applicationForm.value.provider_id
     ) {
-      showError('Please select Agent, Module, and Provider')
+      errorStore.showError('Please select Agent, at least one Module, and Provider')
       return
     }
 
-    if (!applicationForm.value.connection_name || !applicationForm.value.client_id) {
-      showError('Please fill in all required fields')
+    // Check for duplicate provider
+    if (isProviderAlreadyAdded()) {
+      errorStore.showError(
+        'This provider is already added for this agent. You can edit the existing integration instead.',
+      )
       return
     }
 
-    const payload = {
+    if (!applicationForm.value.client_id) {
+      errorStore.showError('Please fill in all required credential fields')
+      return
+    }
+
+    // Get provider name for hrms_system
+    const selectedProvider = providers.value.find((p) => p.id === applicationForm.value.provider_id)
+    const hrmsSystem = selectedProvider?.name || applicationForm.value.provider_id
+
+    // Common credentials and data for batch operations
+    const batchPayload = {
       provider_id: applicationForm.value.provider_id,
       agent_id: applicationForm.value.agent_id,
-      module_id: applicationForm.value.module_id,
-      connection_name: applicationForm.value.connection_name,
       client_id: applicationForm.value.client_id,
       client_secret: applicationForm.value.client_secret,
       api_key: applicationForm.value.api_key,
       access_token: applicationForm.value.access_token,
       login_url: applicationForm.value.login_url,
+      base_url: applicationForm.value.base_url,
       status: 'active' as const,
+      hrms_system: hrmsSystem,
+      is_hrms: true,
     }
 
-    let result
     if (editingAppId.value) {
-      // Update existing
-      result = await updateIntegration(editingAppId.value, payload)
+      // EDIT MODE: Sync modules (handles add/update/delete in one call)
+      if (!hasChanges()) {
+        showInfo('Nothing to update')
+        return
+      }
+
+      const group = filteredApplications.value.find((g) => g.id === editingAppId.value)
+      if (!group) return
+
+      const existingModuleIds = group.connections.map((c: any) => c.module_id)
+
+      // Use batch sync to handle all changes in one API call
+      const result = await syncIntegrationModules({
+        ...batchPayload,
+        module_ids: applicationForm.value.module_ids,
+        existing_module_ids: existingModuleIds,
+      })
+
+      if (!result.success && !result.partial) {
+        // Error will be shown through store watcher
+        return
+      }
     } else {
-      // Create new
-      result = await createIntegration(payload)
+      // CREATE MODE: Batch create all modules in one API call
+      const result = await createIntegrationsBatch({
+        ...batchPayload,
+        modules: applicationForm.value.module_ids,
+      })
+
+      if (!result.success && !result.partial) {
+        // Error will be shown through store watcher
+        return
+      }
     }
 
-    if (result.success) {
-      showSuccess(successMessage.value || 'Integration saved successfully')
-      closeApplicationModal()
-    } else {
-      showError(result.message || 'Failed to save integration')
-    }
+    // Close modal after successful operation
+    closeApplicationModal()
   } finally {
     isSavingApplication.value = false
   }
 }
 
-const editApplication = (app: any) => {
-  editingAppId.value = app.integrationData?.id || app.id
-  applicationForm.value = {
-    agent: app.integrationData?.agent_name || '',
-    agent_id: app.integrationData?.agent_id || '',
-    module: app.integrationData?.module_name || '',
-    module_id: app.integrationData?.module_id || '',
-    provider: app.integrationData?.provider_name || '',
-    provider_id: app.integrationData?.provider_id || '',
-    name: app.name || '',
-    connection_name: app.integrationData?.connection_name || '',
-    client_id: app.integrationData?.client_id || '',
-    client_secret: '',
-    api_key: app.integrationData?.api_key || '',
-    access_token: app.integrationData?.access_token || '',
-    login_url: app.integrationData?.login_url || '',
-  }
-  showApplicationModal.value = true
+const deleteGroup = (group: any) => {
+  groupToDelete.value = group
+  showDeleteConfirmModal.value = true
 }
 
-const openAddConnectionModal = (group: any) => {
-  editingAppId.value = null
-  // Pre-fill with the integration's provider/agent/module
-  applicationForm.value = {
-    agent: group.agent_name || group.agent,
-    agent_id: group.agent_id,
-    module: group.module_name || group.module,
-    module_id: group.module_id,
-    provider: group.provider_name || group.provider,
-    provider_id: group.provider_id,
-    name: '',
-    connection_name: '',
-    client_id: '',
-    client_secret: '',
-    api_key: '',
-    access_token: '',
-    login_url: '',
-  }
-  showApplicationModal.value = true
-}
+const confirmDeleteGroup = async () => {
+  if (!groupToDelete.value) return
 
-const editConnection = (connection: any) => {
-  editingAppId.value = connection.id
-  applicationForm.value = {
-    agent: connection.agent_name || '',
-    agent_id: connection.agent_id || '',
-    module: connection.module_name || '',
-    module_id: connection.module_id || '',
-    provider: connection.provider_name || '',
-    provider_id: connection.provider_id || '',
-    name: connection.connection_name || '',
-    connection_name: connection.connection_name || '',
-    client_id: connection.client_id || '',
-    client_secret: '',
-    api_key: connection.api_key || '',
-    access_token: connection.access_token || '',
-    login_url: connection.login_url || '',
-  }
-  showApplicationModal.value = true
-}
-
-const deleteApplication = async (id: string) => {
-  if (!confirm('Are you sure you want to delete this connection?')) {
-    return
-  }
-
+  isDeletingGroup.value = true
   try {
-    const result = await deleteIntegration(id)
-    if (result.success) {
-      showSuccess('Connection deleted successfully')
-    } else {
-      showError(result.message || 'Failed to delete connection')
+    const connections = groupToDelete.value.connections
+    const store = useOrganizationIntegrationsStore()
+
+    // Get all integration IDs from connections
+    const integrationIds = connections.map((connection: any) => connection.id)
+
+    // Use batch delete API for single call
+    const result = await store.batchDeleteIntegrations(integrationIds)
+
+    if (!result.success && !result.partial) {
+      // Error will be shown through store watcher
+      return
     }
+
+    // Success/error messages will be displayed through store watchers
+    showDeleteConfirmModal.value = false
+    groupToDelete.value = null
   } catch (err) {
-    showError('Failed to delete integration')
-  }
-}
-
-const deleteGroup = async (group: any) => {
-  if (!confirm('Are you sure you want to delete this integration and all its connections?')) {
-    return
-  }
-
-  try {
-    const connections = group.connections
-
-    // Delete all connections in the group
-    const deletePromises = connections.map((connection) => deleteIntegration(connection.id))
-
-    const results = await Promise.all(deletePromises)
-
-    // Check if all deletes were successful
-    const allSuccess = results.every((r) => r.success)
-    if (allSuccess) {
-      showSuccess('Integration and all connections deleted successfully')
-    } else {
-      showError('Some connections failed to delete')
-    }
-  } catch (err) {
-    showError('Failed to delete integration')
+    // Unexpected errors from catch block
+    errorStore.showError('Unexpected error occurred during deletion')
+  } finally {
+    isDeletingGroup.value = false
   }
 }
 
 const updateStatus = async (appId: string, status: string) => {
   try {
-    const result = await updateIntegrationStatus(
+    await updateIntegrationStatus(
       appId,
       status.toLowerCase() as 'active' | 'inactive' | 'expired' | 'failed',
     )
-    if (result.success) {
-      showSuccess('Status updated successfully')
-    } else {
-      showError(result.message || 'Failed to update status')
-    }
+    // Message will be displayed through store watchers
   } catch (err) {
-    showError('Failed to update status')
+    errorStore.showError('Failed to update status')
   }
 }
 
@@ -1044,24 +1326,24 @@ const updateGroupStatus = async (group: any, status: string) => {
   try {
     const connections = group.connections
     const statusLower = status.toLowerCase() as 'active' | 'inactive' | 'expired' | 'failed'
+    const store = useOrganizationIntegrationsStore()
 
-    // Update all connections in the group
-    const updatePromises = connections.map((connection) =>
-      updateIntegrationStatus(connection.id, statusLower),
-    )
+    // Get all integration IDs from connections
+    const integrationIds = connections.map((connection: any) => connection.id)
 
-    const results = await Promise.all(updatePromises)
+    // Use batch status update API for single call
+    const result = await store.batchUpdateIntegrationStatus(integrationIds, statusLower)
 
-    // Check if all updates were successful
-    const allSuccess = results.every((r) => r.success)
-    if (allSuccess) {
-      showSuccess('All connections status updated successfully')
-      activeAppStatusMenu.value = null
-    } else {
-      showError('Some connections failed to update')
+    if (!result.success && !result.partial) {
+      // Error will be shown through store watcher
+      return
     }
+
+    // Message will be displayed through store watchers
+    activeAppStatusMenu.value = null
   } catch (err) {
-    showError('Failed to update group status')
+    // Unexpected errors from catch block
+    errorStore.showError('Failed to update group status')
   }
 }
 
@@ -1106,8 +1388,40 @@ const handleScrollOrResize = () => {
   }
 }
 
+const openRequestProviderModal = () => {
+  requestProviderForm.value = getDefaultRequestProviderForm()
+  showApplicationModal.value = false
+  showRequestProviderModal.value = true
+}
+
+const closeRequestProviderModal = () => {
+  showRequestProviderModal.value = false
+  requestProviderForm.value = getDefaultRequestProviderForm()
+}
+
+const submitProviderRequest = async () => {
+  if (!requestProviderForm.value.provider_name || !requestProviderForm.value.website_url) {
+    errorStore.showError('Please fill all required fields')
+    return
+  }
+
+  const result = await integrationsStore.submitProviderRequest(requestProviderForm.value)
+
+  if (!result.success) return
+
+  closeRequestProviderModal()
+}
+
+const handleEscapeKey = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && showRequestProviderModal.value) {
+    closeRequestProviderModal()
+  }
+}
+
 onMounted(async () => {
+  requestProviderForm.value.contact_email = authStore.user?.email || ''
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleEscapeKey)
   window.addEventListener('scroll', handleScrollOrResize)
   window.addEventListener('resize', handleScrollOrResize)
 
@@ -1117,47 +1431,68 @@ onMounted(async () => {
     await fetchIntegrations() // Fetch integrations for the organization
   } catch (err) {
     console.error('Failed to load integrations:', err)
-    showError('Failed to load integrations')
+    errorStore.showError('Failed to load integrations')
   }
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleEscapeKey)
   window.removeEventListener('scroll', handleScrollOrResize)
   window.removeEventListener('resize', handleScrollOrResize)
-})
-
-// Watch for error changes and show notification
-watch(error, (newError) => {
-  if (newError) {
-    showError(newError)
-  }
 })
 
 // Watch for success messages and show notification
 watch(successMessage, (newSuccess) => {
   if (newSuccess) {
     showSuccess(newSuccess)
+    // Clear success message after displaying
+    nextTick(() => {
+      setTimeout(() => clearMessages(), 100)
+    })
   }
 })
 
-// Watch for agent selection changes - reset module and provider selections
+// Watch for agent selection changes - reset provider and module selections (only when adding new application, not adding connection or editing)
 watch(
   () => applicationForm.value.agent_id,
   () => {
-    applicationForm.value.module_id = ''
-    applicationForm.value.module = ''
-    applicationForm.value.provider_id = ''
-    applicationForm.value.provider = ''
+    // Only reset if we're adding a new application (not in connection mode and not editing)
+    if (!editingAppId.value) {
+      applicationForm.value.provider_id = ''
+      applicationForm.value.provider = ''
+      applicationForm.value.module_ids = []
+      applicationForm.value.modules = []
+      applicationForm.value.moduleConnectionNames = {}
+    }
   },
 )
 
-// Watch for module selection changes - reset provider selection
+// Watch for provider selection changes - reset module selection (only when adding new application, not adding connection or editing)
 watch(
-  () => applicationForm.value.module_id,
+  () => applicationForm.value.provider_id,
   () => {
-    applicationForm.value.provider_id = ''
-    applicationForm.value.provider = ''
+    // Only reset if we're adding a new application (not in connection mode and not editing)
+    if (!editingAppId.value) {
+      applicationForm.value.module_ids = []
+      applicationForm.value.modules = []
+      applicationForm.value.moduleConnectionNames = {}
+    }
+  },
+)
+
+// Watch for module selection changes - reset module connection names for unselected modules
+watch(
+  () => applicationForm.value.module_ids,
+  (newModuleIds) => {
+    // Clear connection names for modules that are no longer selected
+    const currentConnectionNames = { ...applicationForm.value.moduleConnectionNames }
+    Object.keys(currentConnectionNames).forEach((moduleId) => {
+      if (!newModuleIds.includes(moduleId)) {
+        delete currentConnectionNames[moduleId]
+      }
+    })
+    applicationForm.value.moduleConnectionNames = currentConnectionNames
   },
 )
 

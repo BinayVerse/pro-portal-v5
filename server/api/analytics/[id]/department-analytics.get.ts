@@ -80,16 +80,16 @@ export default defineEventHandler(async (event) => {
         
         // Get ALL users in the organization (excluding super admin)
         const allUsersQuery = `
-            SELECT 
+            SELECT
                 u.user_id,
                 u.role_id
             FROM users u
-            WHERE u.org_id = $1 
+            WHERE u.org_id = $1
                 AND u.role_id != 0  -- Exclude super admin
-                AND ($2::text IS NULL OR u.created_at::date BETWEEN $2::date AND $3::date)
+                AND ($2::text IS NULL OR ((u.created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date)
         `;
         
-        const allUsersResult = await query(allUsersQuery, [org_id, params[1], params[2]]);
+        const allUsersResult = await query(allUsersQuery, [org_id, params[1], params[2], params[3]]);
         const allUsers = allUsersResult.rows;
         
         // Separate admins and non-admins
@@ -118,31 +118,31 @@ export default defineEventHandler(async (event) => {
         
         // Get artifact counts per department
         const artifactCountsQuery = `
-            SELECT 
+            SELECT
                 dd.dept_id,
                 COUNT(DISTINCT od.id)::int as artifact_count
             FROM organization_documents od
             LEFT JOIN document_departments dd ON od.id = dd.document_id
             WHERE od.org_id = $1
-                AND ($2::text IS NULL OR od.created_at::date BETWEEN $2::date AND $3::date)
+                AND ($2::text IS NULL OR ((od.created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date)
             GROUP BY dd.dept_id
         `;
-        
-        const artifactCountsResult = await query(artifactCountsQuery, [org_id, params[1], params[2]]);
-        
+
+        const artifactCountsResult = await query(artifactCountsQuery, [org_id, params[1], params[2], params[3]]);
+
         // Get common artifacts (no department assigned)
         const commonArtifactsQuery = `
             SELECT COUNT(DISTINCT od.id)::int AS artifact_count
             FROM organization_documents od
             WHERE od.org_id = $1
                 AND NOT EXISTS (
-                    SELECT 1 FROM document_departments dd 
+                    SELECT 1 FROM document_departments dd
                     WHERE dd.document_id = od.id
                 )
-                AND ($2::text IS NULL OR od.created_at::date BETWEEN $2::date AND $3::date)
+                AND ($2::text IS NULL OR ((od.created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date)
         `;
-        
-        const commonArtifactsResult = await query(commonArtifactsQuery, [org_id, params[1], params[2]]);
+
+        const commonArtifactsResult = await query(commonArtifactsQuery, [org_id, params[1], params[2], params[3]]);
         
         // Build artifact count map
         const artifactCountMap = new Map();

@@ -857,11 +857,14 @@ const fetchData = async () => {
           loadingStates.value.topDocuments = false
           loadingStates.value.frequentQuestions = false
         }),
-    ])
+    ]).finally(() => {
+      loading.value = false
+    })
   } catch (error) {
     console.error('Error fetching analytics data:', error)
     showNotification('Failed to load analytics data', 'error')
     setAllLoadingStates(false)
+    loading.value = false
   }
 }
 

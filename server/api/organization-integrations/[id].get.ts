@@ -39,14 +39,14 @@ export default defineEventHandler(async (event) => {
 
     // Fetch integration with related data
     const result = await query(
-      `SELECT 
+      `SELECT
         oi.id,
         oi.organization_id,
         oi.provider_id,
         oi.agent_id,
         oi.module_id,
-        oi.connection_name,
         oi.client_id,
+        oi.client_secret,
         oi.api_key,
         oi.access_token,
         oi.refresh_token,

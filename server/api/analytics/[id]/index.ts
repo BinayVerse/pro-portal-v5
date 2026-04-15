@@ -90,11 +90,12 @@ export default defineEventHandler(async (event) => {
     if (startDate && endDate) {
         if (timezone) {
             // Compare dates in the provided timezone to avoid off-by-one-day issues
-            questionFilter = "AND (created_at AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date";
+            // Explicitly treat created_at as UTC, then convert to user's timezone
+            questionFilter = "AND ((created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date";
             params.push(startDate, endDate, timezone);
         } else {
-            // Fallback: compare by date (server timezone)
-            questionFilter = "AND created_at::date BETWEEN $2::date AND $3::date";
+            // Fallback: compare by date (assume UTC)
+            questionFilter = "AND (created_at AT TIME ZONE 'UTC')::date BETWEEN $2::date AND $3::date";
             params.push(startDate, endDate);
         }
     }

@@ -21,9 +21,8 @@ export default defineEventHandler(async (event) => {
 
   try {
     const result = await query(
-      `SELECT id, name, code, description, is_active, created_at, updated_at
+      `SELECT id, name, code, description, is_active, created_at, updated_at, logo_url
        FROM public.integration_providers
-       WHERE is_active = true
        ORDER BY name ASC`,
       []
     )

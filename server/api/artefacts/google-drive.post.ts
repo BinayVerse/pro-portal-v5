@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
     const tokenUserRole = userResult.rows[0].role_id
 
     const body = await readBody(event)
-    const { selectedFileDetails, category, org_id: bodyOrg, departments: departmentsFromBody } = body
+    const { selectedFileDetails, category, description, org_id: bodyOrg, departments: departmentsFromBody } = body
 
     // Parse departments from request body
     let departments: string[] = []
@@ -97,6 +97,42 @@ export default defineEventHandler(async (event) => {
 
     if (!category) {
       throw new CustomError('Category is required', 400)
+    }
+
+    // 🔑 Validate department assignment for non-superadmin users
+    // Department is mandatory for normal/google uploads (role_id 1=Admin, 2=User, 3=Department Admin)
+    // Only Superadmins (role_id === 0) can upload without specifying departments
+    const departmentRequired = tokenUserRole !== 0
+
+    if (departmentRequired && (!departments || departments.length === 0)) {
+      throw new CustomError(
+        'Department selection is required. Please assign this document to at least one department.',
+        400
+      )
+    }
+
+    // 🔑 Department Admin validation - can only assign to their own departments
+    if (tokenUserRole === 3) {
+      try {
+        const adminDeptResult = await query(
+          `SELECT dept_id FROM user_departments WHERE user_id = $1`,
+          [String(userId)]
+        )
+        const adminDeptIds = adminDeptResult.rows.map((row) => String(row.dept_id))
+
+        // Check if all requested departments are in admin's departments
+        const unauthorizedDepts = departments.filter((deptId) => !adminDeptIds.includes(String(deptId)))
+        if (unauthorizedDepts.length > 0) {
+          throw new CustomError(
+            `Cannot assign documents to departments outside your scope. Unauthorized departments: ${unauthorizedDepts.join(', ')}`,
+            403
+          )
+        }
+      } catch (e: any) {
+        if (e instanceof CustomError) throw e
+        console.error('Failed to validate Department Admin scope:', e)
+        throw new CustomError('Failed to validate department permissions', 500)
+      }
     }
 
     // Lookup category ID by name
@@ -243,16 +279,16 @@ export default defineEventHandler(async (event) => {
       if (existing.rows.length > 0) {
         const result = await query(
           `UPDATE organization_documents
-           SET document_link = $1, file_category = $2, status = $3, summary = $4, is_summarized = $5, updated_at = NOW(), added_by = $6
-           WHERE id = $7 RETURNING id`,
-          [publicUrl, categoryId, 'processing', null, false, userId, existing.rows[0].id]
+           SET document_link = $1, file_category = $2, status = $3, summary = $4, is_summarized = $5, updated_at = NOW(), added_by = $6, description = $7
+           WHERE id = $8 RETURNING id`,
+          [publicUrl, categoryId, 'processing', null, false, userId, description || null, existing.rows[0].id]
         )
         documentId = result.rows[0].id
       } else {
         const result = await query(
           `INSERT INTO organization_documents
-           (org_id, doc_type, document_link, status, file_category, name, content_type, file_size, summary, is_summarized, added_by)
-           VALUES ($1, 'gdrive', $2, 'processing', $3, $4, $5, $6, null, false, $7) RETURNING id`,
+           (org_id, doc_type, document_link, status, file_category, name, content_type, file_size, summary, is_summarized, added_by, description)
+           VALUES ($1, 'gdrive', $2, 'processing', $3, $4, $5, $6, null, false, $7, $8) RETURNING id`,
           [
             org_id,
             publicUrl,
@@ -261,6 +297,7 @@ export default defineEventHandler(async (event) => {
             mimeType,
             size ? parseInt(size.replace(' KB', '')) * 1024 : null,
             userId,
+            description || null,
           ]
         )
         documentId = result.rows[0].id
@@ -332,7 +369,7 @@ export default defineEventHandler(async (event) => {
     return {
       statusCode: 201,
       status: 'success',
-      message: 'Files uploaded successfully to S3',
+      message: 'Files uploaded successfully!',
       files: uploadedFiles,
     }
   } catch (error: any) {

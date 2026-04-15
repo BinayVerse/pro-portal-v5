@@ -204,6 +204,13 @@ export default defineEventHandler(async (event) => {
       );
     }
 
+    // 🔑 Create 'Common' department as system department for new organization
+    await query(
+      `INSERT INTO organization_departments (org_id, name, description, status, created_by, is_system)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [orgId, 'Common', 'Default system department for managing common users and artifacts.', 'active', userId, true]
+    );
+
     if (awsCustomerId) {
       const sessionToken = getCookie(event, 'aws_marketplace_session')
 

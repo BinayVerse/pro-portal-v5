@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onUnmounted, computed } from 'vue';
+import { ref, onMounted, watch, onUnmounted, computed, nextTick } from 'vue';
 import { getColorsForLabels } from '@/utils/chartColors'
 
 const props = defineProps({
@@ -41,9 +41,6 @@ const props = defineProps({
 const chartRef = ref<HTMLElement | null>(null);
 let chart: any = null;
 
-// Track disabled series
-const disabledSeries = ref<Set<string>>(new Set());
-
 const hasData = computed(() => {
   return (
     props.chartData?.departments?.length > 0 &&
@@ -53,62 +50,6 @@ const hasData = computed(() => {
     )
   )
 })
-
-// Calculate max value for proper scaling
-const maxValue = computed(() => {
-  const allValues = [...props.chartData.userCounts, ...props.chartData.artifactCounts];
-  return Math.max(...allValues, 0);
-});
-
-// Get current series data with opacity based on disabled state
-const getSeriesData = () => {
-  const seriesNames = ['Users', 'Artifacts'];
-  
-  return [
-    {
-      name: 'Users',
-      data: props.chartData.userCounts,
-      color: getColorsForLabels(seriesNames)[0],
-      // Add opacity if disabled
-      fillColor: disabledSeries.value.has('Users') 
-        ? getColorsForLabels(seriesNames)[0] + '40' // 40 = 25% opacity (hex)
-        : getColorsForLabels(seriesNames)[0]
-    },
-    {
-      name: 'Artifacts',
-      data: props.chartData.artifactCounts,
-      color: getColorsForLabels(seriesNames)[1],
-      fillColor: disabledSeries.value.has('Artifacts') 
-        ? getColorsForLabels(seriesNames)[1] + '40' // 40 = 25% opacity (hex)
-        : getColorsForLabels(seriesNames)[1]
-    }
-  ];
-};
-
-// Handle legend click
-const handleLegendClick = (seriesName: string) => {
-  if (disabledSeries.value.has(seriesName)) {
-    disabledSeries.value.delete(seriesName);
-  } else {
-    disabledSeries.value.add(seriesName);
-  }
-  
-  // Update chart with new colors
-  if (chart) {
-    const seriesData = getSeriesData();
-    
-    // Update series colors
-    chart.updateOptions({
-      colors: seriesData.map(s => s.fillColor),
-      // Also update the legend marker colors
-      legend: {
-        markers: {
-          fillColors: seriesData.map(s => s.fillColor)
-        }
-      }
-    });
-  }
-};
 
 const initChart = async () => {
   if (!chartRef.value) return;
@@ -123,8 +64,15 @@ const initChart = async () => {
   
   const ApexCharts = (await import('apexcharts')).default;
   
-  const seriesNames = ['Users', 'Artifacts'];
-  const seriesData = getSeriesData();
+  const seriesNames = ['Users', 'Artifacts']
+
+  // Function to remove native tooltips from chart elements
+  const removeNativeTooltips = (ctx: { el: HTMLElement }) => {
+    if (!ctx?.el) return;
+
+    const titles = ctx.el.querySelectorAll<HTMLElement>('[title]');
+    titles.forEach((el) => el.removeAttribute('title'));
+  };
 
   const options = {
     chart: {
@@ -133,21 +81,27 @@ const initChart = async () => {
       stacked: false,
       toolbar: { show: false },
       background: 'transparent',
-      foreColor: '#9CA3AF',
+      foreColor: '#E5E7EB',
       parentHeightOffset: false,
-      animations: {
-        enabled: true,
-        easing: 'easeinout',
-        speed: 800,
-        animateGradually: { enabled: true, delay: 150 },
-        dynamicAnimation: { enabled: true, speed: 350 },
-      },
       events: {
-        legendClick: function(chartContext: any, seriesIndex: any, config: any) {
-          // Get the series name from the index
-          const seriesName = seriesNames[seriesIndex];
-          handleLegendClick(seriesName);
-          return false; // Prevent default behavior
+        legendClick: function (chartContext: any, seriesIndex: number, config: any) {
+          const collapsed = chartContext.w.globals.collapsedSeriesIndices
+          const totalSeries = chartContext.w.globals.series.length
+
+          // If this click would hide the last visible series → prevent it
+          if (collapsed.length === totalSeries - 1 && 
+              !collapsed.includes(seriesIndex)) {
+            return false
+          }
+          return true
+        },
+        // Add mounted event to remove native tooltips
+        mounted: function (ctx: { el: HTMLElement }) {
+          removeNativeTooltips(ctx);
+        },
+
+        updated: function (ctx: { el: HTMLElement }) {
+          removeNativeTooltips(ctx);
         }
       }
     },
@@ -163,14 +117,7 @@ const initChart = async () => {
       }
     ],
 
-    // Use colors with opacity for disabled series
-    colors: seriesData.map(s => s.fillColor),
-
-    stroke: {
-      show: true,
-      width: 2,
-      colors: ['transparent']
-    },
+    colors: getColorsForLabels(seriesNames),
 
     grid: {
       borderColor: '#374151',
@@ -203,16 +150,7 @@ const initChart = async () => {
       labels: {
         style: {
           fontSize: '12px',
-          colors: '#9CA3AF',
-          fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-        },
-        rotate: -45,
-        formatter: function (val: string) {
-          const maxLength = 20;
-          if (val.length > maxLength) {
-            return val.substring(0, maxLength) + '...';
-          }
-          return val;
+          colors: '#9CA3AF'
         },
       },
       axisBorder: { show: true, color: '#374151' },
@@ -220,19 +158,18 @@ const initChart = async () => {
     },
 
     yaxis: {
+      minWidth: 120,
+      maxWidth: 120,
       // Fix for native tooltip on y-axis labels
       tooltip: {
         enabled: false
       },
       labels: {
+        minWidth: 120,
+        maxWidth: 120,
         style: {
           colors: '#9CA3AF',
-          fontSize: '12px',
-          fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-        },
-        // Fix for hover effect on y-axis labels
-        onItemHover: {
-          highlightDataSeries: false
+          fontSize: '12px'
         },
         formatter: (val: number) => {
           return val >= 1000 ? (val / 1000).toFixed(1) + 'K' : val.toString();
@@ -244,81 +181,32 @@ const initChart = async () => {
       show: true,
       position: 'top',
       horizontalAlign: 'center',
+      offsetY: 5,
       fontSize: '13px',
       labels: {
         colors: '#E5E7EB'
       },
       markers: {
-        width: 12,
-        height: 12,
-        radius: 6,
-        // Use custom colors that reflect disabled state
-        fillColors: seriesData.map(s => s.fillColor)
+        width: 10,
+        height: 10,
+        radius: 4
       },
       itemMargin: {
         horizontal: 15,
         vertical: 5
       },
-      formatter: (seriesName: string) => {
-        return seriesName.charAt(0).toUpperCase() + seriesName.slice(1);
-      },
-      // Disable default toggle behavior
-      onItemClick: {
-        toggleDataSeries: false
+      containerMargin: {
+        top: 10,
       }
     },
 
     tooltip: {
       theme: 'dark',
-      shared: true,
-      intersect: false,
-      style: {
-        fontSize: '14px',
-        fontWeight: 600,
-        color: '#FFFFFF'
-      },
+      shared: false,
+      intersect: true,
       y: {
-        formatter: (val: number) => {
-          const percentage = maxValue.value > 0 
-            ? ((val / maxValue.value) * 100).toFixed(1)
-            : '0.0';
-          return `${val.toLocaleString()} (${percentage}%)`;
-        }
+        formatter: (val: number) => val.toLocaleString(),
       },
-      // Custom tooltip - EXACTLY as in original code
-      custom: function({ series, dataPointIndex, w }: any) {
-        const category = w.globals.labels[dataPointIndex];
-        const userValue = series[0][dataPointIndex];
-        const artifactValue = series[1][dataPointIndex];
-        
-        return `
-          <div style="padding:8px 12px;min-width:160px;">
-            <div style="font-weight:bold;margin-bottom:6px;
-                        border-bottom:1px solid rgba(255,255,255,0.2);
-                        padding-bottom:4px;">
-              ${category}
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;
-                        padding:2px 0;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span style="background:${w.globals.colors[0]};
-                           width:10px;height:10px;border-radius:50%;display:inline-block;"></span>
-                <span>Users:</span>
-              </div>
-              <div style="font-weight:600;">${userValue.toLocaleString()}</div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;
-                        padding:2px 0;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span style="background:${w.globals.colors[1]};
-                           width:10px;height:10px;border-radius:50%;display:inline-block;"></span>
-                <span>Artifacts:</span>
-              </div>
-              <div style="font-weight:600;">${artifactValue.toLocaleString()}</div>
-            </div>
-          </div>
-        `;
-      }
     },
 
     responsive: [
@@ -366,9 +254,9 @@ watch(
   () => [props.chartData, props.loading],
   async () => {
     if (props.loading) return
+    if (!hasData.value) return
+
     await nextTick()
-    // Reset disabled state when data changes
-    disabledSeries.value.clear();
     initChart()
   },
   { deep: true, immediate: true }

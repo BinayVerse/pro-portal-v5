@@ -1,3 +1,4 @@
+<!-- old StackedBarChart.vue -->
 <template>
   <div v-if="isMounted">
     <apexchart type="bar" height="400" :options="chartOptions" :series="series" :key="chartKey" />
@@ -22,9 +23,6 @@ const props = defineProps({
   },
 })
 
-// Track disabled series
-const disabledSeries = ref(new Set())
-
 // Force re-render key when data changes
 const chartKey = ref(0)
 
@@ -43,15 +41,6 @@ const rawAppKeys = computed(() => {
 // Order keys according to canonical APP_ORDER
 const appKeys = computed(() => orderLabels(rawAppKeys.value))
 
-// Get colors with opacity for disabled series
-const getSeriesColors = () => {
-  const baseColors = getColorsForLabels(appKeys.value)
-  return appKeys.value.map((key, index) => {
-    const color = baseColors[index]
-    return disabledSeries.value.has(key) ? color + '40' : color // 40 = 25% opacity (hex)
-  })
-}
-
 // Series for ApexCharts (use ordered keys)
 const series = computed(() => {
   return appKeys.value.map((app) => ({
@@ -60,16 +49,6 @@ const series = computed(() => {
   }))
 })
 
-// Handle legend click
-const handleLegendClick = (seriesName) => {
-  if (disabledSeries.value.has(seriesName)) {
-    disabledSeries.value.delete(seriesName)
-  } else {
-    disabledSeries.value.add(seriesName)
-  }
-  // Force chart update by incrementing key
-  chartKey.value++
-}
 
 // Chart options
 const chartOptions = computed(() => ({
@@ -85,14 +64,6 @@ const chartOptions = computed(() => ({
       animateGradually: { enabled: true, delay: 150 },
       dynamicAnimation: { enabled: true, speed: 350 },
     },
-    events: {
-      legendClick: function(chartContext, seriesIndex, config) {
-        // Get the series name from the index
-        const seriesName = appKeys.value[seriesIndex]
-        handleLegendClick(seriesName)
-        return false // Prevent default behavior
-      }
-    }
   },
   plotOptions: {
     bar: {
@@ -126,9 +97,6 @@ const chartOptions = computed(() => ({
     axisTicks: { show: true, color: '#78909C' },
   },
   yaxis: {
-    tooltip: {
-        enabled: false
-      },
     title: { text: 'Total Tokens' },
     labels: {
       formatter: (val) => val.toLocaleString(),
@@ -140,36 +108,23 @@ const chartOptions = computed(() => ({
     position: 'top',
     horizontalAlign: 'center',
     fontSize: '14px',
-    markers: { 
-      width: 12, 
-      height: 12, 
-      radius: 6,
-      // Use custom colors that reflect disabled state
-      fillColors: getSeriesColors()
-    },
+    markers: { width: 12, height: 12, radius: 6 },
     itemMargin: { horizontal: 10, vertical: 5 },
     formatter: (seriesName) => seriesName.charAt(0).toUpperCase() + seriesName.slice(1),
-    onItemClick: {
-      toggleDataSeries: false // Disable default toggle behavior
-    }
   },
-  fill: { 
-    opacity: 1,
-    colors: getSeriesColors()
-  },
-  colors: getSeriesColors(),
+  fill: { opacity: 1 },
+  colors: getColorsForLabels(appKeys.value),
   tooltip: {
     theme: 'dark',
     shared: true,
     intersect: false,
     custom: function ({ series, dataPointIndex, w }) {
       const category = w.globals.labels[dataPointIndex]
-      const colors = w.globals.colors // This will now include opacity for disabled series
 
       let rows = w.globals.seriesNames
         .map((name, i) => {
           const val = series[i][dataPointIndex]
-          const color = colors[i]
+          const color = w.globals.colors[i]
           if (val === 0) return ''
           const displayName = name.charAt(0).toUpperCase() + name.slice(1)
           return `
@@ -222,19 +177,11 @@ const chartOptions = computed(() => ({
   ],
 }))
 
-// Reset disabled state when data changes
+// Rerender on data/appKeys changes
 watch(
   () => props.chartData,
-  () => {
-    disabledSeries.value.clear()
-    chartKey.value++
-  },
+  () => chartKey.value++,
   { deep: true },
 )
-
-// Watch for appKeys changes
-watch(appKeys, () => {
-  disabledSeries.value.clear()
-  chartKey.value++
-})
+watch(appKeys, () => chartKey.value++)
 </script>

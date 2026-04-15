@@ -56,25 +56,25 @@ export default defineEventHandler(async (event) => {
         SELECT UNNEST(ARRAY['whatsapp', 'slack', 'teams', 'admin']) AS request_type
         ),
         usage_data AS (
-        SELECT 
+        SELECT
             t.request_type,
             SUM(t.total_tokens) AS total_tokens,
             SUM(t.total_cost) AS total_cost
-        FROM 
+        FROM
             token_cost_calculation t
-        WHERE 
+        WHERE
             t.org_id = $1
-            AND (t.created_at AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date
-        GROUP BY 
+            AND ((t.created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date
+        GROUP BY
             t.request_type
         )
-        SELECT 
+        SELECT
         INITCAP(rt.request_type) AS name,
         COALESCE(ud.total_tokens, 0) AS total_tokens,
         COALESCE(ud.total_cost, 0) AS total_cost
-        FROM 
+        FROM
         request_types rt
-        LEFT JOIN 
+        LEFT JOIN
         usage_data ud ON rt.request_type = ud.request_type;
     `;
 

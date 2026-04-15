@@ -63,12 +63,12 @@ export default defineEventHandler(async (event) => {
 
       const result = await query(
         `
-        SELECT dept_id, org_id, name, description, status, created_at, updated_at
+        SELECT dept_id, org_id, name, description, status, created_at, updated_at, is_system
         FROM organization_departments
         WHERE org_id = $1
           AND status = 'active'
           AND dept_id = ANY($2)
-        ORDER BY name ASC
+        ORDER BY CASE WHEN is_system = true THEN 0 ELSE 1 END, name ASC
         `,
         [orgId, deptIds],
       )
@@ -80,14 +80,14 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // ✅ Admin / User / Super Admin → all departments
+    // ✅ Admin / User / Super Admin → all departments (including system departments for filtering)
     const result = await query(
       `
-      SELECT dept_id, org_id, name, description, status, created_at, updated_at
+      SELECT dept_id, org_id, name, description, status, created_at, updated_at, is_system
       FROM organization_departments
       WHERE org_id = $1
         AND status = 'active'
-      ORDER BY name ASC
+      ORDER BY CASE WHEN is_system = true THEN 0 ELSE 1 END, name ASC
       `,
       [orgId],
     )

@@ -23,13 +23,22 @@ export default defineEventHandler(async (event) => {
   }
 
   const userId = decoded.user_id
-  const { startDate, endDate } = getQuery(event) as {
+  const { startDate, endDate, timezone } = getQuery(event) as {
     startDate: string
     endDate: string
+    timezone: string
   }
 
   if (!startDate || !endDate) {
     throw new CustomError('Bad Request: startDate and endDate are required', 400)
+  }
+
+  if (!timezone) {
+    throw new CustomError('Bad Request: timezone is required', 400)
+  }
+
+  if (!/^[A-Za-z_\/]+$/.test(timezone)) {
+    throw new CustomError('Invalid timezone format', 400)
   }
 
   // Caller role check
@@ -58,7 +67,7 @@ export default defineEventHandler(async (event) => {
   // -------------------------
   const usageQuery = `
     WITH per_app AS (
-        SELECT 
+        SELECT
             u.user_id,
             u.email,
             u.name,
@@ -70,7 +79,7 @@ export default defineEventHandler(async (event) => {
           ON u.user_id = t.user_id
          AND u.org_id  = t.org_id
         WHERE t.org_id = $1
-          AND t.created_at::date BETWEEN $2::date AND $3::date
+          AND ((t.created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date
         GROUP BY u.user_id, u.email, u.name, t.request_type
     ),
     ordered AS (
@@ -78,7 +87,7 @@ export default defineEventHandler(async (event) => {
         FROM per_app
         ORDER BY user_id, total_tokens DESC
     )
-    SELECT 
+    SELECT
         o.user_id,
         o.email,
         o.name,
@@ -103,7 +112,7 @@ export default defineEventHandler(async (event) => {
     SELECT COUNT(*) AS active_users_count
     FROM users
     WHERE org_id = $1
-      AND created_at::date BETWEEN $2::date AND $3::date;
+      AND ((created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date;
   `
 
   // -------------------------
@@ -113,22 +122,24 @@ export default defineEventHandler(async (event) => {
     SELECT COUNT(*) AS total_queries_count
     FROM token_cost_calculation
     WHERE org_id = $1
-      AND created_at::date BETWEEN $2::date AND $3::date
+      AND ((created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date
       AND (question_text IS NULL OR question_text NOT ILIKE 'Document summarization:%');
   `
 
   try {
-    // ALL QUERIES NOW USE EXACTLY 3 PARAMS
-    const { rows } = await query(usageQuery, [org_id, startDate, endDate])
+    // ALL QUERIES NOW USE EXACTLY 4 PARAMS (including timezone)
+    const { rows } = await query(usageQuery, [org_id, startDate, endDate, timezone])
     const { rows: activeUsers } = await query(activeUsersQuery, [
       org_id,
       startDate,
       endDate,
+      timezone,
     ])
     const { rows: totalQueries } = await query(totalQueriesQuery, [
       org_id,
       startDate,
       endDate,
+      timezone,
     ])
 
     return {
@@ -142,6 +153,7 @@ export default defineEventHandler(async (event) => {
         org_id,
         startDate,
         endDate,
+        timezone,
         active_users_count: Number(activeUsers[0]?.active_users_count || 0),
         total_queries_count: Number(totalQueries[0]?.total_queries_count || 0),
       },

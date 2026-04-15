@@ -44,12 +44,20 @@ export default defineEventHandler(async (event) => {
     }
 
     // -------------------------
-    // VALIDATE DATES + LIMIT
+    // VALIDATE DATES + LIMIT + TIMEZONE
     // -------------------------
-    const { startDate, endDate, limit = 10 } = getQuery(event)
+    const { startDate, endDate, limit = 10, timezone } = getQuery(event)
 
     if (!startDate || !endDate) {
         throw new CustomError('Bad Request: startDate and endDate are required', 400)
+    }
+
+    if (!timezone) {
+        throw new CustomError('Bad Request: timezone is required', 400)
+    }
+
+    if (!/^[A-Za-z_\/]+$/.test(timezone as string)) {
+        throw new CustomError('Invalid timezone format', 400)
     }
 
     const topUserLimit = Number(limit) || 10
@@ -61,16 +69,17 @@ export default defineEventHandler(async (event) => {
         SELECT user_id
         FROM token_cost_calculation
         WHERE org_id = $1
-        AND created_at::date BETWEEN $2::date AND $3::date
+        AND ((created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date
         GROUP BY user_id
         ORDER BY SUM(total_tokens) DESC
-        LIMIT $4;
+        LIMIT $5;
     `
 
     const topUsersRes = await query(topUsersSQL, [
         org_id,
         startDate,
         endDate,
+        timezone,
         topUserLimit
     ])
 
@@ -89,10 +98,10 @@ export default defineEventHandler(async (event) => {
     // STEP 2 — DAILY USAGE FOR TOP N USERS
     // -------------------------
     const sql = `
-        SELECT 
+        SELECT
             u.user_id,
             u.name,
-            (t.created_at)::date AS date,
+            TO_CHAR(((t.created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date, 'YYYY-MM-DD') AS date,
             SUM(t.total_tokens)::BIGINT AS total_tokens,
             SUM(t.total_cost)::FLOAT AS total_cost
         FROM token_cost_calculation t
@@ -100,9 +109,9 @@ export default defineEventHandler(async (event) => {
         ON t.user_id = u.user_id
         AND t.org_id  = u.org_id
         WHERE t.org_id = $1
-        AND t.user_id = ANY($4)
-        AND t.created_at::date BETWEEN $2::date AND $3::date
-        GROUP BY u.user_id, u.name, (t.created_at)::date
+        AND t.user_id = ANY($5)
+        AND ((t.created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date BETWEEN $2::date AND $3::date
+        GROUP BY u.user_id, u.name, ((t.created_at AT TIME ZONE 'UTC') AT TIME ZONE $4)::date
         ORDER BY u.user_id, date;
     `
 
@@ -111,6 +120,7 @@ export default defineEventHandler(async (event) => {
             org_id,
             startDate,
             endDate,
+            timezone,
             topUserIds,
         ])
 

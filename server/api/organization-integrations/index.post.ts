@@ -2,7 +2,7 @@ import { defineEventHandler, readBody, setResponseStatus } from 'h3'
 import { query } from '../../utils/db'
 import { CustomError } from '../../utils/custom.error'
 import jwt from 'jsonwebtoken'
-import { createOrganizationIntegration } from '../../utils/dbHelpers'
+import { createOrganizationIntegration, createIntegrationAuditLog } from '../../utils/dbHelpers'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -34,9 +34,9 @@ export default defineEventHandler(async (event) => {
 
     // Read request body
     const body = await readBody(event)
-    
+
     // Validate required fields
-    const requiredFields = ['provider_id', 'agent_id', 'module_id', 'connection_name', 'client_id']
+    const requiredFields = ['provider_id', 'agent_id', 'module_id', 'client_id']
     for (const field of requiredFields) {
       if (!body[field]) {
         setResponseStatus(event, 400)
@@ -63,33 +63,68 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('Module not found', 404)
     }
 
+    // Check if this agent+module combination already exists for this provider
+    const duplicateRes = await query(
+      `SELECT id FROM public.organization_integrations
+       WHERE organization_id = $1 AND provider_id = $2 AND agent_id = $3 AND module_id = $4`,
+      [orgId, body.provider_id, body.agent_id, body.module_id]
+    )
+
+    if (duplicateRes.rowCount > 0) {
+      setResponseStatus(event, 409)
+      throw new CustomError(
+        'This agent and module combination already exists for this provider. Cannot create duplicate.',
+        409
+      )
+    }
+
     // Create integration using helper function
+    const integrationData = {
+      client_id: body.client_id,
+      client_secret: body.client_secret || null,
+      api_key: body.api_key || null,
+      access_token: body.access_token || null,
+      refresh_token: body.refresh_token || null,
+      token_expiry: body.token_expiry || null,
+      base_url: body.base_url || null,
+      login_url: body.login_url || null,
+      metadata_json: {
+        login_url: body.login_url || null,
+        base_url: body.base_url || null,
+        api_key: body.api_key || null,
+        ...(body.metadata_json || {})
+      },
+      status: body.status || 'active',
+      hrms_system: body.hrms_system,
+      is_hrms: body.is_hrms,
+      module_ids: body.module_id ? [body.module_id] : []
+    }
+
     const result = await createOrganizationIntegration(
       orgId,
       body.provider_id,
       body.agent_id,
       body.module_id,
-      {
-        connection_name: body.connection_name,
-        client_id: body.client_id,
-        client_secret: body.client_secret || null,
-        api_key: body.api_key || null,
-        access_token: body.access_token || null,
-        refresh_token: body.refresh_token || null,
-        token_expiry: body.token_expiry || null,
-        base_url: body.base_url || null,
-        login_url: body.login_url || null,
-        metadata_json: body.metadata_json || {},
-        status: body.status || 'active',
-        hrms_system: body.hrms_system,
-        is_hrms: body.is_hrms
-      }
+      integrationData
     )
 
     if (!result.success) {
       setResponseStatus(event, 500)
       throw new CustomError(result.error || 'Failed to create integration', 500)
     }
+
+    // Create audit log for creation
+    await createIntegrationAuditLog(
+      result.id!,
+      orgId,
+      'create',
+      userId,
+      event,
+      undefined,
+      integrationData
+    )
+
+    // Note: HRMS integration is already handled by createOrganizationIntegration helper function
 
     setResponseStatus(event, 201)
     return {

@@ -51,9 +51,11 @@
                 {{ row.name }}
               </div>
             </AppTooltip>
-            <div class="text-xs sm:text-sm text-gray-400 truncate hidden sm:block">
-              {{ row.description }}
-            </div>
+            <AppTooltip :text="row.description">
+              <div class="text-xs sm:text-sm text-gray-400 truncate hidden sm:block">
+                {{ row.description }}
+              </div>
+            </AppTooltip>
           </div>
         </div>
       </template>
@@ -94,7 +96,7 @@
               :key="deptId"
               size="xs"
               variant="solid"
-              color="blue"
+              :color="getDepartmentBadgeColor(deptId)"
               class="font-medium"
               :ui="{ rounded: 'rounded-full' }"
             >
@@ -251,7 +253,7 @@
 </template>
 
 <script setup lang="ts">
-import { withDefaults, computed, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 interface Artefact {
   id: number
   name: string
@@ -519,5 +521,12 @@ const getDepartmentTooltip = (deptIds?: string[]): string => {
   }
   const deptNames = deptIds.map((id: string) => props.departmentNameMap[id] || 'Unknown').join(', ')
   return `Department-specific - Accessible only to: ${deptNames}`
+}
+
+// Helper function to get badge color for department
+const getDepartmentBadgeColor = (deptId: string): string => {
+  const deptName = props.departmentNameMap[deptId]
+  // Use gray color for Common department, blue for others
+  return deptName === 'Common' ? 'gray' : 'blue'
 }
 </script>

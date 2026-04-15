@@ -34,12 +34,28 @@ export default defineEventHandler(async (event) => {
 
     const orgId = user.rows[0].org_id
 
+    // Check if the department is a system department
+    const deptCheck = await query(
+        'SELECT is_system FROM organization_departments WHERE dept_id = $1 AND org_id = $2',
+        [deptId, orgId],
+    )
+
+    if (!deptCheck.rows.length) {
+        setResponseStatus(event, 404)
+        throw new CustomError('Department not found', 404)
+    }
+
+    if (deptCheck.rows[0].is_system) {
+        setResponseStatus(event, 403)
+        throw new CustomError('Cannot edit system departments', 403)
+    }
+
     const result = await query(
         `
             UPDATE organization_departments
             SET name = $1, description = $2, updated_at = now(), updated_by = $5
             WHERE dept_id = $3 AND org_id = $4
-            RETURNING dept_id AS id, name, description, status
+            RETURNING dept_id AS id, name, description, status, is_system
         `,
         [name, description, deptId, orgId, userId],
     )
