@@ -43,7 +43,7 @@
 
             <!-- Title + Period -->
             <div>
-              <h3 class="text-xl font-semibold text-white">AI Knowledge Gap</h3>
+              <h3 class="text-xl font-semibold text-white">Knowledge Enhancement Opportunities</h3>
 
               <p class="text-sm text-gray-400 mt-1">
                 Period: {{ formatDateRange(period.start_date, period.end_date) }}
@@ -146,14 +146,14 @@
                 <div class="flex items-start justify-between mb-2">
                   <h5 class="text-red-400 font-semibold flex-1">{{ question.intent }}</h5>
                   <span class="bg-red-500/20 text-red-300 text-xs px-2 py-1 rounded ml-2">
-                    Asked {{ question.combined_frequency }}x
+                    Queried {{ question.combined_frequency }}x
                   </span>
                 </div>
                 <p class="text-sm text-gray-400">
-                  {{ question.unique_askers }} unique asker{{
+                  {{ question.unique_askers }} unique user{{
                     question.unique_askers !== 1 ? 's' : ''
                   }}
-                  | Last asked: {{ formatDate(question.last_asked) }}
+                  | Last queried: {{ formatDate(question.last_asked) }}
                 </p>
               </div>
             </div>
@@ -166,48 +166,13 @@
               Coverage Trend ({{ coverageTrend.bucket }})
             </h4>
 
-            <div class="space-y-3">
-              <div
-                v-for="period in coverageTrend.data"
-                :key="period.period"
-                class="bg-dark-800 rounded-lg p-4 border border-dark-700"
-              >
-                <div class="flex items-center justify-between mb-3">
-                  <span class="text-white font-medium">{{ formatDate(period.period) }}</span>
-                  <span class="text-blue-400 text-sm">
-                    {{ period.answered }} / {{ period.total }} answered
-                  </span>
-                </div>
-                <div class="flex gap-2">
-                  <!-- Answered bar -->
-                  <div class="flex-1">
-                    <p class="text-xs text-green-400 mb-1">Answered</p>
-                    <div class="w-full bg-dark-700 rounded-full h-2">
-                      <div
-                        class="bg-green-600 h-2 rounded-full"
-                        :style="{
-                          width: `${Math.min((period.answered / period.total) * 100, 100)}%`,
-                        }"
-                      ></div>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">{{ period.answered }}</p>
-                  </div>
-                  <!-- Unanswered bar -->
-                  <div class="flex-1">
-                    <p class="text-xs text-red-400 mb-1">Unanswered</p>
-                    <div class="w-full bg-dark-700 rounded-full h-2">
-                      <div
-                        class="bg-red-600 h-2 rounded-full"
-                        :style="{
-                          width: `${Math.min((period.unanswered / period.total) * 100, 100)}%`,
-                        }"
-                      ></div>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">{{ period.unanswered }}</p>
-                  </div>
-                </div>
-                <p class="text-xs text-gray-400 mt-3">Total queries: {{ period.total }}</p>
-              </div>
+            <div class="bg-dark-800 rounded-lg p-4 border border-dark-700">
+              <apexchart
+                type="bar"
+                :series="coverageTrendSeries"
+                :options="coverageTrendChartOptions"
+                :height="300"
+              ></apexchart>
             </div>
           </div>
 
@@ -260,7 +225,7 @@
 
                 <div class="mb-3 space-y-1">
                   <p class="text-sm text-gray-300">
-                    <span class="text-gray-400">Asked {{ cluster.total_times_asked }} times</span>
+                    <span class="text-gray-400">Queried {{ cluster.total_times_asked }} times</span>
                   </p>
                   <p class="text-sm text-gray-300">
                     <span class="text-gray-400"
@@ -333,6 +298,17 @@
             >
               Export
             </UButton>
+
+            <!-- Send Email (Primary) -->
+            <UButton
+              size="lg"
+              :loading="props.sendingEmail"
+              :disabled="props.sendingEmail"
+              class="min-w-[150px] justify-center bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-all duration-200 shadow-md"
+              @click="handleSendEmail"
+            >
+              {{ props.sendingEmail ? 'Sending...' : 'Send Email' }}
+            </UButton>
           </div>
         </div>
       </div>
@@ -348,6 +324,7 @@ const props = defineProps<{
   modelValue: boolean
   knowledgeGapData: any | null
   loading: boolean
+  sendingEmail: boolean
   error: string | null
 }>()
 
@@ -355,6 +332,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'close'): void
   (e: 'export'): void
+  (e: 'sendEmail'): void
   (e: 'retry'): void
 }>()
 
@@ -380,6 +358,122 @@ const capitalize = (text: any) => {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+const coverageTrendSeries = computed(() => {
+  if (!coverageTrend.value.data?.length) return []
+
+  const answeredData = coverageTrend.value.data.map((period) => period.answered)
+  const unansweredData = coverageTrend.value.data.map((period) => period.unanswered)
+
+  return [
+    {
+      name: 'Answered',
+      data: answeredData,
+    },
+    {
+      name: 'Unanswered',
+      data: unansweredData,
+    },
+  ]
+})
+
+const coverageTrendChartOptions = computed(() => {
+  if (!coverageTrend.value.data?.length)
+    return {
+      chart: { type: 'bar', toolbar: { show: false } },
+      xaxis: { categories: [] },
+    }
+
+  // Generate X-axis labels dynamically based on the bucket type
+  const bucket = coverageTrend.value.bucket?.toLowerCase() || 'daily'
+  const xaxisLabels = coverageTrend.value.data.map((period, index) => {
+    const date = dayjs(period.period)
+
+    switch (bucket) {
+      case 'daily':
+        return date.format('YYYY-MM-DD')
+      case 'weekly':
+        return `Week of ${date.format('YYYY-MM-DD')}`
+      case 'monthly':
+        return date.format('MMMM YYYY')
+      case 'yearly':
+        return date.format('YYYY')
+      default:
+        return formatDate(period.period)
+    }
+  })
+
+  return {
+    chart: {
+      type: 'bar',
+      toolbar: { show: false },
+      background: 'transparent',
+    },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '65%',
+        borderRadius: 4,
+      },
+    },
+    dataLabels: {
+      enabled: false,
+    },
+    stroke: {
+      show: true,
+      width: 0,
+      colors: ['transparent'],
+    },
+    colors: ['#16a34a', '#dc2626'],
+    xaxis: {
+      categories: xaxisLabels,
+      title: {
+        text: `Period (${capitalize(bucket)})`,
+        style: {
+          color: '#9ca3af',
+          fontSize: '12px',
+        },
+      },
+      labels: {
+        style: {
+          colors: '#9ca3af',
+          fontSize: '12px',
+        },
+      },
+    },
+    yaxis: {
+      title: {
+        text: 'Answered vs Unanswered Queries',
+        style: {
+          color: '#9ca3af',
+          fontSize: '12px',
+        },
+      },
+      labels: {
+        style: {
+          colors: '#9ca3af',
+        },
+      },
+    },
+    fill: {
+      opacity: 1,
+    },
+    tooltip: {
+      y: {
+        formatter: function (val: number) {
+          return val.toString()
+        },
+      },
+      theme: 'dark',
+    },
+    legend: {
+      position: 'top',
+      labels: {
+        colors: '#e5e7eb',
+      },
+    },
+  }
+})
+
 watch(
   () => props.modelValue,
   (val) => {
@@ -398,6 +492,10 @@ const handleClose = () => {
 
 const handleExport = () => {
   emit('export')
+}
+
+const handleSendEmail = () => {
+  emit('sendEmail')
 }
 
 const formatDateRange = (startDate?: string, endDate?: string) => {

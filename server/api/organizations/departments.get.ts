@@ -2,6 +2,7 @@ import { defineEventHandler, setResponseStatus } from 'h3'
 import { CustomError } from '../../utils/custom.error'
 import { query } from '../../utils/db'
 import jwt from 'jsonwebtoken'
+import { logError } from '../../utils/logger'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -99,7 +100,7 @@ export default defineEventHandler(async (event) => {
       data: result.rows || [],
     }
   } catch (err: any) {
-    console.error('Error fetching departments:', err)
+    logError('Error fetching departments', err)
     setResponseStatus(event, 500)
     throw new CustomError('Failed to fetch departments', 500)
   }

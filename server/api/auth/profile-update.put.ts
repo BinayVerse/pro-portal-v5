@@ -1,6 +1,7 @@
 import { defineEventHandler, readBody } from 'h3';
 import { CustomError } from '../../utils/custom.error';
 import { query } from '../../utils/db';
+import { logWarn, logError } from '../../utils/logger';
 import { generateResetLink, sendWelcomeMail, sendOrganizationOnboardedMail } from '../helper';
 import { GoogleSignupValidation } from '../../utils/validations';
 import jwt from 'jsonwebtoken';
@@ -286,7 +287,7 @@ export default defineEventHandler(async (event) => {
                 billingUpdated = true;
 
             } catch (err) {
-                console.warn('Billing address update error:', err);
+                logWarn('Billing address update error:', err);
             }
         }
 
@@ -358,7 +359,7 @@ export default defineEventHandler(async (event) => {
         };
 
     } catch (err: any) {
-        console.error('Profile update error:', err);
+        logError('Profile update error:', err);
         throw new CustomError(err.message || 'Internal Server Error', err.statusCode || 500);
     }
 });
