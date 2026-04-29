@@ -150,6 +150,90 @@ html {
   color: var(--teal) !important
 }
 
+/* Mobile Menu Toggle Button */
+.landing-page .nav-mobile-toggle {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.landing-page .nav-mobile-toggle span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--white);
+  border-radius: 1px;
+  transition: all .3s ease;
+}
+
+/* Mobile Menu Styles */
+@media(max-width: 1024px) {
+  .landing-page .nav-mobile-toggle {
+    display: flex;
+  }
+
+  .landing-page>nav ul {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(5, 13, 24, .98);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    flex-direction: column;
+    gap: 0;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 20px;
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform .3s ease;
+    z-index: 199;
+  }
+
+  .landing-page>nav ul.mobile-open {
+    transform: translateX(0);
+  }
+
+  .landing-page>nav ul li {
+    width: 100%;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border2);
+  }
+
+  .landing-page>nav ul li:first-child {
+    padding-top: 0;
+  }
+
+  .landing-page>nav ul button {
+    display: block;
+    width: 100%;
+    text-align: left;
+  }
+
+  .landing-page>nav ul a {
+    display: block;
+    width: 100%;
+  }
+
+  .landing-page .nav-demo {
+    width: 100%;
+    text-align: center;
+  }
+
+  .landing-page .nav-login {
+    width: 100%;
+    text-align: center;
+    display: block;
+  }
+}
+
 /* HERO */
 .landing-page .hero {
   position: relative;
@@ -237,12 +321,10 @@ html {
   0%,
   100% {
     opacity: 1;
-    transform: scale(1)
   }
 
   50% {
     opacity: .3;
-    transform: scale(.6)
   }
 }
 
@@ -2021,10 +2103,6 @@ html {
     grid-template-columns: 1fr 1fr
   }
 
-  .landing-page>nav ul {
-    display: none
-  }
-
   .landing-page .problem-hero-stat {
     grid-template-columns: 1fr 1fr
   }
@@ -2039,7 +2117,8 @@ html {
   .landing-page .drivers-grid,
   .landing-page .steps-grid,
   .landing-page .pricing-grid,
-  .landing-page .team-grid {
+  .landing-page .team-grid,
+  .landing-page .problem-hero-stat {
     grid-template-columns: 1fr
   }
 
@@ -2048,11 +2127,59 @@ html {
   }
 
   .landing-page h1 {
-    font-size: 2.5rem
+    font-size: 2rem
   }
 
   .landing-page .comp-table {
     font-size: .72rem
+  }
+
+  .landing-page .hero {
+    padding: 100px 5% 40px
+  }
+
+  .landing-page .hero-sub {
+    font-size: 0.95rem
+  }
+
+  .landing-page .btn-row {
+    flex-direction: column
+  }
+
+  .landing-page .btn-primary,
+  .landing-page .btn-ghost {
+    width: 100%;
+    text-align: center
+  }
+
+  .landing-page .hero-stats {
+    flex-direction: column;
+    gap: 16px
+  }
+
+  .landing-page .hstat-divider {
+    display: none
+  }
+
+  .landing-page .wrap {
+    padding: 60px 5%
+  }
+
+  .landing-page .hero-kicker {
+    font-size: 0.65rem
+  }
+
+  .landing-page .nav-logo img {
+    width: 100px
+  }
+
+  .landing-page .nav-logo span {
+    font-size: 0.9rem
+  }
+
+  .landing-page>nav {
+    height: 56px;
+    padding: 0 4%
   }
 }
 
@@ -2093,6 +2220,22 @@ html {
   transform: scaleX(0);
   transform-origin: left;
   transition: transform .2s
+}
+
+@media(max-width: 1024px) {
+  .landing-page>nav button::after {
+    bottom: 0
+  }
+
+  .landing-page>nav button.is-active::after {
+    left: 0;
+    right: auto;
+    width: 3px;
+    height: 100%;
+    bottom: 0;
+    transform: scaleY(1);
+    transform-origin: top
+  }
 }
 
 .landing-page .footer-col button {

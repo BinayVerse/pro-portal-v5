@@ -4,7 +4,14 @@
       <img src="/images/logo.svg" alt="provento.ai" style="height: 32px; width: 32px" />
       <span>provento.ai</span>
     </NuxtLink>
-    <ul>
+    <!-- Mobile Menu Button -->
+    <button class="nav-mobile-toggle" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Toggle menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <!-- Desktop Nav -->
+    <ul :class="{ 'mobile-open': mobileMenuOpen }">
       <li>
         <button
           type="button"
@@ -97,6 +104,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const profileStore = useProfileStore()
 const activeSection = ref('')
+const mobileMenuOpen = ref(false)
 let sectionObserver: IntersectionObserver | null = null
 
 const isProfileComplete = computed(() => {
@@ -141,6 +149,7 @@ async function goToSection(sectionId: string) {
   }
 
   scrollToSection(sectionId)
+  mobileMenuOpen.value = false
 }
 
 const observeSections = async () => {
